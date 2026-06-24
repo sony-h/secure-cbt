@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "Secure CBT Platform - NestJS Backend API",
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",

@@ -187,7 +187,7 @@ model Subject {
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
 
-  major            Major             @relation(fields: [major_id], references: [id], onDelete: SetNull)
+  major            Major?            @relation(fields: [major_id], references: [id], onDelete: SetNull)
   teacher_subjects TeacherSubject[]
   question_banks   QuestionBank[]
   exams            Exam[]

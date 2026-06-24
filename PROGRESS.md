@@ -1,8 +1,9 @@
 # Progress Note: Secure CBT Platform
 
-**Current Phase:** Phase 2 - Infrastructure & Frontend Scaffolding - COMPLETED
+**Current Phase:** Phase 2 - Infrastructure & Frontend Scaffolding - COMPLETED → Moving to Phase 3
 **Target Platform:** Indonesian High Schools (SMA/SMK)
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)
+**Last Updated:** 2026-06-24
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -102,40 +103,60 @@ users, students, teachers, teacher_subjects, academic_years, majors, classes, su
 
 ---
 
+## Environment Bootstrapped (2026-06-24)
+
+### 1. Git Repository
+- Initialized git repository with 169 files (15,877 lines)
+- `.gitignore` covers node_modules, build outputs, .env, IDE files, mobile platforms
+
+### 2. Docker Infrastructure - RUNNING
+- PostgreSQL 16 (healthy), Redis 7 (healthy), MinIO (healthy) via `docker compose up -d`
+- **Fixed:** Removed obsolete `version` field from docker-compose.yml
+- **Fixed:** `docker/Dockerfile.prisma` - now installs `openssl` (required by Prisma engine), uses pnpm for workspace protocol, bind-mounts prisma directory for migration persistence
+
+### 3. Database - MIGRATED & SEEDED
+- **Initial migration** `20260624000000_init` created and applied (23 tables, 6 enums)
+- **Schema fix:** `Subject.major` changed from `Major` to `Major?` (matching optional `major_id`)
+- **Seed completed:** admin/admin123, operator/operator123, teacher/teacher123, 30 students (NIS-based login), 12 subjects, 5 sample questions
+- **Seed fixes:** Fixed relative import paths (`../../src/` → `../src/`), added `prisma.seed` config to `package.json`
+
 ## Known Issues
-- **Prisma Client Generation:** Prisma 5.22.0 WASM engine incompatible with Node.js v24.15.0 on Windows. **Solution:** Use Docker (`docker compose --profile setup up prisma-migrate prisma-seed`) or switch to Node v22 via nvm.
+- **Prisma Client Generation:** Prisma 5.22.0 WASM engine incompatible with Node.js v24.15.0 on Windows. **Solution:** Use Docker (`docker compose --profile setup run --rm prisma-migrate`) ✓ Works
 - **PowerShell Execution Policy:** Windows PowerShell blocks `pnpm`, `npx`, `npm` script execution. **Solution:** Use `cmd /c` prefix or Docker for dependency installation.
 - **Dashboard dependencies not installed:** `pnpm install` needs to be run (blocked by execution policy). Use Docker or set ExecutionPolicy to RemoteSigned.
+- **Flutter not installed:** Cannot build mobile app. Need to install Flutter SDK.
+- **No Node v22 on host:** Prisma WASM engine needs Node v22. Docker uses Node 22 Alpine image - works.
 
 ---
 
 ## Immediate Next Steps (Phase 3)
-1. **Run Docker Infrastructure:**
-   - `docker compose up -d` (starts PostgreSQL, Redis, MinIO)
-   - `docker compose --profile setup up prisma-migrate` (runs migrations)
-   - `docker compose --profile setup up prisma-seed` (seeds database)
-   - `docker compose up backend` (starts NestJS API)
-2. **Install & Run Dashboard:**
+1. ~~**Run Docker Infrastructure:**~~ ✓ Done
+   - `docker compose up -d` ✓
+   - `docker compose --profile setup run --rm prisma-migrate` ✓
+   - `docker compose --profile setup run --rm prisma-seed` ✓
+2. **Start Backend API:** `docker compose up backend` or run locally
+3. **Install & Run Dashboard:**
    - `pnpm install` then `pnpm dev` from `apps/dashboard` (runs on port 3001)
    - Or: Create a Dockerfile for the dashboard
-3. **Setup Flutter Project:**
+4. **Setup Flutter Project:**
+   - Install Flutter SDK
    - Run `flutter create` in `apps/mobile` to generate platform files
    - Copy source files from `lib/` into the generated project
    - Run `flutter pub get && dart run build_runner build`
    - Build and test on Android emulator
-4. **Backend Testing:**
+5. **Backend Testing:**
    - Write unit tests (Vitest) for Auth, Exam, Session, Grading services
    - Write E2E tests (Playwright) for critical user flows
-5. **Remaining Dashboard Pages:**
+6. **Remaining Dashboard Pages:**
    - Build Question Bank CRUD (list, create/edit, duplicate)
    - Build Exam management (create wizard, publish, monitoring)
    - Build Real-time Monitoring page (Socket.io connection)
    - Build Reports page (charts with Recharts)
    - Build Settings page
-6. **Flutter Native Plugins:**
+7. **Flutter Native Plugins:**
    - Implement Kotlin Native plugins for FLAG_SECURE, Lock Task Mode
    - Implement app background / split-screen detection
    - Implement fullscreen enforcement during exam
-7. **Load Testing:**
+8. **Load Testing:**
    - k6 scripts for 100/500/1000 concurrent students
    - Performance tuning based on results

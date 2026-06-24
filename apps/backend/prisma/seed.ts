@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import * as argon2 from 'argon2';
-import { PrismaService } from '../../src/prisma/prisma.service';
-import { PrismaModule } from '../../src/prisma/prisma.module';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaModule } from '../src/prisma/prisma.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
@@ -205,7 +205,7 @@ async function seed() {
             user_id: studentUser.id,
             nis,
             full_name: `Siswa ${classNames[c]} ${i}`,
-            class_id: classes[c].id,
+            class_id: classes[c]!.id,
             status: 'ACTIVE',
           },
         });
