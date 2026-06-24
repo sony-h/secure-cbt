@@ -86,7 +86,7 @@ export class QuestionBankService {
       });
 
       await tx.questionOption.createMany({
-        data: data.options.map((opt, idx) => ({
+        data: data.options.map((opt: { content: string; is_correct: boolean }, idx: number) => ({
           question_id: question.id,
           content: opt.content,
           is_correct: opt.is_correct,
@@ -96,7 +96,7 @@ export class QuestionBankService {
 
       if (data.tags?.length) {
         await tx.questionTag.createMany({
-          data: data.tags.map((tag) => ({ question_id: question.id, tag })),
+          data: data.tags.map((tag: string) => ({ question_id: question.id, tag })),
         });
       }
 
@@ -158,7 +158,7 @@ export class QuestionBankService {
 
   async duplicate(id: string) {
     const original = await this.findById(id);
-    const { id: _id, created_at, updated_at, deleted_at, ...rest } = original;
+    const { id: _id, created_at, updated_at, deleted_at, options, tags, question_bank, ...rest } = original;
     const newQuestion = await this.prisma.question.create({
       data: { ...rest, content: `${rest.content} (copy)` },
     });

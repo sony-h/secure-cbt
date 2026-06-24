@@ -85,6 +85,34 @@ services:
     profiles:
       - setup
 
+  # ── Backend API (NestJS) ─────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.prisma
+    container_name: secure-cbt-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: 'postgresql://postgres:postgres@postgres:5432/secure_cbt?schema=public'
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      JWT_ACCESS_SECRET: 'dev-access-secret'
+      JWT_REFRESH_SECRET: 'dev-refresh-secret'
+      PORT: '3000'
+      NODE_ENV: 'development'
+      CORS_ORIGIN: 'http://localhost:3001'
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./apps/backend/prisma:/app/apps/backend/prisma
+      - ./apps/backend/src:/app/apps/backend/src
+      - ./packages/shared/src:/app/packages/shared/src
+    command: ['sh', '-c', 'cd /app/packages/shared && npx tsc && cd /app/apps/backend && npx prisma generate && npx tsc && node dist/main.js']
+
 volumes:
   postgres_data:
   redis_data:

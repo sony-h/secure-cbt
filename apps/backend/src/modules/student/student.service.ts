@@ -95,7 +95,7 @@ export class StudentService {
 
     for (const row of rows) {
       try {
-        const cls = await this.prisma.class.findFirst({ where: { name: row.class_name, deleted_at: null } });
+        const cls = await this.prisma.class.findFirst({ where: { name: row.class_name } });
         if (!cls) {
           results.failed++;
           results.errors.push(`Class "${row.class_name}" not found for NIS ${row.nis}`);

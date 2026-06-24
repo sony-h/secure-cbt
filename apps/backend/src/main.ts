@@ -44,7 +44,10 @@ async function bootstrap() {
   );
 
   // ── Trust proxy (for rate limiting behind reverse proxy) ─────
-  app.set('trust proxy', 1);
+  const expressApp = app.getHttpAdapter().getInstance();
+  if (typeof expressApp.set === 'function') {
+    expressApp.set('trust proxy', 1);
+  }
 
   // ── API prefix ───────────────────────────────────────────────
   app.setGlobalPrefix('api/v1');

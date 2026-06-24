@@ -8,25 +8,27 @@ RUN apk add --no-cache openssl
 # Install pnpm to handle workspace protocol
 RUN npm install -g pnpm@9
 
-# Copy workspace config
+# Copy workspace config and all package.json files first (for dependency resolution)
 COPY pnpm-workspace.yaml .
 COPY package.json .
 COPY tsconfig.json .
 
-# Copy backend - needed for seed which uses NestJS
+# Copy all workspace package.json files
 COPY apps/backend/package.json apps/backend/package.json
+COPY apps/dashboard/package.json apps/dashboard/package.json
+COPY packages/shared/package.json packages/shared/package.json
+
+# Install ALL workspace dependencies (resolves workspace:* properly)
+RUN pnpm install --frozen-lockfile=false
+
+# Copy source files after install (so code changes don't bust layer cache)
 COPY apps/backend/nest-cli.json apps/backend/nest-cli.json
 COPY apps/backend/tsconfig.json apps/backend/tsconfig.json
 COPY apps/backend/prisma/ apps/backend/prisma/
 COPY apps/backend/src/ apps/backend/src/
 
-# Copy shared package (needed because backend depends on it via workspace:*)
-COPY packages/shared/package.json packages/shared/package.json
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
 COPY packages/shared/src/ packages/shared/src/
-
-# Install Prisma, its dependencies, and seed runner tools
-RUN cd apps/backend && pnpm add prisma @prisma/client ts-node typescript @types/node
 
 WORKDIR /app/apps/backend
 

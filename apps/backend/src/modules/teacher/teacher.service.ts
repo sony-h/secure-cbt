@@ -57,7 +57,7 @@ export class TeacherService {
       });
       if (data.subject_ids?.length) {
         await tx.teacherSubject.createMany({
-          data: data.subject_ids.map((sid) => ({ teacher_id: teacher.id, subject_id: sid })),
+          data: data.subject_ids.map((sid: string) => ({ teacher_id: teacher.id, subject_id: sid })),
         });
       }
       return tx.teacher.findUnique({

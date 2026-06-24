@@ -29,7 +29,7 @@ export class GradingService {
   async calculateTotalScore(sessionId: string, graderId?: string) {
     const session = await this.prisma.examSession.findUnique({
       where: { id: sessionId },
-      include: { answers: { include: { question: true } }, exam: true },
+      include: { answers: { include: { question: true } }, exam: { include: { exam_questions: true } } },
     });
     if (!session) throw new NotFoundException('Session not found');
 

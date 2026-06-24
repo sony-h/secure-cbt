@@ -78,7 +78,7 @@ export class ExamService {
       // Assign classes
       if (data.class_ids.length) {
         await tx.examClass.createMany({
-          data: data.class_ids.map((cid) => ({ exam_id: exam.id, class_id: cid })),
+          data: data.class_ids.map((cid: string) => ({ exam_id: exam.id, class_id: cid })),
         });
       }
 
