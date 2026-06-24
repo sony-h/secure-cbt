@@ -51,18 +51,19 @@ interface QuestionFormData {
   tags: string[];
 }
 
+const DEFAULT_OPTION_COUNT = 5;
+
+function makeEmptyOptions(count: number = DEFAULT_OPTION_COUNT) {
+  return Array.from({ length: count }, () => ({ content: '', is_correct: false }));
+}
+
 const emptyForm: QuestionFormData = {
   question_bank_id: '',
   type: 'MULTIPLE_CHOICE',
   content: '',
   difficulty: 'MEDIUM',
   explanation: '',
-  options: [
-    { content: '', is_correct: false },
-    { content: '', is_correct: false },
-    { content: '', is_correct: false },
-    { content: '', is_correct: false },
-  ],
+  options: makeEmptyOptions(),
   tags: [],
 };
 
@@ -181,11 +182,14 @@ function QuestionModal({
           {/* Options (for objective types) */}
           {form.type !== 'ESSAY' && (
             <div className="space-y-3">
-              <Label>Pilihan Jawaban</Label>
+              <div className="flex items-center justify-between">
+                <Label>Pilihan Jawaban</Label>
+                <span className="text-xs text-muted-foreground">{form.options.length} opsi</span>
+              </div>
               {form.options.map((opt, idx) => (
                 <div key={idx} className="flex items-center gap-3">
-                  <span className="w-8 text-sm font-medium text-muted-foreground">
-                    {String.fromCharCode(65 + idx)}.
+                  <span className="w-8 text-sm font-medium text-muted-foreground shrink-0">
+                    {String.fromCharCode(65 + (idx % 26))}{idx >= 26 ? String.fromCharCode(65 + Math.floor(idx / 26) - 1) : ''}.
                   </span>
                   <Input
                     value={opt.content}
@@ -194,9 +198,9 @@ function QuestionModal({
                       newOpts[idx] = { ...newOpts[idx], content: e.target.value };
                       setForm({ ...form, options: newOpts });
                     }}
-                    placeholder={`Pilihan ${String.fromCharCode(65 + idx)}`}
+                    placeholder={`Pilihan ${String.fromCharCode(65 + (idx % 26))}${idx >= 26 ? String.fromCharCode(65 + Math.floor(idx / 26) - 1) : ''}`}
                   />
-                  <label className="flex items-center gap-1 text-sm cursor-pointer">
+                  <label className="flex items-center gap-1 text-sm cursor-pointer shrink-0">
                     <input
                       type={form.type === 'MULTI_SELECT' ? 'checkbox' : 'radio'}
                       name="correct"
@@ -206,7 +210,7 @@ function QuestionModal({
                         if (form.type === 'MULTI_SELECT') {
                           newOpts[idx] = { ...newOpts[idx], is_correct: !opt.is_correct };
                         } else {
-                          form.options.forEach((_, i) => {
+                          newOpts.forEach((_, i) => {
                             newOpts[i] = { ...newOpts[i], is_correct: i === idx };
                           });
                         }
@@ -215,8 +219,39 @@ function QuestionModal({
                     />
                     Benar
                   </label>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0"
+                    disabled={form.options.length <= 2}
+                    onClick={() => {
+                      if (form.options.length <= 2) return;
+                      const newOpts = form.options.filter((_, i) => i !== idx);
+                      // If we removed the correct option, uncheck all
+                      const hadCorrect = form.options.some((o, i) => i !== idx && o.is_correct);
+                      if (!hadCorrect && opt.is_correct) {
+                        newOpts[0] = { ...newOpts[0], is_correct: true };
+                      }
+                      setForm({ ...form, options: newOpts });
+                    }}
+                    title="Hapus opsi"
+                  >
+                    <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                  </Button>
                 </div>
               ))}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                disabled={form.options.length >= 26}
+                onClick={() => {
+                  setForm({ ...form, options: [...form.options, { content: '', is_correct: false }] });
+                }}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Tambah Opsi ({form.options.length}/26)
+              </Button>
             </div>
           )}
 
