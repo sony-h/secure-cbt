@@ -1,0 +1,56 @@
+# ── Development Stage ────────────────────────────────────────
+FROM node:22-alpine AS development
+
+WORKDIR /app
+
+# Install pnpm globally
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+# Copy workspace configuration
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY tsconfig.json .eslintrc.js .prettierrc ./
+
+# Copy source packages
+COPY packages/shared/package.json packages/shared/tsconfig.json packages/shared/
+COPY packages/shared/src/ packages/shared/src/
+COPY apps/backend/package.json apps/backend/tsconfig.json apps/backend/nest-cli.json apps/backend/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy backend source
+COPY apps/backend/prisma/ apps/backend/prisma/
+COPY apps/backend/src/ apps/backend/src/
+
+# Generate Prisma client
+RUN cd apps/backend && npx prisma generate
+
+# Expose port
+EXPOSE 3000
+
+# Start in development mode with hot reload
+CMD ["pnpm", "--filter", "@secure-cbt/backend", "dev"]
+
+# ── Production Stage ────────────────────────────────────────
+FROM node:22-alpine AS production
+
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY tsconfig.json ./
+COPY packages/shared/package.json packages/shared/tsconfig.json packages/shared/
+COPY packages/shared/src/ packages/shared/src/
+COPY apps/backend/package.json apps/backend/tsconfig.json apps/backend/nest-cli.json apps/backend/
+
+RUN pnpm install --frozen-lockfile --prod
+
+COPY apps/backend/prisma/ apps/backend/prisma/
+COPY apps/backend/src/ apps/backend/src/
+
+RUN cd apps/backend && npx prisma generate && pnpm build
+
+EXPOSE 3000
+
+CMD ["node", "apps/backend/dist/main.js"]

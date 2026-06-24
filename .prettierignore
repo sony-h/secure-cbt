@@ -1,0 +1,10 @@
+node_modules
+dist
+.turbo
+coverage
+pnpm-lock.yaml
+.next
+.dart_tool
+build
+*.g.dart
+*.freezed.dart

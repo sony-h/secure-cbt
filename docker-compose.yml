@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: secure-cbt-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: secure_cbt
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: secure-cbt-redis
+    command: redis-server --appendonly yes
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── MinIO (S3-compatible storage) ──────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: secure-cbt-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - '9000:9000'  # API
+      - '9001:9001'  # Console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Prisma Migration Runner (one-shot) ─────────────────────
+  prisma-migrate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.prisma
+    container_name: secure-cbt-prisma-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: 'postgresql://postgres:postgres@postgres:5432/secure_cbt?schema=public'
+    command: ['sh', '-c', 'npx prisma generate && npx prisma migrate deploy']
+    profiles:
+      - setup
+
+  # ── Prisma Seed Runner (one-shot) ──────────────────────────
+  prisma-seed:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.prisma
+    container_name: secure-cbt-prisma-seed
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: 'postgresql://postgres:postgres@postgres:5432/secure_cbt?schema=public'
+    command: ['sh', '-c', 'npx prisma generate && npx prisma db seed']
+    profiles:
+      - setup
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

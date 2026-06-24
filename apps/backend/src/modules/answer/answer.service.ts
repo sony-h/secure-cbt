@@ -1,0 +1,102 @@
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { SaveAnswerDto, BatchSyncAnswerDto, saveAnswerSchema, batchSyncAnswerSchema, SessionStatus } from '@secure-cbt/shared';
+
+@Injectable()
+export class AnswerService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async save(dto: SaveAnswerDto, studentId: string) {
+    const { session_id, question_id, answer_text, timestamp } = saveAnswerSchema.parse(dto);
+
+    const session = await this.prisma.examSession.findUnique({ where: { id: session_id } });
+    if (!session) throw new NotFoundException('Session not found');
+    if (session.student_id !== studentId) throw new ForbiddenException('Not your session');
+    if (session.status !== SessionStatus.ACTIVE) throw new BadRequestException('Session is not active');
+
+    // Check if question belongs to this exam
+    const examQuestion = await this.prisma.examQuestion.findFirst({
+      where: { exam_id: session.exam_id, question_id },
+    });
+    if (!examQuestion) throw new BadRequestException('Question not in this exam');
+
+    const answeredAt = timestamp ? new Date(timestamp) : new Date();
+
+    const answer = await this.prisma.answer.upsert({
+      where: {
+        exam_session_id_question_id: { exam_session_id: session_id, question_id },
+      },
+      create: {
+        exam_session_id: session_id,
+        question_id,
+        answer_text,
+        answered_at: answeredAt,
+        synced_at: new Date(),
+      },
+      update: {
+        answer_text,
+        answered_at: answeredAt,
+        synced_at: new Date(),
+      },
+    });
+
+    return answer;
+  }
+
+  async batchSync(dto: BatchSyncAnswerDto, studentId: string) {
+    const { session_id, answers } = batchSyncAnswerSchema.parse(dto);
+
+    const session = await this.prisma.examSession.findUnique({ where: { id: session_id } });
+    if (!session) throw new NotFoundException('Session not found');
+    if (session.student_id !== studentId) throw new ForbiddenException('Not your session');
+    if (session.status !== SessionStatus.ACTIVE) throw new BadRequestException('Session is not active');
+
+    const results = [];
+    for (const ans of answers) {
+      const saved = await this.prisma.answer.upsert({
+        where: {
+          exam_session_id_question_id: { exam_session_id: session_id, question_id: ans.question_id },
+        },
+        create: {
+          exam_session_id: session_id,
+          question_id: ans.question_id,
+          answer_text: ans.answer_text,
+          answered_at: new Date(ans.timestamp),
+          synced_at: new Date(),
+        },
+        update: {
+          answer_text: ans.answer_text,
+          answered_at: new Date(ans.timestamp),
+          synced_at: new Date(),
+        },
+      });
+      results.push(saved);
+    }
+
+    return { synced: results.length };
+  }
+
+  async getSyncStatus(sessionId: string, studentId: string) {
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        answers: true,
+        exam: { include: { exam_questions: true } },
+      },
+    });
+    if (!session || session.student_id !== studentId) throw new NotFoundException('Session not found');
+
+    const totalQuestions = session.exam.exam_questions.length;
+    const syncedAnswers = session.answers.filter((a) => a.synced_at).length;
+    const pendingAnswers = session.answers.filter((a) => !a.synced_at).length;
+
+    return {
+      total_answers: totalQuestions,
+      synced_answers: syncedAnswers,
+      pending_answers: pendingAnswers,
+      last_synced_at: session.answers
+        .filter((a) => a.synced_at)
+        .sort((a, b) => (b.synced_at?.getTime() ?? 0) - (a.synced_at?.getTime() ?? 0))[0]?.synced_at,
+    };
+  }
+}

@@ -1,0 +1,474 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+  TEACHER
+  STUDENT
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  MULTI_SELECT
+  ESSAY
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  ONGOING
+  FINISHED
+  CANCELLED
+}
+
+enum SessionStatus {
+  ACTIVE
+  PAUSED
+  SUBMITTED
+  AUTO_SUBMITTED
+  EXPIRED
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  GRADUATED
+}
+
+enum DifficultyLevel {
+  EASY
+  MEDIUM
+  HARD
+}
+
+// ── users ────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  username      String    @unique
+  email         String    @unique
+  password_hash String
+  role          UserRole
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  deleted_at    DateTime?
+
+  student         Student?
+  teacher         Teacher?
+  refresh_tokens  RefreshToken[]
+  graded_scores   Score[]       @relation("GradedBy")
+
+  @@index([username])
+  @@index([email])
+  @@map("users")
+}
+
+// ── students ─────────────────────────────────────────────────────
+
+model Student {
+  id         String        @id @default(uuid()) @db.Uuid
+  user_id    String        @unique @db.Uuid
+  nis        String        @unique
+  full_name  String
+  class_id   String        @db.Uuid
+  status     StudentStatus @default(ACTIVE)
+  created_at DateTime      @default(now())
+  updated_at DateTime      @updatedAt
+  deleted_at DateTime?
+
+  user           User            @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  class          Class           @relation(fields: [class_id], references: [id], onDelete: Restrict)
+  exam_sessions  ExamSession[]
+
+  @@index([nis])
+  @@index([class_id, status])
+  @@map("students")
+}
+
+// ── teachers ─────────────────────────────────────────────────────
+
+model Teacher {
+  id         String    @id @default(uuid()) @db.Uuid
+  user_id    String    @unique @db.Uuid
+  nip        String    @unique
+  full_name  String
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  user              User             @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  teacher_subjects  TeacherSubject[]
+  question_banks    QuestionBank[]
+  exams             Exam[]
+
+  @@index([nip])
+  @@map("teachers")
+}
+
+// ── teacher_subjects (bridge) ────────────────────────────────────
+
+model TeacherSubject {
+  id         String   @id @default(uuid()) @db.Uuid
+  teacher_id String   @db.Uuid
+  subject_id String   @db.Uuid
+
+  teacher  Teacher  @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
+  subject  Subject  @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+
+  @@map("teacher_subjects")
+}
+
+// ── academic_years ───────────────────────────────────────────────
+
+model AcademicYear {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  is_active  Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  classes  Class[]
+
+  @@map("academic_years")
+}
+
+// ── majors ───────────────────────────────────────────────────────
+
+model Major {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  code       String   @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  classes   Class[]
+  subjects  Subject[]
+
+  @@map("majors")
+}
+
+// ── classes ──────────────────────────────────────────────────────
+
+model Class {
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String
+  major_id         String   @db.Uuid
+  academic_year_id String   @db.Uuid
+  grade_level      Int
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  major          Major         @relation(fields: [major_id], references: [id], onDelete: Restrict)
+  academic_year  AcademicYear  @relation(fields: [academic_year_id], references: [id], onDelete: Restrict)
+  students       Student[]
+  exam_classes   ExamClass[]
+
+  @@map("classes")
+}
+
+// ── subjects ─────────────────────────────────────────────────────
+
+model Subject {
+  id         String    @id @default(uuid()) @db.Uuid
+  name       String
+  code       String    @unique
+  major_id   String?   @db.Uuid
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  major            Major             @relation(fields: [major_id], references: [id], onDelete: SetNull)
+  teacher_subjects TeacherSubject[]
+  question_banks   QuestionBank[]
+  exams            Exam[]
+
+  @@map("subjects")
+}
+
+// ── question_banks ───────────────────────────────────────────────
+
+model QuestionBank {
+  id         String    @id @default(uuid()) @db.Uuid
+  title      String
+  subject_id String    @db.Uuid
+  teacher_id String    @db.Uuid
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  subject    Subject     @relation(fields: [subject_id], references: [id], onDelete: Restrict)
+  teacher    Teacher     @relation(fields: [teacher_id], references: [id], onDelete: Restrict)
+  questions  Question[]
+
+  @@map("question_banks")
+}
+
+// ── questions ────────────────────────────────────────────────────
+
+model Question {
+  id               String         @id @default(uuid()) @db.Uuid
+  question_bank_id String         @db.Uuid
+  type             QuestionType
+  content          String         @db.Text
+  difficulty       DifficultyLevel @default(MEDIUM)
+  explanation      String?         @db.Text
+  created_at       DateTime       @default(now())
+  updated_at       DateTime       @updatedAt
+  deleted_at       DateTime?
+
+  question_bank   QuestionBank      @relation(fields: [question_bank_id], references: [id], onDelete: Cascade)
+  options         QuestionOption[]
+  tags            QuestionTag[]
+  exam_questions  ExamQuestion[]
+  answers         Answer[]
+
+  @@map("questions")
+}
+
+// ── question_options ─────────────────────────────────────────────
+
+model QuestionOption {
+  id          String   @id @default(uuid()) @db.Uuid
+  question_id String   @db.Uuid
+  content     String   @db.Text
+  is_correct  Boolean  @default(false)
+  order       Int      @default(0)
+  created_at  DateTime @default(now())
+
+  question  Question  @relation(fields: [question_id], references: [id], onDelete: Cascade)
+
+  @@map("question_options")
+}
+
+// ── question_tags (bridge) ───────────────────────────────────────
+
+model QuestionTag {
+  id          String   @id @default(uuid()) @db.Uuid
+  question_id String   @db.Uuid
+  tag         String
+  created_at  DateTime @default(now())
+
+  question  Question  @relation(fields: [question_id], references: [id], onDelete: Cascade)
+
+  @@map("question_tags")
+}
+
+// ── exams ────────────────────────────────────────────────────────
+
+model Exam {
+  id                   String     @id @default(uuid()) @db.Uuid
+  title                String
+  description          String?    @db.Text
+  subject_id           String     @db.Uuid
+  duration_minutes     Int
+  status               ExamStatus @default(DRAFT)
+  start_at             DateTime
+  end_at               DateTime
+  teacher_id           String     @db.Uuid
+  randomize_questions  Boolean    @default(true)
+  randomize_answers    Boolean    @default(true)
+  warning_limit        Int        @default(3)
+  auto_submit_enabled  Boolean    @default(true)
+  fullscreen_required  Boolean    @default(true)
+  package_count        Int        @default(1)
+  created_at           DateTime   @default(now())
+  updated_at           DateTime   @updatedAt
+  deleted_at           DateTime?
+
+  subject        Subject        @relation(fields: [subject_id], references: [id], onDelete: Restrict)
+  teacher        Teacher        @relation(fields: [teacher_id], references: [id], onDelete: Restrict)
+  exam_token     ExamToken?
+  exam_packages  ExamPackage[]
+  exam_questions ExamQuestion[]
+  exam_classes   ExamClass[]
+  exam_sessions  ExamSession[]
+
+  @@map("exams")
+}
+
+// ── exam_tokens ──────────────────────────────────────────────────
+
+model ExamToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  exam_id    String   @unique @db.Uuid
+  token      String   @unique
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  exam  Exam  @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("exam_tokens")
+}
+
+// ── exam_packages ────────────────────────────────────────────────
+
+model ExamPackage {
+  id         String   @id @default(uuid()) @db.Uuid
+  exam_id    String   @db.Uuid
+  name       String
+  created_at DateTime @default(now())
+
+  exam            Exam            @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  exam_questions  ExamQuestion[]
+  exam_sessions   ExamSession[]
+
+  @@map("exam_packages")
+}
+
+// ── exam_questions (bridge) ──────────────────────────────────────
+
+model ExamQuestion {
+  id          String   @id @default(uuid()) @db.Uuid
+  exam_id     String   @db.Uuid
+  question_id String   @db.Uuid
+  position    Int
+  package_id  String?  @db.Uuid
+
+  exam      Exam          @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  question  Question      @relation(fields: [question_id], references: [id], onDelete: Restrict)
+  package   ExamPackage?  @relation(fields: [package_id], references: [id], onDelete: SetNull)
+
+  @@unique([exam_id, question_id, package_id])
+  @@map("exam_questions")
+}
+
+// ── exam_classes (bridge) ────────────────────────────────────────
+
+model ExamClass {
+  id       String @id @default(uuid()) @db.Uuid
+  exam_id  String @db.Uuid
+  class_id String @db.Uuid
+
+  exam   Exam   @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  class  Class  @relation(fields: [class_id], references: [id], onDelete: Cascade)
+
+  @@map("exam_classes")
+}
+
+// ── exam_sessions ────────────────────────────────────────────────
+
+model ExamSession {
+  id                     String        @id @default(uuid()) @db.Uuid
+  exam_id                String        @db.Uuid
+  student_id             String        @db.Uuid
+  package_id             String?       @db.Uuid
+  status                 SessionStatus @default(ACTIVE)
+  started_at             DateTime      @default(now())
+  submitted_at           DateTime?
+  remaining_time_seconds Int?
+  warning_count          Int           @default(0)
+  device_id              String?
+  created_at             DateTime      @default(now())
+  updated_at             DateTime      @updatedAt
+
+  exam          Exam          @relation(fields: [exam_id], references: [id], onDelete: Restrict)
+  student       Student       @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  package       ExamPackage?  @relation(fields: [package_id], references: [id], onDelete: SetNull)
+  session_logs  SessionLog[]
+  answers       Answer[]
+  score         Score?
+
+  @@index([exam_id])
+  @@index([student_id])
+  @@index([exam_id, student_id])
+  @@map("exam_sessions")
+}
+
+// ── session_logs (immutable) ─────────────────────────────────────
+
+model SessionLog {
+  id              String   @id @default(uuid()) @db.Uuid
+  exam_session_id String   @db.Uuid
+  event           String
+  description     String?  @db.Text
+  created_at      DateTime @default(now())
+
+  exam_session  ExamSession  @relation(fields: [exam_session_id], references: [id], onDelete: Cascade)
+
+  @@map("session_logs")
+}
+
+// ── answers ──────────────────────────────────────────────────────
+
+model Answer {
+  id              String    @id @default(uuid()) @db.Uuid
+  exam_session_id String    @db.Uuid
+  question_id     String    @db.Uuid
+  answer_text     String?   @db.Text
+  is_correct      Boolean?
+  score           Float?
+  answered_at     DateTime  @default(now())
+  synced_at       DateTime?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  exam_session  ExamSession  @relation(fields: [exam_session_id], references: [id], onDelete: Cascade)
+  question      Question     @relation(fields: [question_id], references: [id], onDelete: Restrict)
+
+  @@unique([exam_session_id, question_id])
+  @@index([exam_session_id])
+  @@index([question_id])
+  @@map("answers")
+}
+
+// ── scores ───────────────────────────────────────────────────────
+
+model Score {
+  id              String    @id @default(uuid()) @db.Uuid
+  exam_session_id String    @unique @db.Uuid
+  total_score     Float     @default(0)
+  correct_count   Int       @default(0)
+  wrong_count     Int       @default(0)
+  essay_score     Float?
+  graded_by       String?   @db.Uuid
+  graded_at       DateTime?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  exam_session  ExamSession  @relation(fields: [exam_session_id], references: [id], onDelete: Restrict)
+  grader        User?        @relation("GradedBy", fields: [graded_by], references: [id], onDelete: SetNull)
+
+  @@map("scores")
+}
+
+// ── settings (single-row) ────────────────────────────────────────
+
+model Setting {
+  id                  String   @id @default(uuid()) @db.Uuid
+  warning_limit       Int      @default(3)
+  auto_submit_enabled Boolean  @default(true)
+  fullscreen_required Boolean  @default(true)
+  lock_task_mode      Boolean  @default(false)
+  autosave_interval   Int      @default(5)
+  session_timeout     Int      @default(30)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// ── refresh_tokens ───────────────────────────────────────────────
+
+model RefreshToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  token      String   @unique
+  device_id  String?
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}

@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+.dart_tool/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Prisma
+*.db
+*.db-journal
+
+# Logs
+*.log
+logs/
+
+# Package manager
+pnpm-lock.yaml
+
+# Docker (optional - uncomment if needed)
+# docker-compose.override.yml
+
+# Mobile
+android/.gradle/
+android/app/build/
+android/local.properties
+ios/Pods/
+ios/build/
+.fvm/
+
+# Misc
+*.pem
+*.key
+*.crt
