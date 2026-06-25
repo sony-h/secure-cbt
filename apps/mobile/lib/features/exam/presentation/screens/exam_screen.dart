@@ -15,16 +15,12 @@ class ExamScreen extends ConsumerStatefulWidget {
   final String sessionId;
   final String examTitle;
   final int warningLimit;
-  final List<Map<String, dynamic>> questions;
-  final int remainingSeconds;
 
   const ExamScreen({
     super.key,
     required this.sessionId,
     required this.examTitle,
     this.warningLimit = 3,
-    this.questions = const [],
-    this.remainingSeconds = 0,
   });
 
   @override
@@ -34,27 +30,56 @@ class ExamScreen extends ConsumerStatefulWidget {
 class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObserver {
   late Dio _dio;
   bool _submitting = false;
+  bool _violationsEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
 
     _dio = ref.read(dioProvider);
 
-    // Enter fullscreen immediately
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSessionData());
+  }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  Future<void> _loadSessionData() async {
+    try {
+      final response = await _dio.post('/sessions/resume', data: {
+        'session_id': widget.sessionId,
+      });
+      final session = response.data['data'];
+      final questions = (session['questions'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          [];
+      final remainingSeconds =
+          session['remaining_time_seconds'] as int? ?? 0;
+
+      // Enter fullscreen and lock orientation
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+
       final notifier = ref.read(examProvider.notifier);
       notifier.setWarningLimit(widget.warningLimit);
       notifier.setOnForceSubmit(() => _forceSubmit());
-      notifier.loadSession(widget.sessionId, widget.questions, widget.remainingSeconds);
-    });
+      notifier.loadSession(widget.sessionId, questions, remainingSeconds);
+
+      // Enable violation detection AFTER session is loaded and fullscreen is set
+      WidgetsBinding.instance.addObserver(this);
+      _violationsEnabled = true;
+    } on DioException catch (e) {
+      final message = e.response?.data?['message'] ?? 'Gagal memuat soal';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
+        );
+        context.goNamed('token');
+      }
+    } catch (e) {
+      AppLogger.error('Failed to load session', e);
+      if (mounted) context.goNamed('token');
+    }
   }
 
   @override
@@ -67,20 +92,15 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_violationsEnabled) return;
     final notifier = ref.read(examProvider.notifier);
 
     switch (state) {
       case AppLifecycleState.paused:
-        // App going to background = violation
         notifier.logViolation('APP_MINIMIZED');
         _showViolationSnackbar('Peringatan! Aplikasi tidak boleh diminimalkan.');
         break;
-      case AppLifecycleState.inactive:
-        // App losing focus (e.g., notification drawer, split screen) = violation
-        notifier.logViolation('APP_INACTIVE');
-        break;
       case AppLifecycleState.resumed:
-        // Re-enforce fullscreen when app returns
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
         break;
       case AppLifecycleState.hidden:
@@ -88,6 +108,8 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         break;
       case AppLifecycleState.detached:
         notifier.logViolation('APP_DETACHED');
+        break;
+      case AppLifecycleState.inactive:
         break;
     }
   }
