@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { api } from '@/lib/api';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { useAuthStore } from '@/stores/auth.store';
+import { UserRole } from '@secure-cbt/shared';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge, Spinner } from '@/components/ui/table';
-import { Clock, Wifi, WifiOff, AlertTriangle, Users, CheckCircle, Eye } from 'lucide-react';
+import { Wifi, WifiOff, AlertTriangle, Users, CheckCircle, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatDate } from '@/lib/utils';
 
 interface Exam {
   id: string;
@@ -37,6 +38,15 @@ interface SessionLog {
 }
 
 export default function MonitoringPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (user && ![UserRole.ADMIN, UserRole.TEACHER].includes(user.role)) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
+
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [connectedStudents, setConnectedStudents] = useState<Set<string>>(new Set());
   const [sessionData, setSessionData] = useState<StudentSession[]>([]);
@@ -61,7 +71,20 @@ export default function MonitoringPage() {
     queryFn: async () => {
       if (!selectedExamId) return null;
       const { data } = await api.get(`/monitoring/exams/${selectedExamId}`);
-      return data.data;
+      const raw = data.data;
+      // Map backend shape → frontend StudentSession shape
+      return {
+        ...raw,
+        sessions: (raw.students || []).map((s: any) => ({
+          id: s.session_id,
+          student: { nis: s.student_id, full_name: s.student_name, class: { name: s.class_name } },
+          status: s.status === 'active' ? 'ACTIVE' : s.status === 'finished' ? 'SUBMITTED' : 'DISCONNECTED',
+          started_at: s.last_activity_at,
+          warning_count: s.warning_count,
+          remaining_time_seconds: s.remaining_time_seconds,
+          progress: s.progress?.total > 0 ? s.progress.answered / s.progress.total : 0,
+        })),
+      };
     },
     enabled: !!selectedExamId,
     refetchInterval: 5000,
@@ -84,7 +107,8 @@ export default function MonitoringPage() {
     if (!selectedExamId) return;
 
     const token = localStorage.getItem('access_token');
-    const socket = io('http://localhost:3000/monitoring', {
+    const SOCKET_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace('/api/v1', '');
+    const socket = io(`${SOCKET_URL}/monitoring`, {
       auth: { token },
       query: { role: 'teacher', examId: selectedExamId },
       transports: ['websocket'],
@@ -262,8 +286,8 @@ export default function MonitoringPage() {
               </div>
             ) : (
               <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                {sessionData.map((session) => {
-                  const isConnected = connectedStudents.has(session.student?.nis || '');
+                  {sessionData.map((session) => {
+                    const isConnected = connectedStudents.has(session.id);
                   return (
                     <div
                       key={session.id}
@@ -310,7 +334,7 @@ export default function MonitoringPage() {
                         <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
                           <div
                             className="h-full bg-primary transition-all"
-                            style={{ width: `${Math.min((session.progress / 1) * 10, 100)}%` }}
+                            style={{ width: `${Math.min((session.progress ?? 0) * 100, 100)}%` }}
                           />
                         </div>
                       )}

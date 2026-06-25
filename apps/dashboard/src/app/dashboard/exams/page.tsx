@@ -6,19 +6,17 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Spinner } from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, Search, X, Copy, Rocket, Key, Clock } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X, Rocket, Key, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatDate } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────
 interface Exam {
   id: string;
   title: string;
   description: string | null;
-  subject?: { name: string; code: string };
+  subject?: { id: string; name: string; code: string };
   duration_minutes: number;
   status: string;
   start_at: string;
@@ -30,7 +28,7 @@ interface Exam {
   fullscreen_required: boolean;
   package_count: number;
   created_at: string;
-  classes?: { class: { name: string } }[];
+  classes?: { class: { id: string; name: string } }[];
   _count?: { exam_sessions: number; exam_questions: number };
 }
 
@@ -51,7 +49,7 @@ interface Question {
   content: string;
   type: string;
   difficulty: string;
-  question_bank: { title: string; subject: { name: string } };
+  question_bank: { id: string; title: string; subject: { name: string } };
 }
 
 interface QuestionBank {
@@ -147,7 +145,7 @@ function CreateExamModal({
   const steps = ['Info Dasar', 'Kelas', 'Soal', 'Pengaturan'];
 
   const filteredQuestions = bankFilter
-    ? questions.filter((q) => q.question_bank?.title && banks.find((b) => b.id === bankFilter))
+    ? questions.filter((q) => q.question_bank?.id === bankFilter)
     : questions;
 
   return (
@@ -372,17 +370,26 @@ export default function ExamsPage() {
 
   const { data: subjects } = useQuery({
     queryKey: ['subjects'],
-    queryFn: async () => { const { data } = await api.get('/academic/subjects'); return data.data as Subject[]; },
+    queryFn: async () => { 
+      const { data } = await api.get('/academic/subjects'); 
+      return data.data as Subject[]; 
+    },
   });
 
   const { data: classes } = useQuery({
     queryKey: ['classes'],
-    queryFn: async () => { const { data } = await api.get('/academic/classes'); return data.data as Class[]; },
+    queryFn: async () => { 
+      const { data } = await api.get('/academic/classes'); 
+      return data.data as Class[]; 
+    },
   });
 
   const { data: banks } = useQuery({
     queryKey: ['question-banks'],
-    queryFn: async () => { const { data } = await api.get('/questions/banks'); return data.data as QuestionBank[]; },
+    queryFn: async () => { 
+      const { data } = await api.get('/questions/banks'); 
+      return data.data as QuestionBank[]; 
+    },
   });
 
   const { data: questions } = useQuery({
@@ -458,27 +465,52 @@ export default function ExamsPage() {
 
   const handleEdit = (exam: Exam) => {
     setEditingId(exam.id);
-    setForm({
-      title: exam.title,
-      description: exam.description || '',
-      subject_id: exam.subject?.name || '',
-      duration_minutes: exam.duration_minutes,
-      start_at: exam.start_at ? exam.start_at.slice(0, 16) : '',
-      end_at: exam.end_at ? exam.end_at.slice(0, 16) : '',
-      class_ids: exam.classes?.map((c) => c.class.name) || [],
-      question_ids: [],
-      package_count: exam.package_count || 1,
-      randomize_questions: exam.randomize_questions,
-      randomize_answers: exam.randomize_answers,
-      warning_limit: exam.warning_limit,
-      auto_submit_enabled: exam.auto_submit_enabled,
-      fullscreen_required: exam.fullscreen_required,
+    // Fetch full exam detail to get existing question_ids
+    api.get(`/exams/${exam.id}`).then((res) => {
+      const full = res.data.data;
+      setForm({
+        title: full.title,
+        description: full.description || '',
+        subject_id: full.subject?.id || '',
+        duration_minutes: full.duration_minutes,
+        start_at: full.start_at ? full.start_at.slice(0, 16) : '',
+        end_at: full.end_at ? full.end_at.slice(0, 16) : '',
+        class_ids: full.exam_classes?.map((ec: any) => ec.class.id) || [],
+        question_ids: full.exam_questions?.map((eq: any) => eq.question_id) || [],
+        package_count: full.package_count || 1,
+        randomize_questions: full.randomize_questions,
+        randomize_answers: full.randomize_answers,
+        warning_limit: full.warning_limit,
+        auto_submit_enabled: full.auto_submit_enabled,
+        fullscreen_required: full.fullscreen_required,
+      });
+      setModalOpen(true);
+    }).catch(() => {
+      // Fallback: open with empty question_ids
+      setForm({
+        title: exam.title,
+        description: exam.description || '',
+        subject_id: exam.subject?.id || '',
+        duration_minutes: exam.duration_minutes,
+        start_at: exam.start_at ? exam.start_at.slice(0, 16) : '',
+        end_at: exam.end_at ? exam.end_at.slice(0, 16) : '',
+        class_ids: exam.classes?.map((c) => c.class.id) || [],
+        question_ids: [],
+        package_count: exam.package_count || 1,
+        randomize_questions: exam.randomize_questions,
+        randomize_answers: exam.randomize_answers,
+        warning_limit: exam.warning_limit,
+        auto_submit_enabled: exam.auto_submit_enabled,
+        fullscreen_required: exam.fullscreen_required,
+      });
+      setModalOpen(true);
     });
-    setModalOpen(true);
   };
 
   const exams = examsData?.data ?? [];
   const meta = examsData?.meta;
+
+  console.log(examsData)
 
   return (
     <div className="space-y-6">

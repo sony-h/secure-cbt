@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
+import { UserRole } from '@secure-cbt/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -87,7 +90,6 @@ function QuestionModal({
   form,
   setForm,
   banks,
-  subjects,
   onSave,
   isEditing,
 }: {
@@ -96,15 +98,11 @@ function QuestionModal({
   form: QuestionFormData;
   setForm: (f: QuestionFormData) => void;
   banks: QuestionBank[];
-  subjects: Subject[];
   onSave: () => void;
   isEditing: boolean;
 }) {
+  const tagInputRef = useRef<HTMLInputElement>(null);
   if (!open) return null;
-
-  const filteredBanks = form.question_bank_id
-    ? banks
-    : banks;
 
   const addTag = (tag: string) => {
     if (tag && !form.tags.includes(tag)) {
@@ -132,7 +130,7 @@ function QuestionModal({
               onChange={(e) => setForm({ ...form, question_bank_id: e.target.value })}
             >
               <option value="">Pilih Bank Soal</option>
-              {filteredBanks.map((b) => (
+              {banks.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.title} ({b.subject.name})
                 </option>
@@ -271,6 +269,7 @@ function QuestionModal({
             <Label>Tag</Label>
             <div className="flex items-center gap-2">
               <Input
+                ref={tagInputRef}
                 placeholder="Tambahkan tag..."
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -283,7 +282,7 @@ function QuestionModal({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const input = document.querySelector<HTMLInputElement>('input[placeholder="Tambahkan tag..."]');
+                  const input = tagInputRef.current;
                   if (input) {
                     addTag(input.value);
                     input.value = '';
@@ -323,6 +322,15 @@ function QuestionModal({
 // ── Main Page ──────────────────────────────────────────────────────
 export default function QuestionsPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (user && ![UserRole.ADMIN, UserRole.TEACHER].includes(user.role)) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
+
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [bankFilter, setBankFilter] = useState('');
@@ -719,7 +727,6 @@ export default function QuestionsPage() {
         form={form}
         setForm={setForm}
         banks={banks || []}
-        subjects={subjectsData || []}
         onSave={handleSave}
         isEditing={!!editingId}
       />

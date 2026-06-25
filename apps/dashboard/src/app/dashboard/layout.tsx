@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { UserRole } from '@secure-cbt/shared';
 import {
   LayoutDashboard,
   Users,
@@ -26,18 +27,19 @@ interface NavItem {
   title: string;
   href: string;
   icon: React.ElementType;
+  roles: UserRole[];
 }
 
 const navItems: NavItem[] = [
-  { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { title: 'Akademik', href: '/dashboard/academic', icon: School },
-  { title: 'Siswa', href: '/dashboard/students', icon: Users },
-  { title: 'Guru', href: '/dashboard/teachers', icon: GraduationCap },
-  { title: 'Bank Soal', href: '/dashboard/questions', icon: FileQuestion },
-  { title: 'Ujian', href: '/dashboard/exams', icon: ClipboardList },
-  { title: 'Monitoring', href: '/dashboard/monitoring', icon: MonitorPlay },
-  { title: 'Laporan', href: '/dashboard/reports', icon: BarChart3 },
-  { title: 'Pengaturan', href: '/dashboard/settings', icon: Settings },
+  { title: 'Dashboard',   href: '/dashboard',           icon: LayoutDashboard, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER] },
+  { title: 'Akademik',    href: '/dashboard/academic',   icon: School,          roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER] },
+  { title: 'Siswa',       href: '/dashboard/students',   icon: Users,           roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER] },
+  { title: 'Guru',        href: '/dashboard/teachers',   icon: GraduationCap,   roles: [UserRole.ADMIN, UserRole.OPERATOR] },
+  { title: 'Bank Soal',   href: '/dashboard/questions',  icon: FileQuestion,    roles: [UserRole.ADMIN, UserRole.TEACHER] },
+  { title: 'Ujian',       href: '/dashboard/exams',      icon: ClipboardList,   roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER] },
+  { title: 'Monitoring',  href: '/dashboard/monitoring', icon: MonitorPlay,     roles: [UserRole.ADMIN, UserRole.TEACHER] },
+  { title: 'Laporan',     href: '/dashboard/reports',    icon: BarChart3,       roles: [UserRole.ADMIN, UserRole.TEACHER] },
+  { title: 'Pengaturan',  href: '/dashboard/settings',   icon: Settings,        roles: [UserRole.ADMIN] },
 ];
 
 export default function DashboardLayout({
@@ -48,6 +50,8 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const visibleItems = navItems.filter((item) => user?.role && item.roles.includes(user.role));
 
   return (
     <div className="flex min-h-screen">
@@ -82,7 +86,7 @@ export default function DashboardLayout({
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 p-4">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
             return (
               <Link
@@ -134,7 +138,7 @@ export default function DashboardLayout({
             <Menu className="h-5 w-5" />
           </Button>
           <h2 className="text-sm font-medium text-muted-foreground">
-            {navItems.find((item) => pathname === item.href || pathname?.startsWith(item.href + '/'))?.title || 'Dashboard'}
+            {visibleItems.find((item) => pathname === item.href || pathname?.startsWith(item.href + '/'))?.title || 'Dashboard'}
           </h2>
         </header>
 

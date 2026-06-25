@@ -29,20 +29,22 @@ export function TableHead({ children, className }: { children: React.ReactNode; 
   return <th className={cn('h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0', className)}>{children}</th>;
 }
 
-export function TableCell({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <td className={cn('p-4 align-middle [&:has([role=checkbox])]:pr-0', className)}>{children}</td>;
+export function TableCell({ children, className, colSpan }: { children: React.ReactNode; className?: string; colSpan?: number }) {
+  return <td colSpan={colSpan} className={cn('p-4 align-middle [&:has([role=checkbox])]:pr-0', className)}>{children}</td>;
 }
 
 export function Badge({ children, className, variant = 'default' }: {
   children: React.ReactNode;
   className?: string;
-  variant?: 'default' | 'success' | 'warning' | 'destructive';
+  variant?: 'default' | 'success' | 'warning' | 'destructive' | 'secondary' | 'outline';
 }) {
   const variants = {
     default: 'bg-primary/10 text-primary',
     success: 'bg-green-100 text-green-700',
     warning: 'bg-yellow-100 text-yellow-700',
     destructive: 'bg-red-100 text-red-700',
+    secondary: 'bg-secondary text-secondary-foreground',
+    outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
   };
   return (
     <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', variants[variant], className)}>

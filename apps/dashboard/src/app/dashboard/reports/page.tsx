@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
+import { UserRole } from '@secure-cbt/shared';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Spinner } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BarChart3, Download, FileText } from 'lucide-react';
 
@@ -20,17 +22,24 @@ interface Exam {
 
 interface GradeResult {
   session_id: string;
-  student: { nis: string; full_name: string };
+  student: { nis: string; full_name: string; class_name: string };
   total_score: number;
   correct_count: number;
   wrong_count: number;
-  graded_at: string;
   status: string;
 }
 
 export default function ReportsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (user && ![UserRole.ADMIN, UserRole.TEACHER].includes(user.role)) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
+
   const [selectedExam, setSelectedExam] = useState<string>('');
-  const [classFilter, setClassFilter] = useState('');
 
   const { data: exams } = useQuery({
     queryKey: ['report-exams'],
@@ -41,13 +50,19 @@ export default function ReportsPage() {
   });
 
   const { data: results, isLoading } = useQuery({
-    queryKey: ['results', selectedExam, classFilter],
+    queryKey: ['results', selectedExam],
     queryFn: async () => {
       if (!selectedExam) return [];
-      const params: any = {};
-      if (classFilter) params.class_id = classFilter;
-      const { data } = await api.get(`/reports/exam/${selectedExam}`, { params });
-      return data.data as GradeResult[];
+      const { data } = await api.get(`/reports/exam/${selectedExam}`);
+      const raw = data.data;
+      return ((raw?.students || []) as any[]).map((s: any) => ({
+        session_id: s.student_id,
+        student: { nis: s.nis, full_name: s.student_name, class_name: s.class_name },
+        total_score: s.score,
+        correct_count: s.correct_count,
+        wrong_count: s.wrong_count,
+        status: s.status,
+      })) as GradeResult[];
     },
     enabled: !!selectedExam,
   });
