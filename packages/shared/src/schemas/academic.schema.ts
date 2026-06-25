@@ -15,6 +15,11 @@ export const createMajorSchema = z.object({
   code: z.string().min(1).max(10),
 });
 
+export const updateMajorSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  code: z.string().min(1).max(10).optional(),
+});
+
 export const createClassSchema = z.object({
   name: z.string().min(1).max(50),
   major_id: z.string().uuid(),

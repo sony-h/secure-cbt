@@ -100,6 +100,8 @@ services:
       DATABASE_URL: 'postgresql://postgres:postgres@postgres:5432/secure_cbt?schema=public'
       REDIS_HOST: redis
       REDIS_PORT: '6379'
+      BULLMQ_REDIS_HOST: redis
+      BULLMQ_REDIS_PORT: '6379'
       JWT_ACCESS_SECRET: 'dev-access-secret'
       JWT_REFRESH_SECRET: 'dev-refresh-secret'
       PORT: '3000'

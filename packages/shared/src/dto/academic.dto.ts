@@ -25,6 +25,11 @@ export interface CreateMajorDto {
   code: string;
 }
 
+export interface UpdateMajorDto {
+  name?: string;
+  code?: string;
+}
+
 export interface MajorResponseDto {
   id: string;
   name: string;

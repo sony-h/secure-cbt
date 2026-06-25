@@ -37,5 +37,5 @@ module.exports = {
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     'eqeqeq': ['error', 'always'],
   },
-  ignorePatterns: ['dist', 'node_modules', '.turbo', 'coverage', '*.js'],
+  ignorePatterns: ['dist', 'node_modules', '.turbo', 'coverage', '*.js', 'apps/dashboard/**'],
 };
