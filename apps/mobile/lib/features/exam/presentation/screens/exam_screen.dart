@@ -15,12 +15,16 @@ class ExamScreen extends ConsumerStatefulWidget {
   final String sessionId;
   final String examTitle;
   final int warningLimit;
+  final List<Map<String, dynamic>> questions;
+  final int remainingSeconds;
 
   const ExamScreen({
     super.key,
     required this.sessionId,
     required this.examTitle,
     this.warningLimit = 3,
+    this.questions = const [],
+    this.remainingSeconds = 0,
   });
 
   @override
@@ -49,7 +53,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       final notifier = ref.read(examProvider.notifier);
       notifier.setWarningLimit(widget.warningLimit);
       notifier.setOnForceSubmit(() => _forceSubmit());
-      notifier.loadSession(widget.sessionId);
+      notifier.loadSession(widget.sessionId, widget.questions, widget.remainingSeconds);
     });
   }
 

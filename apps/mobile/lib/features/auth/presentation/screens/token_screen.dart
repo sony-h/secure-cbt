@@ -55,11 +55,15 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
 
       final session = response.data['data'];
       final examTitle = session['exam']?['title'] ?? 'Ujian';
+      final questions = (session['questions'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+      final remainingSeconds = session['remaining_time_seconds'] as int? ?? 0;
 
       if (mounted) {
         context.goNamed('exam', extra: {
           'sessionId': session['id'],
           'examTitle': examTitle,
+          'questions': questions,
+          'remainingSeconds': remainingSeconds,
         });
       }
     } on DioException catch (e) {

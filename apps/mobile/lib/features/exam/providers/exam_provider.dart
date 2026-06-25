@@ -69,8 +69,13 @@ class ExamNotifier extends StateNotifier<ExamState> {
 
   ExamNotifier() : super(const ExamState());
 
-  Future<void> loadSession(String sessionId) async {
-    state = state.copyWith(isLoading: true, sessionId: sessionId);
+  Future<void> loadSession(String sessionId, List<Map<String, dynamic>> questions, int remainingSeconds) async {
+    state = state.copyWith(
+      isLoading: true,
+      sessionId: sessionId,
+      questions: questions,
+      remainingSeconds: remainingSeconds,
+    );
     state = state.copyWith(isLoading: false);
     _startTimer();
     _startAutosave();

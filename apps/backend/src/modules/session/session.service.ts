@@ -64,9 +64,10 @@ export class SessionService {
       await this.prisma.exam.update({ where: { id: exam.id }, data: { status: ExamStatus.ONGOING } });
     }
 
-    // Calculate remaining time
-    const endTime = new Date(exam.start_at.getTime() + exam.duration_minutes * 60000);
-    const remainingSeconds = Math.max(0, Math.floor((endTime.getTime() - Date.now()) / 1000));
+    // Calculate remaining time (use the shorter of duration and time-to-end)
+    const durationSeconds = exam.duration_minutes * 60;
+    const secondsUntilEnd = Math.max(0, Math.floor((exam.end_at.getTime() - Date.now()) / 1000));
+    const remainingSeconds = Math.min(durationSeconds, secondsUntilEnd);
 
     const session = await this.prisma.examSession.create({
       data: {
@@ -77,10 +78,29 @@ export class SessionService {
         remaining_time_seconds: remainingSeconds,
         device_id,
       },
+      include: {
+        exam: { include: { exam_questions: { include: { question: { include: { options: true } } } } } },
+      },
     });
 
     this.eventEmitter.emit(EventNames.SESSION_STARTED, { sessionId: session.id, examId: exam.id, studentId: student.id });
-    return session;
+
+    // Return session with questions (without correct answer flags)
+    const questions = session.exam.exam_questions
+      .filter((eq) => !eq.package_id || eq.package_id === assignedPackage?.id)
+      .sort((a, b) => a.position - b.position)
+      .map((eq) => ({
+        id: eq.id,
+        position: eq.position,
+        question: {
+          id: eq.question.id,
+          type: eq.question.type,
+          content: eq.question.content,
+          options: eq.question.options.map((o) => ({ id: o.id, content: o.content })),
+        },
+      }));
+
+    return { ...session, questions };
   }
 
   async resume(dto: { session_id: string }, userId: string) {

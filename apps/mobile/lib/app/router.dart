@@ -43,6 +43,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ExamScreen(
             sessionId: extra['sessionId'] as String? ?? '',
             examTitle: extra['examTitle'] as String? ?? 'Ujian',
+            questions: (extra['questions'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [],
+            remainingSeconds: extra['remainingSeconds'] as int? ?? 0,
           );
         },
       ),
