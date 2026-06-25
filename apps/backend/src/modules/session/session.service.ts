@@ -13,7 +13,7 @@ export class SessionService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async start(dto: StartSessionDto, studentId: string) {
+  async start(dto: StartSessionDto, userId: string) {
     const { token, device_id } = startSessionSchema.parse(dto);
 
     // Validate token
@@ -37,7 +37,7 @@ export class SessionService {
 
     // Verify student is assigned to this exam
     const student = await this.prisma.student.findUnique({
-      where: { user_id: studentId },
+      where: { user_id: userId },
       include: { class: true },
     });
     if (!student) throw new NotFoundException('Student not found');
@@ -52,7 +52,7 @@ export class SessionService {
       where: { exam_id: exam.id, student_id: student.id, status: { in: [SessionStatus.ACTIVE, SessionStatus.PAUSED] } },
     });
     if (existing) {
-      return this.resume({ session_id: existing.id }, studentId);
+      return this.resume({ session_id: existing.id }, userId);
     }
 
     // Assign a random package
@@ -83,7 +83,11 @@ export class SessionService {
     return session;
   }
 
-  async resume(dto: { session_id: string }, studentId: string) {
+  async resume(dto: { session_id: string }, userId: string) {
+    // Resolve student from user ID
+    const student = await this.prisma.student.findUnique({ where: { user_id: userId } });
+    if (!student) throw new NotFoundException('Student not found');
+
     const session = await this.prisma.examSession.findUnique({
       where: { id: dto.session_id },
       include: {
@@ -93,7 +97,7 @@ export class SessionService {
     });
 
     if (!session) throw new NotFoundException('Session not found');
-    if (session.student_id !== studentId) throw new ForbiddenException('Not your session');
+    if (session.student_id !== student.id) throw new ForbiddenException('Not your session');
     if (session.status === SessionStatus.SUBMITTED || session.status === SessionStatus.EXPIRED) {
       throw new BadRequestException('Session is already completed');
     }
@@ -124,11 +128,15 @@ export class SessionService {
     return { ...session, questions };
   }
 
-  async submit(dto: SubmitSessionDto, studentId: string) {
+  async submit(dto: SubmitSessionDto, userId: string) {
     const { session_id } = submitSessionSchema.parse(dto);
+    // Resolve student from user ID
+    const student = await this.prisma.student.findUnique({ where: { user_id: userId } });
+    if (!student) throw new NotFoundException('Student not found');
+
     const session = await this.prisma.examSession.findUnique({ where: { id: session_id } });
     if (!session) throw new NotFoundException('Session not found');
-    if (session.student_id !== studentId) throw new ForbiddenException('Not your session');
+    if (session.student_id !== student.id) throw new ForbiddenException('Not your session');
 
     const updated = await this.prisma.examSession.update({
       where: { id: session_id },

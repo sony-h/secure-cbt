@@ -13,7 +13,7 @@ export class StudentController {
   constructor(private readonly studentService: StudentService) {}
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER)
   @ApiOperation({ summary: 'List all students' })
   async findAll(@Query() query: any) {
     const result = await this.studentService.findAll(query);

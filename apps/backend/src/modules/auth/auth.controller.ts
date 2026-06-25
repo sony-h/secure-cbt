@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Req, Inject } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -7,20 +7,23 @@ import { ApiResponse } from '@secure-cbt/shared';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    @Inject(AuthService)
+    private readonly authService: AuthService
+  ) {}
 
   @Post('login')
   @ApiOperation({ summary: 'Login with username and password' })
-  async login(@Body() body: { username: string; password: string; device_id?: string }) {
+  async login(@Body() body: any) {
     const result = await this.authService.login(body);
-    return { success: true, message: 'Login successful', data: result } satisfies ApiResponse;
+    return { success: true, message: 'Login successful', data: result };
   }
 
   @Post('refresh')
   @ApiOperation({ summary: 'Refresh access token' })
-  async refresh(@Body() body: { refresh_token: string }) {
+  async refresh(@Body() body: any) {
     const result = await this.authService.refresh(body);
-    return { success: true, message: 'Token refreshed', data: result } satisfies ApiResponse;
+    return { success: true, message: 'Token refreshed', data: result };
   }
 
   @Post('logout')

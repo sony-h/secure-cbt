@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateQuestionDto, UpdateQuestionDto, createQuestionSchema, updateQuestionSchema,
@@ -10,9 +10,14 @@ export class QuestionBankService {
   constructor(private readonly prisma: PrismaService) {}
 
   // Question Banks
-  async getBanks(teacherId?: string, subjectId?: string) {
+  async getBanks(userId?: string, subjectId?: string) {
     const where: any = { deleted_at: null };
-    if (teacherId) where.teacher_id = teacherId;
+    if (userId) {
+      const teacher = await this.prisma.teacher.findUnique({ where: { user_id: userId } });
+      if (teacher) {
+        where.teacher_id = teacher.id;
+      }
+    }
     if (subjectId) where.subject_id = subjectId;
 
     return this.prisma.questionBank.findMany({
@@ -25,10 +30,14 @@ export class QuestionBankService {
     });
   }
 
-  async createBank(dto: { title: string; subject_id: string }, teacherId: string) {
+  async createBank(dto: { title: string; subject_id: string }, userId: string) {
     const data = createQuestionBankSchema.parse(dto);
+    const teacher = await this.prisma.teacher.findUnique({ where: { user_id: userId } });
+    if (!teacher) {
+      throw new BadRequestException('Only users with a teacher profile can create question banks');
+    }
     return this.prisma.questionBank.create({
-      data: { ...data, teacher_id: teacherId },
+      data: { ...data, teacher_id: teacher.id },
       include: { subject: true },
     });
   }
@@ -40,7 +49,9 @@ export class QuestionBankService {
 
   // Questions
   async findAll(query: PaginationQuery & { bank_id?: string; type?: QuestionType; subject_id?: string }) {
-    const { page = 1, per_page = 20, bank_id, type, subject_id, search } = query;
+    const page = Number(query.page) || 1;
+    const per_page = Number(query.per_page) || 20;
+    const { bank_id, type, subject_id, search } = query;
     const where: any = { deleted_at: null };
     if (bank_id) where.question_bank_id = bank_id;
     if (type) where.type = type;

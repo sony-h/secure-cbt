@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -16,7 +16,9 @@ import {
 @Injectable()
 export class AuthService {
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
+    @Inject(JwtService)
     private readonly jwtService: JwtService,
   ) {}
 
@@ -34,6 +36,16 @@ export class AuthService {
     const valid = await argon2.verify(user.password_hash, password);
     if (!valid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Determine full name from role
+    let full_name = username;
+    if (user.role === UserRole.STUDENT) {
+      const student = await this.prisma.student.findUnique({ where: { user_id: user.id } });
+      if (student) full_name = student.full_name;
+    } else if (user.role === UserRole.TEACHER) {
+      const teacher = await this.prisma.teacher.findUnique({ where: { user_id: user.id } });
+      if (teacher) full_name = teacher.full_name;
     }
 
     const payload = { sub: user.id, username: user.username, role: user.role };
@@ -61,16 +73,6 @@ export class AuthService {
         token: { not: refresh_token },
       },
     });
-
-    // Determine full name from role
-    let full_name = username;
-    if (user.role === UserRole.STUDENT) {
-      const student = await this.prisma.student.findUnique({ where: { user_id: user.id } });
-      if (student) full_name = student.full_name;
-    } else if (user.role === UserRole.TEACHER) {
-      const teacher = await this.prisma.teacher.findUnique({ where: { user_id: user.id } });
-      if (teacher) full_name = teacher.full_name;
-    }
 
     return {
       access_token,

@@ -8,7 +8,9 @@ export class StudentService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: PaginationQuery & { class_id?: string; major_id?: string }) {
-    const { page = 1, per_page = 20, search, class_id, major_id, sort_by = 'created_at', sort_order = 'desc' } = query;
+    const page = Number(query.page) || 1;
+    const per_page = Number(query.per_page) || 20;
+    const { search, class_id, major_id, sort_by = 'created_at', sort_order = 'desc' } = query;
     const where: any = { deleted_at: null };
     if (search) {
       where.OR = [

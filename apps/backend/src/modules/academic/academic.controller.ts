@@ -63,6 +63,13 @@ export class AcademicController {
     return { success: true, message: 'Major deleted', data: null };
   }
 
+  @Patch('majors/:id')
+  @Roles(UserRole.ADMIN)
+  async updateMajor(@Param('id') id: string, @Body() body: any) {
+    const data = await this.academicService.updateMajor(id, body);
+    return { success: true, message: 'Major updated', data };
+  }
+
   // Classes
   @Get('classes')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER)
@@ -85,6 +92,13 @@ export class AcademicController {
     return { success: true, message: 'Class deleted', data: null };
   }
 
+  @Patch('classes/:id')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  async updateClass(@Param('id') id: string, @Body() body: any) {
+    const data = await this.academicService.updateClass(id, body);
+    return { success: true, message: 'Class updated', data };
+  }
+
   // Subjects
   @Get('subjects')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER)
@@ -105,5 +119,12 @@ export class AcademicController {
   async deleteSubject(@Param('id') id: string) {
     await this.academicService.deleteSubject(id);
     return { success: true, message: 'Subject deleted', data: null };
+  }
+
+  @Patch('subjects/:id')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  async updateSubject(@Param('id') id: string, @Body() body: any) {
+    const data = await this.academicService.updateSubject(id, body);
+    return { success: true, message: 'Subject updated', data };
   }
 }

@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
-  CreateAcademicYearDto, UpdateAcademicYearDto, CreateMajorDto, CreateClassDto, CreateSubjectDto,
-  createAcademicYearSchema, updateAcademicYearSchema, createMajorSchema, createClassSchema, createSubjectSchema,
+  CreateAcademicYearDto, UpdateAcademicYearDto, CreateMajorDto, UpdateMajorDto, CreateClassDto, CreateSubjectDto,
+  createAcademicYearSchema, updateAcademicYearSchema, createMajorSchema, updateMajorSchema, createClassSchema, createSubjectSchema,
   PaginationQuery,
 } from '@secure-cbt/shared';
 
@@ -53,6 +53,13 @@ export class AcademicService {
     return this.prisma.major.delete({ where: { id } });
   }
 
+  async updateMajor(id: string, dto: UpdateMajorDto) {
+    const data = updateMajorSchema.parse(dto);
+    const major = await this.prisma.major.findUnique({ where: { id } });
+    if (!major) throw new NotFoundException('Major not found');
+    return this.prisma.major.update({ where: { id }, data });
+  }
+
   // Classes
   async getClasses(query: PaginationQuery & { major_id?: string; academic_year_id?: string }) {
     const where: any = {};
@@ -75,6 +82,12 @@ export class AcademicService {
     return this.prisma.class.delete({ where: { id } });
   }
 
+  async updateClass(id: string, dto: Partial<CreateClassDto>) {
+    const cls = await this.prisma.class.findUnique({ where: { id } });
+    if (!cls) throw new NotFoundException('Class not found');
+    return this.prisma.class.update({ where: { id }, data: dto, include: { major: true, academic_year: true } });
+  }
+
   // Subjects
   async getSubjects(query: { major_id?: string }) {
     const where: any = {};
@@ -94,5 +107,11 @@ export class AcademicService {
   async deleteSubject(id: string) {
     await this.prisma.subject.findUniqueOrThrow({ where: { id } });
     return this.prisma.subject.delete({ where: { id } });
+  }
+
+  async updateSubject(id: string, dto: Partial<CreateSubjectDto>) {
+    const subj = await this.prisma.subject.findUnique({ where: { id } });
+    if (!subj) throw new NotFoundException('Subject not found');
+    return this.prisma.subject.update({ where: { id }, data: dto, include: { major: true } });
   }
 }

@@ -15,7 +15,9 @@ export class UserService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: PaginationQuery) {
-    const { page = 1, per_page = 20, search, sort_by = 'created_at', sort_order = 'desc' } = query;
+    const page = Number(query.page) || 1;
+    const per_page = Number(query.per_page) || 20;
+    const { search, sort_by = 'created_at', sort_order = 'desc' } = query;
     const where: any = { deleted_at: null };
     if (search) {
       where.OR = [

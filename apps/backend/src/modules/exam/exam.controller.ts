@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req, Inject } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ExamService } from './exam.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -10,7 +10,10 @@ import { ApiResponse, UserRole } from '@secure-cbt/shared';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('exams')
 export class ExamController {
-  constructor(private readonly examService: ExamService) {}
+  constructor(
+    @Inject(ExamService)
+    private readonly examService: ExamService
+  ) {}
 
   @Get()
   @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)

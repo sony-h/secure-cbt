@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -10,12 +10,15 @@ import { randomBytes } from 'crypto';
 @Injectable()
 export class ExamService {
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findAll(query: PaginationQuery & { status?: ExamStatus; subject_id?: string }) {
-    const { page = 1, per_page = 20, status, subject_id, search } = query;
+    const page = Number(query.page) || 1;
+    const per_page = Number(query.per_page) || 20;
+    const { status, subject_id, search } = query;
     const where: any = { deleted_at: null };
     if (status) where.status = status;
     if (subject_id) where.subject_id = subject_id;
@@ -49,12 +52,16 @@ export class ExamService {
     return exam;
   }
 
-  async create(dto: CreateExamDto, teacherId: string) {
+  async create(dto: CreateExamDto, userId: string) {
     const data = createExamSchema.parse(dto);
 
     if (new Date(data.end_at) <= new Date(data.start_at)) {
       throw new BadRequestException('End time must be after start time');
     }
+
+    // Resolve teacher ID from user ID
+    const teacher = await this.prisma.teacher.findUnique({ where: { user_id: userId } });
+    if (!teacher) throw new BadRequestException('Teacher profile not found for this user');
 
     return this.prisma.$transaction(async (tx) => {
       const exam = await tx.exam.create({
@@ -65,7 +72,7 @@ export class ExamService {
           duration_minutes: data.duration_minutes,
           start_at: new Date(data.start_at),
           end_at: new Date(data.end_at),
-          teacher_id: teacherId,
+          teacher_id: teacher.id,
           randomize_questions: data.randomize_questions ?? true,
           randomize_answers: data.randomize_answers ?? true,
           warning_limit: data.warning_limit ?? 3,
@@ -73,6 +80,9 @@ export class ExamService {
           fullscreen_required: data.fullscreen_required ?? true,
           package_count: data.package_count ?? 1,
         },
+      }).catch(err => {
+        console.error('Error creating exam in transaction:', err);
+        throw err;
       });
 
       // Assign classes
@@ -102,7 +112,9 @@ export class ExamService {
         });
       }
 
-      this.eventEmitter.emit(EventNames.EXAM_CREATED, { examId: exam.id, teacherId });
+      if (this.eventEmitter) {
+        this.eventEmitter.emit(EventNames.EXAM_CREATED, { examId: exam.id, teacherId: teacher.id });
+      }
       return tx.exam.findUnique({
         where: { id: exam.id },
         include: { exam_packages: true, exam_classes: { include: { class: true } } },
@@ -175,7 +187,9 @@ export class ExamService {
     const exam = await this.findById(id);
     if (exam.status !== ExamStatus.DRAFT) throw new BadRequestException('Only draft exams can be published');
     const updated = await this.prisma.exam.update({ where: { id }, data: { status: ExamStatus.PUBLISHED } });
-    this.eventEmitter.emit(EventNames.EXAM_PUBLISHED, { examId: id });
+    if (this.eventEmitter) {
+      this.eventEmitter.emit(EventNames.EXAM_PUBLISHED, { examId: id });
+    }
     return updated;
   }
 

@@ -13,7 +13,7 @@ export class TeacherController {
   constructor(private readonly teacherService: TeacherService) {}
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER)
   async findAll(@Query() query: any) {
     const result = await this.teacherService.findAll(query);
     return { success: true, message: 'Teachers retrieved', ...result } satisfies ApiResponse;
