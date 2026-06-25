@@ -125,6 +125,22 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
     }
   }
 
+  @SubscribeMessage(SocketEvent.WARNING_TRIGGERED)
+  handleWarningTriggered(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { examId: string; warningCount: number; event: string; timestamp: string },
+  ): void {
+    if (data.examId) {
+      this.server.to(`exam:${data.examId}`).emit(SocketEvent.WARNING_TRIGGERED, {
+        studentId: client.handshake.query.userId,
+        examId: data.examId,
+        warningCount: data.warningCount,
+        event: data.event,
+        timestamp: data.timestamp,
+      });
+    }
+  }
+
   // ── Teacher/Monitoring Methods ────────────────────────────
 
   /**
@@ -160,6 +176,17 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
   }): void {
     this.server.to(`exam:${examId}`).emit(SocketEvent.SESSION_FINISHED, {
       ...data,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Notify teachers about a progress update.
+   */
+  notifyAnswerSaved(examId: string, sessionId: string, questionId: string): void {
+    this.server.to(`exam:${examId}`).emit(SocketEvent.PROGRESS_UPDATED, {
+      sessionId,
+      questionId,
       timestamp: new Date().toISOString(),
     });
   }
