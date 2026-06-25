@@ -12,6 +12,8 @@ class AuthState {
   final String? username;
   final String? fullName;
   final String? role;
+  final String? nis;
+  final String? className;
 
   const AuthState({
     this.isAuthenticated = false,
@@ -20,6 +22,8 @@ class AuthState {
     this.username,
     this.fullName,
     this.role,
+    this.nis,
+    this.className,
   });
 
   AuthState copyWith({
@@ -29,6 +33,8 @@ class AuthState {
     String? username,
     String? fullName,
     String? role,
+    String? nis,
+    String? className,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
@@ -37,6 +43,8 @@ class AuthState {
       username: username ?? this.username,
       fullName: fullName ?? this.fullName,
       role: role ?? this.role,
+      nis: nis ?? this.nis,
+      className: className ?? this.className,
     );
   }
 }
@@ -70,6 +78,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         username: user['username'],
         fullName: user['full_name'],
         role: user['role'],
+        nis: user['nis'],
+        className: user['class_name'],
       );
 
       AppLogger.info('Login successful', username);

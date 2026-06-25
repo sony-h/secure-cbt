@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_cbt_mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:secure_cbt_mobile/features/auth/presentation/screens/token_screen.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/screens/exam_screen.dart';
+import 'package:secure_cbt_mobile/features/exam/presentation/screens/exam_select_screen.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/screens/result_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -15,10 +16,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'login',
         builder: (context, state) => const LoginScreen(),
       ),
+
+      // ── Exam Selection ──────────────────────────────────────
+      GoRoute(
+        path: '/exam-select',
+        name: 'exam-select',
+        builder: (context, state) => const ExamSelectScreen(),
+      ),
       GoRoute(
         path: '/token',
         name: 'token',
-        builder: (context, state) => const TokenScreen(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return TokenScreen(
+            examTitle: extra['examTitle'] as String?,
+          );
+        },
       ),
 
       // ── Exam ────────────────────────────────────────────────

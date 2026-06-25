@@ -356,8 +356,8 @@ async function seed() {
     // ── 12. Sample Exams ────────────────────────────────────
     logger.log('Creating sample exams...');
     const now = new Date();
-    const exam1Start = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
-    const exam1End = new Date(now.getTime() + 60 * 60 * 1000);   // 1 hour from now
+    const exam1Start = new Date(now.getTime() - 24 * 3600 * 1000);  // 1 day ago
+    const exam1End = new Date(now.getTime() + 30 * 24 * 3600 * 1000); // 30 days from now
 
     // Exam 1: UTS Matematika (Published, ongoing)
     const mathQuestions = allQuestions.slice(0, 10);  // Bank 0 questions
@@ -399,7 +399,7 @@ async function seed() {
 
     // Generate token for exam 1
     const token1 = randomBytes(4).toString('hex').toUpperCase().slice(0, 8);
-    await prisma.examToken.create({ data: { exam_id: exam1.id, token: token1, expires_at: exam1End } });
+    await prisma.examToken.create({ data: { exam_id: exam1.id, token: token1, expires_at: new Date(Date.now() + 3 * 24 * 3600 * 1000) } });
     logger.log(`  UTS Matematika (PUBLISHED) — Token: ${token1}`);
 
     // Exam 2: Fisika Harian (Draft)
@@ -412,8 +412,8 @@ async function seed() {
         teacher_id: teachers[1].id,
         duration_minutes: 60,
         status: 'DRAFT',
-        start_at: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
-        end_at: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000),
+        start_at: new Date(now.getTime() + 2 * 24 * 3600 * 1000),   // 2 days from now
+        end_at: new Date(now.getTime() + 32 * 24 * 3600 * 1000),       // 32 days from now
         randomize_questions: true,
         randomize_answers: true,
         warning_limit: 2,

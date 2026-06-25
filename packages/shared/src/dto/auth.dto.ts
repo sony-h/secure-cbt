@@ -19,6 +19,8 @@ export interface LoginResponseDto {
     username: string;
     role: string;
     full_name: string;
+    nis?: string;
+    class_name?: string;
   };
 }
 

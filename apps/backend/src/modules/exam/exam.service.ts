@@ -195,7 +195,9 @@ export class ExamService {
 
   async generateToken(id: string) {
     const exam = await this.findById(id);
-    if (exam.status !== ExamStatus.PUBLISHED) throw new BadRequestException('Exam must be published first');
+    if (exam.status !== ExamStatus.PUBLISHED && exam.status !== ExamStatus.ONGOING) {
+      throw new BadRequestException('Exam must be published first');
+    }
 
     const token = randomBytes(4).toString('hex').toUpperCase().slice(0, 8);
 
@@ -206,7 +208,7 @@ export class ExamService {
       data: {
         exam_id: id,
         token,
-        expires_at: exam.end_at,
+        expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
       },
     });
     return examToken;

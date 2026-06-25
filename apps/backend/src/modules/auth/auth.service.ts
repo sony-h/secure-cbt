@@ -40,9 +40,18 @@ export class AuthService {
 
     // Determine full name from role
     let full_name = username;
+    let nis: string | undefined;
+    let class_name: string | undefined;
     if (user.role === UserRole.STUDENT) {
-      const student = await this.prisma.student.findUnique({ where: { user_id: user.id } });
-      if (student) full_name = student.full_name;
+      const student = await this.prisma.student.findUnique({
+        where: { user_id: user.id },
+        include: { class: true },
+      });
+      if (student) {
+        full_name = student.full_name;
+        nis = student.nis;
+        class_name = student.class?.name;
+      }
     } else if (user.role === UserRole.TEACHER) {
       const teacher = await this.prisma.teacher.findUnique({ where: { user_id: user.id } });
       if (teacher) full_name = teacher.full_name;
@@ -78,7 +87,7 @@ export class AuthService {
       access_token,
       refresh_token,
       expires_in: 900,
-      user: { id: user.id, username: user.username, role: user.role, full_name },
+      user: { id: user.id, username: user.username, role: user.role, full_name, nis, class_name },
     };
   }
 
@@ -109,9 +118,18 @@ export class AuthService {
     });
 
     let full_name = user.username;
+    let nis: string | undefined;
+    let class_name: string | undefined;
     if (user.role === UserRole.STUDENT) {
-      const student = await this.prisma.student.findUnique({ where: { user_id: user.id } });
-      if (student) full_name = student.full_name;
+      const student = await this.prisma.student.findUnique({
+        where: { user_id: user.id },
+        include: { class: true },
+      });
+      if (student) {
+        full_name = student.full_name;
+        nis = student.nis;
+        class_name = student.class?.name;
+      }
     } else if (user.role === UserRole.TEACHER) {
       const teacher = await this.prisma.teacher.findUnique({ where: { user_id: user.id } });
       if (teacher) full_name = teacher.full_name;
@@ -121,7 +139,7 @@ export class AuthService {
       access_token,
       refresh_token: new_refresh_token,
       expires_in: 900,
-      user: { id: user.id, username: user.username, role: user.role, full_name },
+      user: { id: user.id, username: user.username, role: user.role, full_name, nis, class_name },
     };
   }
 

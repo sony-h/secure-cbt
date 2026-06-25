@@ -33,7 +33,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _usernameController.text.trim(),
         _passwordController.text,
       );
-      if (mounted) context.goNamed('token');
+      if (mounted) context.goNamed('exam-select');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

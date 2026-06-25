@@ -6,7 +6,9 @@ import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 
 class TokenScreen extends ConsumerStatefulWidget {
-  const TokenScreen({super.key});
+  final String? examTitle;
+
+  const TokenScreen({super.key, this.examTitle});
 
   @override
   ConsumerState<TokenScreen> createState() => _TokenScreenState();
@@ -100,6 +102,17 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                 color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(height: 24),
+              if (widget.examTitle != null) ...[
+                Text(
+                  widget.examTitle!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               Text(
                 'Masukkan Token Ujian',
                 textAlign: TextAlign.center,

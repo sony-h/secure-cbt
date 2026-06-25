@@ -575,24 +575,22 @@ export default function ExamsPage() {
                       <TableCell className="text-sm">{exam._count?.exam_questions || 0}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(exam)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           {exam.status === 'DRAFT' && (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={() => handleEdit(exam)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => publishMutation.mutate(exam.id)} title="Publish">
-                                <Rocket className="h-4 w-4 text-green-600" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus ujian ini?')) deleteMutation.mutate(exam.id); }}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </>
+                            <Button variant="ghost" size="icon" onClick={() => publishMutation.mutate(exam.id)} title="Publish">
+                              <Rocket className="h-4 w-4 text-green-600" />
+                            </Button>
                           )}
                           {(exam.status === 'PUBLISHED' || exam.status === 'ONGOING') && (
                             <Button variant="ghost" size="icon" onClick={() => tokenMutation.mutate(exam.id)} title="Generate Token">
                               <Key className="h-4 w-4" />
                             </Button>
                           )}
+                          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus ujian ini?')) deleteMutation.mutate(exam.id); }}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
