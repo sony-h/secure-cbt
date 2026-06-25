@@ -237,3 +237,11 @@ users, students, teachers, teacher_subjects, academic_years, majors, classes, su
 - **Token expiry:** Changed from `exam.end_at` to **3 days from generation time** in `generateToken`.
 - **Seed exam dates:** Extended from ±1h to -1d/+30d so exams don't expire during development.
 - **Dashboard exams:** Edit and Delete buttons now visible for all exam statuses (DRAFT, PUBLISHED, ONGOING, FINISHED, CANCELLED).
+
+### 18. Mobile Exam Screen Bug Fixes (2026-06-25)
+- **🔴 CRITICAL:** Submit button not appearing — bottom bar was inside `Scaffold.body` as `Column` child alongside `Expanded(PageView)`, causing clipping on some devices. Moved to `Scaffold.bottomNavigationBar` (native SafeArea + pinning).
+- **🔴 CRITICAL:** Question numbering starts from 2 — `_buildQuestionCard` displayed raw backend `position` value. Changed to `index + 1` (list position), matching the palette widget. Also removed unused `position` variable.
+- **🟠 HIGH:** Warning count starts from 3, not 0 — `warningCount` correctly initialized to 0 in state, but chip was hidden (`warningCount > 0`). Chip now always visible with grey "0/3" styling, turning red on violation.
+- **🟠 HIGH:** Warning violations triggered during immersive-mode transition — system UI mode change (`immersiveSticky`) sends lifecycle events. Observer registration now delayed 1.5s after session load to let transitions settle.
+- **🟡 MEDIUM:** `warningLimit` hardcoded to 3 — now parsed from `session['exam']['warning_limit']` in `_loadSessionData()` so backend exam settings are respected.
+- **🟡 MEDIUM:** `ExamNotifier.loadSession` not resetting state between sessions — now explicitly resets `currentIndex: 0`, `warningCount: 0`, `violations: []`, `answers: {}`, and cancels old timers.
