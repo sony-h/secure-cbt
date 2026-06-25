@@ -228,3 +228,12 @@ users, students, teachers, teacher_subjects, academic_years, majors, classes, su
 - **Backend additions:** Added `updateMajorSchema`, `UpdateMajorDto`, `updateMajor()` in AcademicService, `PATCH /academic/majors/:id` in controller.
 - **Edit buttons:** Pencil icon added to each Year and Major row (Admin only, consistent with existing read-only mode).
 - **`createYear` mutation** now passes `is_active` from the dialog instead of hardcoding `false`.
+
+### 17. Mobile Exam Selection & Token Flow (2026-06-25)
+- **New screen:** `ExamSelectScreen` — shows student identity card (NIS, Full Name, Class) + list of available exams fetched from `GET /exams/student`.
+- **Flow change:** Login → Exam Select → Token → Exam (was: Login → Token → Exam).
+- **Token screen:** Now displays the selected exam title above the token input.
+- **Backend:** `AuthService.login/refresh` now returns `nis` and `class_name` for student users.
+- **Token expiry:** Changed from `exam.end_at` to **3 days from generation time** in `generateToken`.
+- **Seed exam dates:** Extended from ±1h to -1d/+30d so exams don't expire during development.
+- **Dashboard exams:** Edit and Delete buttons now visible for all exam statuses (DRAFT, PUBLISHED, ONGOING, FINISHED, CANCELLED).
