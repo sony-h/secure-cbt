@@ -74,15 +74,25 @@ class ExamNotifier extends StateNotifier<ExamState> {
   Timer? _autosaveTimer;
   Timer? _timer;
   void Function()? _onForceSubmit;
+  void Function(String questionId)? _onAnswerSaved;
+  void Function(String event, int count)? _onViolation;
+  void Function()? _onExamSubmitted;
 
   ExamNotifier() : super(const ExamState());
 
   Future<void> loadSession(String sessionId, List<Map<String, dynamic>> questions, int remainingSeconds) async {
+    _timer?.cancel();
+    _autosaveTimer?.cancel();
     state = state.copyWith(
       isLoading: true,
       sessionId: sessionId,
       questions: questions,
       remainingSeconds: remainingSeconds,
+      currentIndex: 0,
+      warningCount: 0,
+      violations: [],
+      answers: {},
+      showSaveIndicator: false,
     );
     state = state.copyWith(isLoading: false);
     _startTimer();
@@ -112,9 +122,10 @@ class ExamNotifier extends StateNotifier<ExamState> {
         'session_id': state.sessionId,
         'question_id': questionId,
         'answer_text': answer,
-        'timestamp': DateTime.now().toIso8601String(),
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
       });
       state = state.copyWith(showSaveIndicator: true, lastSavedAt: DateTime.now());
+      _onAnswerSaved?.call(questionId);
       onSaved();
       // Hide indicator after 2 seconds
       Future.delayed(const Duration(seconds: 2), () {
@@ -132,6 +143,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
     final newViolations = [...state.violations, '$event @ ${DateTime.now().toIso8601String()}'];
     state = state.copyWith(warningCount: newCount, violations: newViolations);
     AppLogger.warn('Violation: $event (warning $newCount / ${state.warningLimit})');
+    _onViolation?.call(event, newCount);
 
     // Auto-submit if warning limit exceeded
     if (newCount >= state.warningLimit) {
@@ -145,6 +157,21 @@ class ExamNotifier extends StateNotifier<ExamState> {
     _onForceSubmit = callback;
   }
 
+  /// Register callback for when an answer is saved (for socket emit)
+  void setOnAnswerSaved(void Function(String questionId) callback) {
+    _onAnswerSaved = callback;
+  }
+
+  /// Register callback for when a violation is logged (for socket emit)
+  void setOnViolation(void Function(String event, int count) callback) {
+    _onViolation = callback;
+  }
+
+  /// Register callback for when the exam is submitted (for socket emit)
+  void setOnExamSubmitted(void Function() callback) {
+    _onExamSubmitted = callback;
+  }
+
   /// Exit fullscreen (e.g., on exam finish)
   void exitFullscreen() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -152,6 +179,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
   }
 
   void markSubmitted() {
+    _onExamSubmitted?.call();
     state = state.copyWith(isSubmitted: true);
     _timer?.cancel();
     _autosaveTimer?.cancel();

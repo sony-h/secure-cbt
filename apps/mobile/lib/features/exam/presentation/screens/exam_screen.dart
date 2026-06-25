@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
+import 'package:secure_cbt_mobile/core/network/socket_client.dart';
+import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/exam_provider.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/question_palette.dart';
 
@@ -43,6 +45,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
+    ref.read(monitoringSocketProvider).disconnect();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
@@ -58,6 +61,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
               ?.cast<Map<String, dynamic>>() ??
           [];
       final remainingSeconds = session['remaining_time_seconds'] as int? ?? 0;
+      final warningLimit = session['exam']?['warning_limit'] as int? ?? 3;
 
       if (questions.isEmpty) {
         if (mounted) {
@@ -79,13 +83,40 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       ]);
 
       final notifier = ref.read(examProvider.notifier);
-      notifier.setWarningLimit(widget.warningLimit);
+      notifier.setWarningLimit(warningLimit);
       notifier.setOnForceSubmit(() => _forceSubmit());
       notifier.loadSession(widget.sessionId, questions, remainingSeconds);
 
-      // Enable violation detection after everything is settled
-      WidgetsBinding.instance.addObserver(this);
-      _violationsEnabled = true;
+      // Connect monitoring socket
+      final authState = ref.read(authProvider);
+      final examId = session['exam_id'] ?? session['exam']?['id'] ?? '';
+      if (authState.userId != null) {
+        final socket = ref.read(monitoringSocketProvider);
+        socket.connect(authState.userId!, examId);
+
+        notifier.setOnAnswerSaved((questionId) {
+          socket.emitAnswerSaved(widget.sessionId, questionId, examId);
+        });
+
+        notifier.setOnViolation((event, count) {
+          socket.emitViolation(examId, count, event);
+        });
+
+        notifier.setOnExamSubmitted(() {
+          socket.emitExamSubmitted(widget.sessionId, examId, authState.userId!);
+        });
+      }
+
+      // Delay observer registration so immersive-mode lifecycle events settle first
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        WidgetsBinding.instance.addObserver(this);
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) {
+            _violationsEnabled = true;
+          }
+        });
+      });
     } on DioException catch (e) {
       AppLogger.error('Failed to load session', e);
       if (mounted) {
@@ -126,16 +157,12 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         notifier.logViolation('APP_MINIMIZED');
         _showViolationSnackbar('Peringatan! Aplikasi tidak boleh diminimalkan.');
         break;
-      case AppLifecycleState.hidden:
-        notifier.logViolation('APP_HIDDEN');
-        break;
-      case AppLifecycleState.detached:
-        notifier.logViolation('APP_DETACHED');
-        break;
       case AppLifecycleState.resumed:
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
         break;
       case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
         break;
     }
   }
@@ -232,20 +259,16 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                       ],
                     ),
                   )
-                : Column(
-                    children: [
-                      Expanded(
-                        child: PageView.builder(
-                          controller: _pageController,
-                          itemCount: examState.questions.length,
-                          onPageChanged: (i) => ref.read(examProvider.notifier).setCurrentIndex(i),
-                          itemBuilder: (context, index) =>
-                              _buildQuestionCard(theme, examState.questions[index], examState),
-                        ),
-                      ),
-                      _buildBottomBar(theme, examState),
-                    ],
+                : PageView.builder(
+                    controller: _pageController,
+                    itemCount: examState.questions.length,
+                    onPageChanged: (i) => ref.read(examProvider.notifier).setCurrentIndex(i),
+                    itemBuilder: (context, index) =>
+                        _buildQuestionCard(theme, examState.questions[index], examState, index),
                   ),
+        bottomNavigationBar: (examState.isLoading || examState.questions.isEmpty)
+            ? null
+            : _buildBottomBar(theme, examState),
       ),
     );
   }
@@ -288,32 +311,31 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
             ],
           ),
         ),
-        // Warning chip
-        if (examState.warningCount > 0)
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Chip(
-              avatar: Icon(Icons.warning_amber, size: 16, color: Colors.red.shade700),
-              label: Text('${examState.warningCount}/${examState.warningLimit}',
-                  style: TextStyle(fontSize: 12, color: Colors.red.shade700)),
-              backgroundColor: Colors.red.shade50,
-              side: BorderSide.none,
-              visualDensity: VisualDensity.compact,
-            ),
+        // Warning chip (always visible so students know the limit)
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: Chip(
+            avatar: Icon(Icons.warning_amber, size: 16, color: examState.warningCount > 0 ? Colors.red.shade700 : Colors.grey.shade500),
+            label: Text('${examState.warningCount}/${examState.warningLimit}',
+                style: TextStyle(fontSize: 12, color: examState.warningCount > 0 ? Colors.red.shade700 : Colors.grey.shade600)),
+            backgroundColor: examState.warningCount > 0 ? Colors.red.shade50 : Colors.grey.shade100,
+            side: BorderSide.none,
+            visualDensity: VisualDensity.compact,
           ),
+        ),
       ],
     );
   }
 
-  Widget _buildQuestionCard(ThemeData theme, Map<String, dynamic> q, ExamState examState) {
+  Widget _buildQuestionCard(ThemeData theme, Map<String, dynamic> q, ExamState examState, int index) {
     // Extract data with fallbacks
     final content = q['question']?['content'] ?? q['content'] ?? '';
     final options = (q['question']?['options'] as List<dynamic>?) ??
         (q['options'] as List<dynamic>?) ??
         [];
-    final position = q['position'] ?? 0;
     final questionId = q['question']?['id'] ?? q['id'] ?? '';
     final difficulty = q['question']?['difficulty'] ?? q['difficulty'] ?? '';
+    final type = q['question']?['type'] ?? '';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -330,7 +352,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  'Soal ${position + 1}',
+                  'Soal ${index + 1}',
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: theme.colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.w600,
@@ -365,24 +387,46 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
             ),
           ),
           const SizedBox(height: 20),
-          // Options
-          ...List.generate(options.length, (index) {
+          // Options (MC/TrueFalse/MultiSelect) or Essay input
+          if (type == 'ESSAY' || options.isEmpty)
+            _buildEssayInput(theme, questionId, examState)
+          else
+            ...List.generate(options.length, (index) {
             final option = options[index] is Map ? options[index] as Map<String, dynamic> : {};
             final optId = option['id']?.toString() ?? '';
             final optText = option['content']?.toString() ?? option['label']?.toString() ?? '';
             final label = String.fromCharCode(65 + index); // A, B, C, D, E
-            final isSelected = examState.answers[questionId] == optId;
+            final isMultiSelect = type == 'MULTI_SELECT';
+            final isSelected = isMultiSelect
+                ? (examState.answers[questionId]?.split(',').contains(optId) ?? false)
+                : examState.answers[questionId] == optId;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: InkWell(
                 onTap: () {
-                  ref.read(examProvider.notifier).saveAnswer(
-                    questionId: questionId,
-                    answer: optId,
-                    dio: _dio,
-                    onSaved: () {},
-                  );
+                  if (isMultiSelect) {
+                    final current = examState.answers[questionId] ?? '';
+                    final selected = current.split(',').where((s) => s.isNotEmpty).toList();
+                    if (selected.contains(optId)) {
+                      selected.remove(optId);
+                    } else {
+                      selected.add(optId);
+                    }
+                    ref.read(examProvider.notifier).saveAnswer(
+                      questionId: questionId,
+                      answer: selected.join(','),
+                      dio: _dio,
+                      onSaved: () {},
+                    );
+                  } else {
+                    ref.read(examProvider.notifier).saveAnswer(
+                      questionId: questionId,
+                      answer: optId,
+                      dio: _dio,
+                      onSaved: () {},
+                    );
+                  }
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: AnimatedContainer(
@@ -456,30 +500,29 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
           BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, -2)),
         ],
       ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Save indicator
-            if (examState.showSaveIndicator)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  border: Border(bottom: BorderSide(color: Colors.green.shade100)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.cloud_done_outlined, size: 16, color: Colors.green.shade700),
-                    const SizedBox(width: 6),
-                    Text('Tersimpan', style: TextStyle(color: Colors.green.shade700, fontSize: 12, fontWeight: FontWeight.w600)),
-                  ],
-                ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Save indicator
+          if (examState.showSaveIndicator)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                border: Border(bottom: BorderSide(color: Colors.green.shade100)),
               ),
-            // Progress dots + buttons
-            Padding(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.cloud_done_outlined, size: 16, color: Colors.green.shade700),
+                  const SizedBox(width: 6),
+                  Text('Tersimpan', style: TextStyle(color: Colors.green.shade700, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          // Progress dots + buttons
+          Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
@@ -537,12 +580,77 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: Text(
-                '${current + 1} / $total  •  $answered terjawab',
+                '${current + 1} / $total',
                 style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
               ),
             ),
-          ],
+            // Submit button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Submit Exam?'),
+                        content: Text(answered < total
+                            ? 'You have answered $answered of $total questions. Are you sure you want to submit?'
+                            : 'All questions have been answered. Submit now?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+                          TextButton(
+                            onPressed: () { Navigator.pop(ctx); _submitExam(); },
+                            child: const Text('SUBMIT', style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.assignment_turned_in, size: 18),
+                  label: const Text('Submit', style: TextStyle(fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade600,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEssayInput(ThemeData theme, String questionId, ExamState examState) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        key: ValueKey('essay_$questionId'),
+        initialValue: examState.answers[questionId] ?? '',
+        maxLines: 5,
+        minLines: 3,
+        style: theme.textTheme.bodyMedium,
+        decoration: InputDecoration(
+          hintText: 'Tulis jawaban Anda di sini...',
+          hintStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          filled: true,
+          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          contentPadding: const EdgeInsets.all(14),
         ),
+        onChanged: (value) {
+          ref.read(examProvider.notifier).saveAnswer(
+            questionId: questionId,
+            answer: value,
+            dio: _dio,
+            onSaved: () {},
+          );
+        },
       ),
     );
   }

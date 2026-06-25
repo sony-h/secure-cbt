@@ -79,6 +79,10 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ujian'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.goNamed('exam-select'),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
