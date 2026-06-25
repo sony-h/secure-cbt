@@ -4,8 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   static const _primaryColor = Color(0xFF2563EB); // Blue-600
   static const _errorColor = Color(0xFFDC2626); // Red-600
-  static const _successColor = Color(0xFF16A34A); // Green-600
-  static const _warningColor = Color(0xFFCA8A04); // Yellow-600
 
   static ThemeData get lightTheme {
     return ThemeData(
@@ -20,7 +18,7 @@ class AppTheme {
         centerTitle: true,
         elevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -66,7 +64,7 @@ class AppTheme {
       ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
       appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

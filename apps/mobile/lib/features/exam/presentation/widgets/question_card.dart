@@ -14,7 +14,6 @@ class QuestionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type = question['question']?['type'] ?? question['type'] ?? 'MULTIPLE_CHOICE';
     final content = question['question']?['content'] ?? question['content'] ?? '';
     final options = question['question']?['options'] ?? question['options'] ?? [];
     final position = question['position'] ?? 0;
