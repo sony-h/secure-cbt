@@ -9,7 +9,7 @@ class ExamState {
   final bool isLoading;
   final String? sessionId;
   final List<Map<String, dynamic>> questions;
-  final Map<String, String> answers; // questionId → answer
+  final Map<String, String> answers;
   final int currentIndex;
   final int remainingSeconds;
   final int warningCount;
@@ -17,6 +17,8 @@ class ExamState {
   final bool isSubmitted;
   final bool isFullscreen;
   final List<String> violations;
+  final bool showSaveIndicator;
+  final DateTime? lastSavedAt;
 
   const ExamState({
     this.isLoading = false,
@@ -30,6 +32,8 @@ class ExamState {
     this.isSubmitted = false,
     this.isFullscreen = true,
     this.violations = const [],
+    this.showSaveIndicator = false,
+    this.lastSavedAt,
   });
 
   ExamState copyWith({
@@ -44,6 +48,8 @@ class ExamState {
     bool? isSubmitted,
     bool? isFullscreen,
     List<String>? violations,
+    bool? showSaveIndicator,
+    DateTime? lastSavedAt,
   }) {
     return ExamState(
       isLoading: isLoading ?? this.isLoading,
@@ -57,6 +63,8 @@ class ExamState {
       isSubmitted: isSubmitted ?? this.isSubmitted,
       isFullscreen: isFullscreen ?? this.isFullscreen,
       violations: violations ?? this.violations,
+      showSaveIndicator: showSaveIndicator ?? this.showSaveIndicator,
+      lastSavedAt: lastSavedAt ?? this.lastSavedAt,
     );
   }
 }
@@ -79,11 +87,6 @@ class ExamNotifier extends StateNotifier<ExamState> {
     state = state.copyWith(isLoading: false);
     _startTimer();
     _startAutosave();
-    _enforceFullscreen();
-  }
-
-  void setQuestions(List<Map<String, dynamic>> questions, Map<String, String> existingAnswers) {
-    state = state.copyWith(questions: questions, answers: existingAnswers);
   }
 
   void setWarningLimit(int limit) {
@@ -98,6 +101,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
     required String questionId,
     required String answer,
     required Dio dio,
+    required VoidCallback onSaved,
   }) async {
     final newAnswers = Map<String, String>.from(state.answers);
     newAnswers[questionId] = answer;
@@ -109,6 +113,12 @@ class ExamNotifier extends StateNotifier<ExamState> {
         'question_id': questionId,
         'answer_text': answer,
         'timestamp': DateTime.now().toIso8601String(),
+      });
+      state = state.copyWith(showSaveIndicator: true, lastSavedAt: DateTime.now());
+      onSaved();
+      // Hide indicator after 2 seconds
+      Future.delayed(const Duration(seconds: 2), () {
+        state = state.copyWith(showSaveIndicator: false);
       });
     } catch (e) {
       AppLogger.debug('Answer saved locally (offline): $questionId');
@@ -133,12 +143,6 @@ class ExamNotifier extends StateNotifier<ExamState> {
   /// Register callback for when warning limit is hit (force-submit)
   void setOnForceSubmit(void Function() callback) {
     _onForceSubmit = callback;
-  }
-
-  /// Enter fullscreen immersive mode
-  void _enforceFullscreen() {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    state = state.copyWith(isFullscreen: true);
   }
 
   /// Exit fullscreen (e.g., on exam finish)
