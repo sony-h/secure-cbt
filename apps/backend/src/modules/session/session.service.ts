@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
+import { GradingService } from '../grading/grading.service';
 import {
   StartSessionDto, SubmitSessionDto, startSessionSchema, submitSessionSchema,
   SessionStatus, ExamStatus, EventNames,
@@ -11,6 +12,7 @@ export class SessionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly gradingService: GradingService,
   ) {}
 
   async start(dto: StartSessionDto, userId: string) {
@@ -163,7 +165,14 @@ export class SessionService {
       data: { status: SessionStatus.SUBMITTED, submitted_at: new Date() },
     });
 
-    this.eventEmitter.emit(EventNames.SESSION_FINISHED, { sessionId: session_id, examId: session.exam_id });
+    // Auto-grade all objective answers and create score record
+    await this.gradingService.calculateTotalScore(session_id);
+
+    this.eventEmitter.emit(EventNames.SESSION_FINISHED, {
+      sessionId: session_id,
+      examId: session.exam_id,
+      studentId: session.student_id,
+    });
     return updated;
   }
 
@@ -176,7 +185,14 @@ export class SessionService {
       data: { status: SessionStatus.AUTO_SUBMITTED, submitted_at: new Date() },
     });
 
-    this.eventEmitter.emit(EventNames.SESSION_EXPIRED, { sessionId });
+    // Auto-grade all objective answers and create score record
+    await this.gradingService.calculateTotalScore(sessionId);
+
+    this.eventEmitter.emit(EventNames.SESSION_EXPIRED, {
+      sessionId,
+      examId: session.exam_id,
+      studentId: session.student_id,
+    });
     return updated;
   }
 }

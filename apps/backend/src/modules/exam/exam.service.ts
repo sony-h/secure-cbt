@@ -214,8 +214,8 @@ export class ExamService {
     return examToken;
   }
 
-  async getExamsForStudent(studentId: string) {
-    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+  async getExamsForStudent(userId: string) {
+    const student = await this.prisma.student.findUnique({ where: { user_id: userId } });
     if (!student) throw new NotFoundException('Student not found');
 
     const now = new Date();
