@@ -9,7 +9,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { UserRole } from '@secure-cbt/shared';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge, Spinner } from '@/components/ui/table';
-import { Wifi, WifiOff, AlertTriangle, Users, CheckCircle, Eye } from 'lucide-react';
+import { Wifi, WifiOff, AlertTriangle, Users, CheckCircle, Eye, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Exam {
@@ -28,6 +28,7 @@ interface StudentSession {
   warning_count: number;
   remaining_time_seconds: number | null;
   progress?: number;
+  student_user_id?: string;
 }
 
 interface SessionLog {
@@ -53,6 +54,9 @@ export default function MonitoringPage() {
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
+  // Build a lookup map for studentUserId → studentName / sessionId
+  const studentNameMap = useRef<Map<string, { name: string; sessionId: string }>>(new Map());
+
   // ── Fetch published/ongoing exams ─────────────────────────────
   const { data: exams, isLoading: examsLoading } = useQuery({
     queryKey: ['monitoring-exams'],
@@ -72,23 +76,35 @@ export default function MonitoringPage() {
       if (!selectedExamId) return null;
       const { data } = await api.get(`/monitoring/exams/${selectedExamId}`);
       const raw = data.data;
-      // Map backend shape → frontend StudentSession shape
       return {
         ...raw,
         sessions: (raw.students || []).map((s: any) => ({
           id: s.session_id,
-          student: { nis: s.student_id, full_name: s.student_name, class: { name: s.class_name } },
+          student: { nis: s.nis, full_name: s.student_name, class: { name: s.class_name } },
           status: s.status === 'active' ? 'ACTIVE' : s.status === 'finished' ? 'SUBMITTED' : 'DISCONNECTED',
           started_at: s.last_activity_at,
           warning_count: s.warning_count,
           remaining_time_seconds: s.remaining_time_seconds,
           progress: s.progress?.total > 0 ? s.progress.answered / s.progress.total : 0,
+          student_user_id: s.student_user_id,
         })),
       };
     },
     enabled: !!selectedExamId,
     refetchInterval: 5000,
   });
+
+  // ── Build name/session lookup map when session data changes ──
+  useEffect(() => {
+    const map = new Map<string, { name: string; sessionId: string }>();
+    for (const s of sessionData) {
+      const userId = (s as any).student_user_id;
+      if (userId) {
+        map.set(userId, { name: s.student.full_name, sessionId: s.id });
+      }
+    }
+    studentNameMap.current = map;
+  }, [sessionData]);
 
   // ── Fetch session logs ────────────────────────────────────────
   const { data: logs } = useQuery({
@@ -101,6 +117,20 @@ export default function MonitoringPage() {
     enabled: !!selectedSession,
     refetchInterval: 3000,
   });
+
+  // Helper: resolve student name from socket event data
+  function resolveName(data: any): string {
+    if (data.studentName) return data.studentName;
+    // Fallback: lookup by studentId (user UUID) from sessionData
+    const entry = studentNameMap.current.get(data.studentId);
+    if (entry) return entry.name;
+    // Last resort: lookup by sessionId
+    if (data.sessionId) {
+      const sess = sessionData.find((s) => s.id === data.sessionId);
+      if (sess) return sess.student.full_name;
+    }
+    return data.studentId || 'Unknown';
+  }
 
   // ── Socket.io connection ──────────────────────────────────────
   useEffect(() => {
@@ -118,18 +148,20 @@ export default function MonitoringPage() {
       console.log('Monitoring socket connected');
     });
 
-    socket.on('student.connected', (data: { studentId: string }) => {
+    socket.on('student.connected', (data: { studentId: string; studentName?: string; sessionId?: string }) => {
+      const name = resolveName(data);
       setConnectedStudents((prev) => new Set(prev).add(data.studentId));
-      toast.info(`Siswa terhubung: ${data.studentId}`);
+      toast.info(`Siswa terhubung: ${name}`);
     });
 
     socket.on('student.disconnected', (data: { studentId: string }) => {
+      const name = resolveName(data);
       setConnectedStudents((prev) => {
         const next = new Set(prev);
         next.delete(data.studentId);
         return next;
       });
-      toast.warning(`Siswa terputus: ${data.studentId}`);
+      toast.warning(`Siswa terputus: ${name}`);
     });
 
     socket.on('progress.updated', (data: any) => {
@@ -140,22 +172,24 @@ export default function MonitoringPage() {
       );
     });
 
-    socket.on('exam.submitted', (data: { sessionId: string; studentId: string }) => {
+    socket.on('exam.submitted', (data: { sessionId: string; studentId: string; studentName?: string }) => {
+      const name = resolveName(data);
       setSessionData((prev) =>
         prev.map((s) =>
           s.id === data.sessionId ? { ...s, status: 'SUBMITTED' } : s
         )
       );
-      toast.success(`Siswa selesai: ${data.studentId}`);
+      toast.success(`Siswa selesai: ${name}`);
     });
 
-    socket.on('warning.triggered', (data: { sessionId: string; studentId: string; count: number }) => {
+    socket.on('warning.triggered', (data: { sessionId: string; studentId: string; studentName?: string; count: number }) => {
+      const name = resolveName(data);
       setSessionData((prev) =>
         prev.map((s) =>
           s.id === data.sessionId ? { ...s, warning_count: data.count } : s
         )
       );
-      toast.error(`Peringatan #${data.count}: ${data.studentId}`);
+      toast.error(`Peringatan #${data.count}: ${name}`);
     });
 
     socket.on('disconnect', () => console.log('Monitoring socket disconnected'));
@@ -288,12 +322,13 @@ export default function MonitoringPage() {
               <div className="space-y-3 max-h-[400px] overflow-y-auto">
                   {sessionData.map((session) => {
                     const isConnected = connectedStudents.has(session.id);
+                    const isExpanded = session.id === selectedSession;
                   return (
                     <div
                       key={session.id}
                       onClick={() => setSelectedSession(session.id === selectedSession ? null : session.id)}
                       className={`p-3 border rounded-md cursor-pointer transition hover:bg-muted ${
-                        session.id === selectedSession ? 'border-primary bg-primary/5' : ''
+                        isExpanded ? 'border-primary bg-primary/5' : ''
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -313,18 +348,25 @@ export default function MonitoringPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {session.status === 'ACTIVE' ? (
-                            <Badge variant="success">Aktif</Badge>
-                          ) : session.status === 'SUBMITTED' ? (
-                            <Badge variant="default">Selesai</Badge>
+                          <div className="flex items-center gap-2 mr-1">
+                            {session.status === 'ACTIVE' ? (
+                              <Badge variant="success">Aktif</Badge>
+                            ) : session.status === 'SUBMITTED' ? (
+                              <Badge variant="default">Selesai</Badge>
+                            ) : (
+                              <Badge variant="warning">{session.status}</Badge>
+                            )}
+                            {session.warning_count > 0 && (
+                              <Badge variant="destructive" className="gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                {session.warning_count}
+                              </Badge>
+                            )}
+                          </div>
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
                           ) : (
-                            <Badge variant="warning">{session.status}</Badge>
-                          )}
-                          {session.warning_count > 0 && (
-                            <Badge variant="destructive" className="gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              {session.warning_count}
-                            </Badge>
+                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                           )}
                         </div>
                       </div>
@@ -340,19 +382,23 @@ export default function MonitoringPage() {
                       )}
 
                       {/* Session logs */}
-                      {session.id === selectedSession && logs && logs.length > 0 && (
+                      {isExpanded && (
                         <div className="mt-3 pt-3 border-t">
                           <p className="text-xs font-medium mb-2">Log Aktivitas</p>
-                          <div className="space-y-1 max-h-32 overflow-y-auto">
-                            {logs.map((log) => (
-                              <div key={log.id} className="flex items-center gap-2 text-xs">
-                                <span className="text-muted-foreground w-20 shrink-0">
-                                  {new Date(log.created_at).toLocaleTimeString('id-ID')}
-                                </span>
-                                <span>{log.description || log.event}</span>
-                              </div>
-                            ))}
-                          </div>
+                          {logs && logs.length > 0 ? (
+                            <div className="space-y-1 max-h-32 overflow-y-auto">
+                              {logs.map((log) => (
+                                <div key={log.id} className="flex items-center gap-2 text-xs">
+                                  <span className="text-muted-foreground w-20 shrink-0">
+                                    {new Date(log.created_at).toLocaleTimeString('id-ID')}
+                                  </span>
+                                  <span>{log.description || log.event}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Belum ada aktivitas</p>
+                          )}
                         </div>
                       )}
                     </div>

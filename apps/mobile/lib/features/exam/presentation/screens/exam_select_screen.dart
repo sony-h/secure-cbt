@@ -173,7 +173,7 @@ class _ExamSelectScreenState extends ConsumerState<ExamSelectScreen> {
                       : RefreshIndicator(
                           onRefresh: _fetchExams,
                           child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                             itemCount: _exams.length,
                             itemBuilder: (context, index) {
                               final exam = _exams[index];

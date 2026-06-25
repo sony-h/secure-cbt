@@ -75,7 +75,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
   Timer? _timer;
   void Function()? _onForceSubmit;
   void Function(String questionId)? _onAnswerSaved;
-  void Function(String event, int count)? _onViolation;
+  void Function(String event, int count, String? sessionId)? _onViolation;
   void Function()? _onExamSubmitted;
 
   ExamNotifier() : super(const ExamState());
@@ -143,7 +143,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
     final newViolations = [...state.violations, '$event @ ${DateTime.now().toIso8601String()}'];
     state = state.copyWith(warningCount: newCount, violations: newViolations);
     AppLogger.warn('Violation: $event (warning $newCount / ${state.warningLimit})');
-    _onViolation?.call(event, newCount);
+    _onViolation?.call(event, newCount, state.sessionId);
 
     // Auto-submit if warning limit exceeded
     if (newCount >= state.warningLimit) {
@@ -163,7 +163,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
   }
 
   /// Register callback for when a violation is logged (for socket emit)
-  void setOnViolation(void Function(String event, int count) callback) {
+  void setOnViolation(void Function(String event, int count, String? sessionId) callback) {
     _onViolation = callback;
   }
 

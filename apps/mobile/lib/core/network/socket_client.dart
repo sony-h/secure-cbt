@@ -10,7 +10,7 @@ class MonitoringSocket {
 
   bool get isConnected => _socket?.connected ?? false;
 
-  Future<void> connect(String userId, String examId) async {
+  Future<void> connect(String userId, String examId, {String? studentName}) async {
     disconnect();
 
     const storage = FlutterSecureStorage();
@@ -29,6 +29,7 @@ class MonitoringSocket {
       AppLogger.debug('Monitoring socket connected');
       _socket?.emit('student.connected', {
         'studentId': userId,
+        'studentName': studentName ?? '',
         'examId': examId,
         'deviceId': 'android_${DateTime.now().millisecondsSinceEpoch}',
         'timestamp': DateTime.now().toUtc().toIso8601String(),
@@ -55,19 +56,23 @@ class MonitoringSocket {
     });
   }
 
-  void emitExamSubmitted(String sessionId, String examId, String studentId) {
+  void emitExamSubmitted(String sessionId, String examId, String studentId, {String? studentName}) {
     if (_socket?.connected != true) return;
     _socket?.emit('exam.submitted', {
       'sessionId': sessionId,
       'examId': examId,
       'studentId': studentId,
+      'studentName': studentName ?? '',
     });
   }
 
-  void emitViolation(String examId, int warningCount, String event) {
+  void emitViolation(String examId, int warningCount, String event, String sessionId, {String? studentName}) {
     if (_socket?.connected != true) return;
     _socket?.emit('warning.triggered', {
+      'sessionId': sessionId,
       'examId': examId,
+      'studentId': '',
+      'studentName': studentName ?? '',
       'warningCount': warningCount,
       'event': event,
       'timestamp': DateTime.now().toUtc().toIso8601String(),

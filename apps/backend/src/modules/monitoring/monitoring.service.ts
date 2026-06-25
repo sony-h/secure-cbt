@@ -23,6 +23,8 @@ export class MonitoringService {
     const students = sessions.map((s) => ({
       session_id: s.id,
       student_id: s.student_id,
+      student_user_id: s.student.user_id,
+      nis: s.student.nis,
       student_name: s.student.full_name,
       class_name: s.student.class.name,
       status: s.status === SessionStatus.ACTIVE ? 'active' : s.status === SessionStatus.SUBMITTED ? 'finished' : 'disconnected',

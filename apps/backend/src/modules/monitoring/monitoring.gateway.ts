@@ -8,15 +8,10 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { SocketEvent } from '@secure-cbt/shared';
+import { MonitoringService } from './monitoring.service';
 
-/**
- * Real-time monitoring gateway for exam sessions.
- * Used by:
- * - Student app: reports connectivity, answers, warnings
- * - Teacher dashboard: monitors student activity in real-time
- */
 @WebSocketGateway({
   namespace: '/monitoring',
   cors: {
@@ -31,7 +26,8 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
 
   // Track connected clients
   private readonly studentSockets = new Map<string, string>(); // studentId → socketId
-  private readonly teacherSockets = new Map<string, string>(); // teacherId → socketId
+
+  constructor(private readonly monitoringService: MonitoringService) {}
 
   handleConnection(client: Socket): void {
     const { role, userId, examId } = client.handshake.query;
@@ -39,20 +35,10 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
 
     if (role === 'student' && typeof userId === 'string') {
       this.studentSockets.set(userId, client.id);
-
-      // Join exam room for broadcasting
-      if (typeof examId === 'string') {
-        client.join(`exam:${examId}`);
-      }
     }
 
-    if (role === 'teacher' && typeof userId === 'string') {
-      this.teacherSockets.set(userId, client.id);
-
-      // Join exam room
-      if (typeof examId === 'string') {
-        client.join(`exam:${examId}`);
-      }
+    if (typeof examId === 'string' && examId.length > 0) {
+      client.join(`exam:${examId}`);
     }
   }
 
@@ -63,7 +49,6 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
     if (role === 'student' && typeof userId === 'string') {
       this.studentSockets.delete(userId);
 
-      // Notify teachers that student disconnected
       if (typeof examId === 'string') {
         this.server.to(`exam:${examId}`).emit(SocketEvent.STUDENT_DISCONNECTED, {
           studentId: userId,
@@ -71,10 +56,6 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
           timestamp: new Date().toISOString(),
         });
       }
-    }
-
-    if (role === 'teacher' && typeof userId === 'string') {
-      this.teacherSockets.delete(userId);
     }
   }
 
@@ -85,7 +66,6 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { sessionId: string; questionId: string; examId: string },
   ): void {
-    // Broadcast progress update to teachers monitoring this exam
     if (data.examId) {
       this.server.to(`exam:${data.examId}`).emit(SocketEvent.PROGRESS_UPDATED, {
         sessionId: data.sessionId,
@@ -98,12 +78,13 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
   @SubscribeMessage(SocketEvent.EXAM_SUBMITTED)
   handleExamSubmitted(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { sessionId: string; examId: string; studentId: string },
+    @MessageBody() data: { sessionId: string; examId: string; studentId: string; studentName?: string },
   ): void {
     if (data.examId) {
       this.server.to(`exam:${data.examId}`).emit(SocketEvent.EXAM_SUBMITTED, {
         sessionId: data.sessionId,
         studentId: data.studentId,
+        studentName: data.studentName || '',
         timestamp: new Date().toISOString(),
       });
     }
@@ -113,11 +94,13 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
   @SubscribeMessage(SocketEvent.STUDENT_CONNECTED)
   handleStudentConnected(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { studentId: string; examId: string; deviceId?: string },
+    @MessageBody() data: { studentId: string; examId: string; studentName?: string; deviceId?: string },
   ): void {
     if (data.examId) {
       this.server.to(`exam:${data.examId}`).emit(SocketEvent.STUDENT_CONNECTED, {
+        sessionId: client.handshake.query.examId,
         studentId: data.studentId,
+        studentName: data.studentName || '',
         examId: data.examId,
         deviceId: data.deviceId,
         timestamp: new Date().toISOString(),
@@ -126,39 +109,45 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
   }
 
   @SubscribeMessage(SocketEvent.WARNING_TRIGGERED)
-  handleWarningTriggered(
+  async handleWarningTriggered(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { examId: string; warningCount: number; event: string; timestamp: string },
-  ): void {
+    @MessageBody() data: { sessionId: string; examId: string; studentId: string; studentName?: string; warningCount: number; event: string; timestamp: string },
+  ): Promise<void> {
     if (data.examId) {
       this.server.to(`exam:${data.examId}`).emit(SocketEvent.WARNING_TRIGGERED, {
-        studentId: client.handshake.query.userId,
+        sessionId: data.sessionId,
+        studentId: data.studentId || client.handshake.query.userId,
+        studentName: data.studentName || '',
         examId: data.examId,
-        warningCount: data.warningCount,
+        count: data.warningCount,
         event: data.event,
         timestamp: data.timestamp,
       });
+    }
+    // Persist warning to session_logs
+    try {
+      await this.monitoringService.logEvent(
+        data.sessionId,
+        `WARNING_TRIGGERED:${data.event}`,
+        `Peringatan #${data.warningCount}: ${data.studentName || data.studentId || client.handshake.query.userId} - ${data.event}`,
+      );
+    } catch (e) {
+      this.logger.error('Failed to log warning event', e as any);
     }
   }
 
   // ── Teacher/Monitoring Methods ────────────────────────────
 
-  /**
-   * Send a warning to a specific student session.
-   * Called from MonitoringService when a violation is detected.
-   */
   sendWarningToStudent(studentId: string, examId: string, data: {
     warningCount: number;
     event: string;
     description?: string;
   }): void {
-    // Notify the student
     const socketId = this.studentSockets.get(studentId);
     if (socketId) {
       this.server.to(socketId).emit(SocketEvent.WARNING_TRIGGERED, data);
     }
 
-    // Notify teachers
     this.server.to(`exam:${examId}`).emit(SocketEvent.WARNING_TRIGGERED, {
       studentId,
       examId,
@@ -166,23 +155,20 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
     });
   }
 
-  /**
-   * Notify teachers about a session finishing.
-   */
   notifySessionFinished(examId: string, data: {
     sessionId: string;
     studentId: string;
     status: string;
   }): void {
-    this.server.to(`exam:${examId}`).emit(SocketEvent.SESSION_FINISHED, {
-      ...data,
+    this.server.to(`exam:${examId}`).emit(SocketEvent.EXAM_SUBMITTED, {
+      sessionId: data.sessionId,
+      studentId: data.studentId,
+      studentName: '',
+      status: data.status,
       timestamp: new Date().toISOString(),
     });
   }
 
-  /**
-   * Notify teachers about a progress update.
-   */
   notifyAnswerSaved(examId: string, sessionId: string, questionId: string): void {
     this.server.to(`exam:${examId}`).emit(SocketEvent.PROGRESS_UPDATED, {
       sessionId,
@@ -191,16 +177,10 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
     });
   }
 
-  /**
-   * Check if a student is currently connected via socket.
-   */
   isStudentConnected(studentId: string): boolean {
     return this.studentSockets.has(studentId);
   }
 
-  /**
-   * Get the count of connected students for an exam.
-   */
   getConnectedCount(examId: string): number {
     const room = this.server.sockets.adapter.rooms.get(`exam:${examId}`);
     return room ? room.size : 0;

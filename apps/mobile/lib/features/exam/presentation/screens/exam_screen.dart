@@ -32,6 +32,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
   late PageController _pageController;
   bool _submitting = false;
   bool _violationsEnabled = false;
+  bool _violationPending = false;
 
   @override
   void initState() {
@@ -90,20 +91,21 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       // Connect monitoring socket
       final authState = ref.read(authProvider);
       final examId = session['exam_id'] ?? session['exam']?['id'] ?? '';
+      final studentName = authState.fullName ?? '';
       if (authState.userId != null) {
         final socket = ref.read(monitoringSocketProvider);
-        socket.connect(authState.userId!, examId);
+        socket.connect(authState.userId!, examId, studentName: studentName);
 
         notifier.setOnAnswerSaved((questionId) {
           socket.emitAnswerSaved(widget.sessionId, questionId, examId);
         });
 
-        notifier.setOnViolation((event, count) {
-          socket.emitViolation(examId, count, event);
+        notifier.setOnViolation((event, count, sessionId) {
+          socket.emitViolation(examId, count, event, sessionId ?? widget.sessionId, studentName: studentName);
         });
 
         notifier.setOnExamSubmitted(() {
-          socket.emitExamSubmitted(widget.sessionId, examId, authState.userId!);
+          socket.emitExamSubmitted(widget.sessionId, examId, authState.userId!, studentName: studentName);
         });
       }
 
@@ -154,14 +156,18 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
     final notifier = ref.read(examProvider.notifier);
     switch (state) {
       case AppLifecycleState.paused:
-        notifier.logViolation('APP_MINIMIZED');
-        _showViolationSnackbar('Peringatan! Aplikasi tidak boleh diminimalkan.');
+      case AppLifecycleState.hidden:
+        if (!_violationPending) {
+          _violationPending = true;
+          notifier.logViolation('APP_MINIMIZED');
+          _showViolationSnackbar('Peringatan! Aplikasi tidak boleh diminimalkan.');
+        }
         break;
       case AppLifecycleState.resumed:
+        _violationPending = false;
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
         break;
       case AppLifecycleState.inactive:
-      case AppLifecycleState.hidden:
       case AppLifecycleState.detached:
         break;
     }
