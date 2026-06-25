@@ -1,15 +1,15 @@
 # Progress Note: Secure CBT Platform
 
-**Current Phase:** Phase 2 - Infrastructure & Frontend Scaffolding - COMPLETED → Moving to Phase 3
+**Current Phase:** Phase 3 - Core Business Logic Integration & Hardening - IN PROGRESS
 **Target Platform:** Indonesian High Schools (SMA/SMK)
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-06-25
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
 *   `apps/backend/`: **NestJS with 14 business modules + full infrastructure** (Redis, BullMQ, Socket.io, Exception Filter, Response Interceptor, Logging, Throttler). Prisma schema with 23 tables. Seed script ready.
-*   `apps/dashboard/`: **Next.js App Router scaffolded** with Tailwind + Shadcn UI + TanStack Query. Auth (login, logout, token refresh), Dashboard layout with sidebar, CRUD pages for Students, Teachers, Academic. Placeholder pages for Questions, Exams, Monitoring, Reports, Settings.
-*   `apps/mobile/`: **Flutter project scaffolded** with Riverpod (auth + exam state), Drift (offline-first SQLite), Dio (HTTP + retry + auto-refresh). Login screen, Token screen, Exam screen (with timer, navigation panel, answer cards), Result screen. Android security setup documented.
+*   `apps/dashboard/`: **Next.js App Router scaffolded** with Tailwind + Shadcn UI + TanStack Query. Auth (login, logout, token refresh), Dashboard layout with sidebar, CRUD pages for Students, Teachers, Academic. Complete pages for Questions, Exams, Monitoring, Reports, Settings.
+*   `apps/mobile/`: **Flutter project scaffolded and platform files generated** with Riverpod (auth + exam state), Drift (offline-first SQLite), Dio (HTTP + retry + auto-refresh). Android app security setup configured on Kotlin & manifest levels.
 *   `packages/shared/`: **Complete** - Shared enums, DTOs, Zod schemas, event constants, security configuration.
 *   `docker/`: Dockerfiles for backend development and production, Prisma migration runner.
 *   `docker-compose.yml`: PostgreSQL 16, Redis 7, MinIO for local development.
@@ -109,54 +109,122 @@ users, students, teachers, teacher_subjects, academic_years, majors, classes, su
 - Initialized git repository with 169 files (15,877 lines)
 - `.gitignore` covers node_modules, build outputs, .env, IDE files, mobile platforms
 
-### 2. Docker Infrastructure - RUNNING
+### 2. Docker Infrastructure - RUNNING & HEALTHY
 - PostgreSQL 16 (healthy), Redis 7 (healthy), MinIO (healthy) via `docker compose up -d`
-- **Fixed:** Removed obsolete `version` field from docker-compose.yml
-- **Fixed:** `docker/Dockerfile.prisma` - now installs `openssl` (required by Prisma engine), uses pnpm for workspace protocol, bind-mounts prisma directory for migration persistence
+- **Fixed:** Redis/BullMQ environment variables inside `docker-compose.yml` for the backend service (`BULLMQ_REDIS_HOST: redis` and `BULLMQ_REDIS_PORT: 6379`) to resolve startup crashes.
 
 ### 3. Database - MIGRATED & SEEDED
-- **Initial migration** `20260624000000_init` created and applied (23 tables, 6 enums)
-- **Schema fix:** `Subject.major` changed from `Major` to `Major?` (matching optional `major_id`)
+- **Initial migration** `20260624000000_init` created and applied on both container and host (23 tables, 6 enums)
 - **Seed completed:** admin/admin123, operator/operator123, teacher/teacher123, 30 students (NIS-based login), 12 subjects, 5 sample questions
-- **Seed fixes:** Fixed relative import paths (`../../src/` → `../src/`), added `prisma.seed` config to `package.json`
 
-## Known Issues
-- **Prisma Client Generation:** Prisma 5.22.0 WASM engine incompatible with Node.js v24.15.0 on Windows. **Solution:** Use Docker (`docker compose --profile setup run --rm prisma-migrate`) ✓ Works
-- **PowerShell Execution Policy:** Windows PowerShell blocks `pnpm`, `npx`, `npm` script execution. **Solution:** Use `cmd /c` prefix or Docker for dependency installation.
-- **Dashboard dependencies not installed:** `pnpm install` needs to be run (blocked by execution policy). Use Docker or set ExecutionPolicy to RemoteSigned.
-- **Flutter not installed:** Cannot build mobile app. Need to install Flutter SDK.
-- **No Node v22 on host:** Prisma WASM engine needs Node v22. Docker uses Node 22 Alpine image - works.
+### 4. Flutter Platform Scaffold - GENERATED
+- **Platform Files Created:** Ran `flutter create --org com.securecbt --platforms=android .` inside `apps/mobile`.
+- **Kotlin Security Plugin:** Configured `MainActivity.kt` with window security flags (`FLAG_SECURE` to block screenshots/screencasts) and registered MethodChannels.
+- **Manifest Permissions:** Added permissions for Kiosk/Lock TaskMode, Wake Lock, Internet, and network states to `AndroidManifest.xml`.
+- **Drift/Riverpod Code Generation:** Successfully compiled dependencies (`flutter pub get`) and executed `build_runner` generation.
+
+### 5. Monorepo Build and Types - VERIFIED & COMPILING
+- **Dashboard Type Fixes:** Fixed `colSpan` type definitions in `table.tsx` and added `secondary`/`outline` variants in `Badge` component to prevent compilation errors.
+- **Linter Tuning:** Configured ESLint rules (`.eslintrc.js`) to ignore Next.js specific directories in the root linter.
+- **Full Compile Check:** Successfully executed `pnpm build` verifying that NestJS, packages/shared, and Next.js projects compile cleanly without errors.
+
+### 6. Backend Integration Tests - CREATED & PASSING
+- **Test Suites Created:** Auth (`test/auth.e2e-spec.ts`) and Exam Flow (`test/exam.e2e-spec.ts`) E2E tests written using supertest + Vitest.
+- **Test Runners:** Setup `vitest.config.e2e.ts` pointing to localhost databases and verified tests pass successfully.
+
+### 7. Dashboard CRUD Dialogs - BUILT
+- **Student Dialog:** Create/Edit modal with NIS, full_name, class_id (dropdown from /academic/classes), status (ACTIVE/INACTIVE/GRADUATED). Wired with TanStack mutations (POST/PATCH/DELETE).
+- **Teacher Dialog:** Create/Edit modal with NIP, full_name, subject_ids (checkbox list from /academic/subjects). Wired with TanStack mutations (POST/PATCH/DELETE).
+- **Academic Dialogs:** Year, Major, Class, and Subject creation dialogs replacing browser prompt() calls. Class dialog includes major/year dropdowns and grade_level selector. Subject dialog includes optional major assignment.
+
+### 8. Flutter BYOD Security Layer - IMPLEMENTED
+- **Fullscreen Enforcement:** Exam screen now sets `SystemUiMode.immersiveSticky` on entry and restores `edgeToEdge` on exit.
+- **Lifecycle Violation Detection:** `didChangeAppLifecycleState` handles all states (paused, inactive, hidden, detached) and logs violations with descriptive events.
+- **Warning Limit Auto-Submit:** When `warningCount >= warningLimit`, the exam auto-submits via `POST /sessions/submit` and navigates to the result screen.
+- **Violation UI:** Warning badge in AppBar showing current/total warnings. Snackbar alerts for each violation event.
 
 ---
 
-## Immediate Next Steps (Phase 3)
-1. ~~**Run Docker Infrastructure:**~~ ✓ Done
-   - `docker compose up -d` ✓
-   - `docker compose --profile setup run --rm prisma-migrate` ✓
-   - `docker compose --profile setup run --rm prisma-seed` ✓
-2. **Start Backend API:** `docker compose up backend` or run locally
-3. **Install & Run Dashboard:**
-   - `pnpm install` then `pnpm dev` from `apps/dashboard` (runs on port 3001)
-   - Or: Create a Dockerfile for the dashboard
-4. **Setup Flutter Project:**
-   - Install Flutter SDK
-   - Run `flutter create` in `apps/mobile` to generate platform files
-   - Copy source files from `lib/` into the generated project
-   - Run `flutter pub get && dart run build_runner build`
-   - Build and test on Android emulator
-5. **Backend Testing:**
-   - Write unit tests (Vitest) for Auth, Exam, Session, Grading services
-   - Write E2E tests (Playwright) for critical user flows
-6. **Remaining Dashboard Pages:**
-   - Build Question Bank CRUD (list, create/edit, duplicate)
-   - Build Exam management (create wizard, publish, monitoring)
-   - Build Real-time Monitoring page (Socket.io connection)
-   - Build Reports page (charts with Recharts)
-   - Build Settings page
-7. **Flutter Native Plugins:**
-   - Implement Kotlin Native plugins for FLAG_SECURE, Lock Task Mode
-   - Implement app background / split-screen detection
-   - Implement fullscreen enforcement during exam
-8. **Load Testing:**
-   - k6 scripts for 100/500/1000 concurrent students
-   - Performance tuning based on results
+## Phase 3 Progress (2026-06-25)
+
+### 9. Dashboard Bug Fixes — 11 bugs resolved
+- **🔴 CRITICAL:** Dashboard home stats were hardcoded (`30`, `1`, `12`, `0`) → replaced with live `useQuery` API calls
+- **🔴 CRITICAL:** Students & Teachers pages had data format mismatch — `useQuery` returned raw array but render expected `data?.data?.map` → fixed to return full API response body
+- **🔴 CRITICAL:** Reports page complete API response shape mismatch — backend `{ score, nis, student_name }` vs frontend `{ total_score, student: { nis, full_name } }` → added mapping layer
+- **🔴 CRITICAL:** Monitoring page API response shape mismatch — backend `{ student_name, status: 'active' }` vs frontend `{ student: { full_name }, status: 'ACTIVE' }` → added mapping layer
+- **🔴 CRITICAL:** Editing an exam wiped all question assignments (`question_ids: []` sent) → `handleEdit` now fetches full exam detail to restore existing questions
+- **🔴 CRITICAL:** Academic backend missing PATCH routes for classes/subjects → added `updateClass()` / `updateSubject()` + `@Patch` controllers
+- **🟠 HIGH:** Login broken — JWT `sub` mapped to teacher/student ID instead of user ID, `getProfile` lookup failed → reverted `sub` to always be `user.id`, resolved teacher/student IDs per service
+- **🟠 HIGH:** Socket.io URL hardcoded `localhost:3000` → uses `NEXT_PUBLIC_API_URL` env var
+- **🟡 MEDIUM:** Question bank filter was no-op → fixed to `q.question_bank?.id === bankFilter`
+- **🟡 MEDIUM:** Progress bar formula `((p/1)*10)` gave wrong % → fixed to `(p * 100)`
+- **🟡 MEDIUM:** `document.querySelector` for tag input replaced with `useRef`
+
+### 10. Comprehensive Database Seed
+- **Seed expanded from 30→60 students, 1→3 teachers, 5→25 questions, 0→2 exams**
+- Realistic Indonesian student names generated
+- 3 question banks (Math, Physics, Indonesian) with 25 questions (MC, True/False, Multi-Select, Essay)
+- 2 exams: UTS Matematika (PUBLISHED, token `83F4D2B0`) + Ulangan Fisika (DRAFT)
+- 5 demo exam sessions with answers and scores for monitoring/reports testing
+- Seed export SQL generated at `seed-csv/00-inserts-only.sql` (444 lines, FK-safe order)
+- **Known issue:** SQL export may have issues with multi-line INSERTs from pg_dump
+
+### 11. Backend Service Fixes
+- `ExamService.create` now resolves teacher ID from `user_id` before creating exam
+- `SessionService.resume/submit` now resolves student ID from `user_id` before authorization check
+- `SessionService.start` parameter renamed from `studentId` → `userId` for clarity
+
+### 12. Seed Export SQL Comparison
+- Analyzed `seed-csv/00-inserts-only.sql` compared to target Prisma schema. The export order is correct and respects foreign key dependency hierarchy. The values align with UUID formats, native enums, nullable schemas, and Argon2 password hashing. (Custom `\restrict` / `\unrestrict` markers may require a custom loader or shell strip wrapper).
+
+---
+
+## Immediate Next Steps
+1. **Start Dashboard:** `pnpm dev` from `apps/dashboard` (port 3001) — login with `admin/admin123`
+2. **Fix seed SQL export:** Investigate multi-line INSERT truncation issue in pg_dump export pipeline
+3. **Build mobile APK / run on emulator:** `flutter build apk --debug` from `apps/mobile`
+4. **Mobile Session Wiring:** Parse `/sessions/start` response → pass questions/timer to ExamScreen
+5. **Real-time Monitoring:** Socket.io warning events from mobile → teacher dashboard
+
+### 13. Question Bank getBanks — User ID vs Teacher ID Mismatch (2026-06-25)
+- **🔴 CRITICAL:** `QuestionBankController.getBanks` passed `req.user.sub` (User ID) to `getBanks()`, which treated it as `teacher_id` filter. Since User ID ≠ Teacher record ID, the `WHERE teacher_id = <user_id>` query returned 0 results for all users (Teacher & Admin).
+- **Fix:** `QuestionBankService.getBanks` now resolves `teacher.id` from `user_id` first. Admin/Operator users bypass the teacher filter entirely (see all banks from all teachers).
+- Same fix applied to `createBank` — resolves Teacher record from User ID before linking the bank.
+- **Backend restart required** after build for fix to take effect in running process.
+- Also fixed: `questions/list` page query `data.data` unwrap in dashboard, pagination `Number()` casts across 5 services, E2E test FK cleanup order (added `score` and `session_log` before `exam_session`).
+
+### 14. Dashboard Settings Page — Data Model Mismatch (2026-06-25)
+- **🔴 CRITICAL:** Settings page was designed for a non-existent key-value table schema (`{ id, key, value, description }`), but the backend returns a single flat row with typed columns (`warning_limit`, `auto_submit_enabled`, `fullscreen_required`, `lock_task_mode`, `autosave_interval`, `session_timeout`).
+- **Frontend expected:** `SystemSettings[]` array with `.filter(s => group.items.includes(s.key))` and `.map()`.
+- **Backend returned:** Single settings object. `.filter()` and `.map()` failed silently → page blank.
+- **Update mutation also broken:** Sent `{ key, value }` but backend expects column names like `{ warning_limit: 3 }`.
+- **Fix:** Rewrote settings page to match actual API. Number inputs for `warning_limit`, `autosave_interval`, `session_timeout`. Toggle buttons for `auto_submit_enabled`, `fullscreen_required`, `lock_task_mode`. Per-field save with change detection.
+
+### 15. Role-Based Dashboard Visibility & Permissions (2026-06-25)
+- **Sidebar filtering:** `navItems` in `layout.tsx` now includes `roles: UserRole[]` per item. Only items matching `user.role` appear in the sidebar.
+- **Route-level protection:** Pages now redirect to `/dashboard` if the user's role is not in the allowed list (questions, monitoring, reports, settings, teachers).
+- **Backend role expansion:** Added `TEACHER` to `StudentController.findAll` and `TeacherController.findAll` GET endpoints so teachers can view student and teacher data in the dashboard.
+- **Academic page read-only mode:** Years/Majors tabs hide Add/Delete for non-admin. Classes/Subjects tabs hide Add/Edit/Delete for Teacher (Operator still has CRUD).
+- **Students page filters:** Added class dropdown filter to let teachers/admins narrow student lists by class.
+- **Students page read-only for Teacher:** Add/Edit/Delete buttons hidden when `user.role === TEACHER`.
+
+**Final role → page visibility:**
+
+| Page | Admin | Operator | Teacher |
+|------|:-----:|:--------:|:-------:|
+| Dashboard | ✅ | ✅ | ✅ |
+| Akademik | ✅ CRUD | ✅ CRUD classes/subjects | ✅ view |
+| Siswa | ✅ CRUD | ✅ CRUD | ✅ view + filter |
+| Guru | ✅ CRUD | ✅ CRUD | ❌ hidden |
+| Bank Soal | ✅ | ❌ hidden | ✅ |
+| Ujian | ✅ | ✅ view | ✅ |
+| Monitoring | ✅ | ❌ hidden | ✅ |
+| Laporan | ✅ | ❌ hidden | ✅ |
+| Pengaturan | ✅ | ❌ hidden | ❌ hidden |
+
+### 16. Academic Edit Modals — Years & Majors (2026-06-25)
+- **YearDialog upgraded:** Now supports edit mode with pre-filled name + `is_active` toggle checkbox on both create and edit.
+- **MajorDialog upgraded:** Now supports edit mode with pre-filled name and code. Code is editable.
+- **Backend additions:** Added `updateMajorSchema`, `UpdateMajorDto`, `updateMajor()` in AcademicService, `PATCH /academic/majors/:id` in controller.
+- **Edit buttons:** Pencil icon added to each Year and Major row (Admin only, consistent with existing read-only mode).
+- **`createYear` mutation** now passes `is_active` from the dialog instead of hardcoding `false`.
