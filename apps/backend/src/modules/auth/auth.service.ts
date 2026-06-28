@@ -180,7 +180,20 @@ export class AuthService {
     });
 
     if (!user) throw new UnauthorizedException('User not found');
-    const { password_hash, ...safeUser } = user;
-    return safeUser;
+
+    const { password_hash, teacher, student, ...safeUser } = user;
+
+    let full_name = user.username;
+    if (user.role === UserRole.TEACHER && teacher) {
+      full_name = teacher.full_name;
+    } else if (user.role === UserRole.STUDENT && student) {
+      full_name = student.full_name;
+    } else if (user.role === UserRole.ADMIN) {
+      full_name = 'Administrator';
+    } else if (user.role === UserRole.OPERATOR) {
+      full_name = 'Operator';
+    }
+
+    return { ...safeUser, full_name, teacher, student };
   }
 }

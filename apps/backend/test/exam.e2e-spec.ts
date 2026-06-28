@@ -241,18 +241,8 @@ describe('Exam Flow (e2e)', () => {
     expect(response.status).toBe(201);
     expect(response.body.success).toBe(true);
     expect(response.body.data.id).toBeDefined();
-    expect(response.body.data.status).toBe(ExamStatus.DRAFT);
-    createdExamId = response.body.data.id;
-  });
-
-  it('/exams/:id/publish (POST) - publish exam', async () => {
-    const response = await request(app.getHttpServer())
-      .post(`/api/v1/exams/${createdExamId}/publish`)
-      .set('Authorization', `Bearer ${authToken}`)
-      .expect(201);
-
-    expect(response.body.success).toBe(true);
     expect(response.body.data.status).toBe(ExamStatus.PUBLISHED);
+    createdExamId = response.body.data.id;
   });
 
   it('/exams/:id/token (POST) - generate token for published exam', async () => {

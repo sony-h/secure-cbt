@@ -101,7 +101,7 @@ export class AcademicController {
 
   // Subjects
   @Get('subjects')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER, UserRole.STUDENT)
   async getSubjects(@Query() query: any) {
     const data = await this.academicService.getSubjects(query);
     return { success: true, message: 'Subjects retrieved', data };

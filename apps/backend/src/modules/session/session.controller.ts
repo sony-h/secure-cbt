@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { SessionService } from './session.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -34,5 +34,13 @@ export class SessionController {
   async submit(@Req() req: any, @Body() body: any) {
     const data = await this.sessionService.submit(body, req.user.sub);
     return { success: true, message: 'Exam submitted', data };
+  }
+
+  @Get('history')
+  @Roles(UserRole.STUDENT)
+  @ApiOperation({ summary: 'Get student exam history' })
+  async getHistory(@Req() req: any) {
+    const data = await this.sessionService.getHistory(req.user.sub);
+    return { success: true, message: 'History retrieved', data };
   }
 }

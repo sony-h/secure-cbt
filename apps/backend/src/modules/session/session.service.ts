@@ -28,6 +28,11 @@ export class SessionService {
     }
 
     const exam = examToken.exam;
+    // If the mobile sent an exam_id, verify the token belongs to that exam
+    if (dto.exam_id && exam.id !== dto.exam_id) {
+      throw new BadRequestException('Token tidak valid atau sudah kadaluarsa');
+    }
+
     if (exam.status !== ExamStatus.PUBLISHED && exam.status !== ExamStatus.ONGOING) {
       throw new BadRequestException('Exam is not available');
     }
@@ -47,7 +52,7 @@ export class SessionService {
     const examClass = await this.prisma.examClass.findFirst({
       where: { exam_id: exam.id, class_id: student.class_id },
     });
-    if (!examClass) throw new ForbiddenException('You are not assigned to this exam');
+    if (!examClass) throw new BadRequestException('Token tidak valid atau sudah kadaluarsa');
 
     // Check for existing active session
     const existing = await this.prisma.examSession.findFirst({
@@ -55,6 +60,18 @@ export class SessionService {
     });
     if (existing) {
       return this.resume({ session_id: existing.id }, userId);
+    }
+
+    // Check for already completed session
+    const completed = await this.prisma.examSession.findFirst({
+      where: {
+        exam_id: exam.id,
+        student_id: student.id,
+        status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.EXPIRED] },
+      },
+    });
+    if (completed) {
+      throw new BadRequestException('Anda sudah menyelesaikan ujian ini');
     }
 
     // Assign a random package
@@ -88,19 +105,29 @@ export class SessionService {
     this.eventEmitter.emit(EventNames.SESSION_STARTED, { sessionId: session.id, examId: exam.id, studentId: student.id });
 
     // Return session with questions (without correct answer flags)
-    const questions = session.exam.exam_questions
-      .filter((eq) => !eq.package_id || eq.package_id === assignedPackage?.id)
-      .sort((a, b) => a.position - b.position)
-      .map((eq) => ({
+    const filtered = session.exam.exam_questions
+      .filter((eq) => !eq.package_id || eq.package_id === assignedPackage?.id);
+
+    const ordered = [...filtered].sort((a, b) => a.position - b.position);
+    const finalOrder = exam.randomize_questions
+      ? [...ordered].sort(() => Math.random() - 0.5)
+      : ordered;
+
+    const questions = finalOrder.map((eq) => {
+      const opts = exam.randomize_answers
+        ? [...eq.question.options].sort(() => Math.random() - 0.5)
+        : eq.question.options;
+      return {
         id: eq.id,
         position: eq.position,
         question: {
           id: eq.question.id,
           type: eq.question.type,
           content: eq.question.content,
-          options: eq.question.options.map((o) => ({ id: o.id, content: o.content })),
+          options: opts.map((o) => ({ id: o.id, content: o.content })),
         },
-      }));
+      };
+    });
 
     return { ...session, questions };
   }
@@ -120,7 +147,7 @@ export class SessionService {
 
     if (!session) throw new NotFoundException('Session not found');
     if (session.student_id !== student.id) throw new ForbiddenException('Not your session');
-    if (session.status === SessionStatus.SUBMITTED || session.status === SessionStatus.EXPIRED) {
+    if (session.status === SessionStatus.SUBMITTED || session.status === SessionStatus.AUTO_SUBMITTED || session.status === SessionStatus.EXPIRED) {
       throw new BadRequestException('Session is already completed');
     }
 
@@ -133,19 +160,29 @@ export class SessionService {
     this.eventEmitter.emit(EventNames.SESSION_RECOVERED, { sessionId: session.id });
 
     // Return session with questions (without correct answer flags)
-    const questions = session.exam.exam_questions
-      .filter((eq) => !eq.package_id || eq.package_id === session.package_id)
-      .sort((a, b) => a.position - b.position)
-      .map((eq) => ({
+    const filtered = session.exam.exam_questions
+      .filter((eq) => !eq.package_id || eq.package_id === session.package_id);
+
+    const ordered = [...filtered].sort((a, b) => a.position - b.position);
+    const finalOrder = session.exam.randomize_questions
+      ? [...ordered].sort(() => Math.random() - 0.5)
+      : ordered;
+
+    const questions = finalOrder.map((eq) => {
+      const opts = session.exam.randomize_answers
+        ? [...eq.question.options].sort(() => Math.random() - 0.5)
+        : eq.question.options;
+      return {
         id: eq.id,
         position: eq.position,
         question: {
           id: eq.question.id,
           type: eq.question.type,
           content: eq.question.content,
-          options: eq.question.options.map((o) => ({ id: o.id, content: o.content })),
+          options: opts.map((o) => ({ id: o.id, content: o.content })),
         },
-      }));
+      };
+    });
 
     return { ...session, questions };
   }
@@ -159,6 +196,9 @@ export class SessionService {
     const session = await this.prisma.examSession.findUnique({ where: { id: session_id } });
     if (!session) throw new NotFoundException('Session not found');
     if (session.student_id !== student.id) throw new ForbiddenException('Not your session');
+    if (session.status === SessionStatus.SUBMITTED || session.status === SessionStatus.AUTO_SUBMITTED || session.status === SessionStatus.EXPIRED) {
+      throw new BadRequestException('Ujian sudah dikumpulkan');
+    }
 
     const updated = await this.prisma.examSession.update({
       where: { id: session_id },
@@ -172,12 +212,44 @@ export class SessionService {
       sessionId: session_id,
       examId: session.exam_id,
       studentId: session.student_id,
+      studentName: student.full_name,
     });
     return updated;
   }
 
+  async getHistory(userId: string) {
+    const student = await this.prisma.student.findUnique({ where: { user_id: userId } });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const sessions = await this.prisma.examSession.findMany({
+      where: {
+        student_id: student.id,
+        status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED] },
+        score: { isNot: null },
+      },
+      include: {
+        exam: { include: { subject: true } },
+        score: true,
+      },
+      orderBy: { submitted_at: 'desc' },
+    });
+
+    return sessions.map((s) => ({
+      id: s.id,
+      exam_title: s.exam.title,
+      subject_name: s.exam.subject.name,
+      total_score: s.score!.total_score,
+      correct_count: s.score!.correct_count,
+      wrong_count: s.score!.wrong_count,
+      submitted_at: s.submitted_at?.toISOString(),
+    }));
+  }
+
   async autoSubmit(sessionId: string) {
-    const session = await this.prisma.examSession.findUnique({ where: { id: sessionId } });
+    const session = await this.prisma.examSession.findUnique({ 
+      where: { id: sessionId },
+      include: { student: true },
+    });
     if (!session || session.status !== SessionStatus.ACTIVE) return;
 
     const updated = await this.prisma.examSession.update({
@@ -192,6 +264,7 @@ export class SessionService {
       sessionId,
       examId: session.exam_id,
       studentId: session.student_id,
+      studentName: session.student.full_name
     });
     return updated;
   }

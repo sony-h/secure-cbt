@@ -3,7 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateExamDto, UpdateExamDto, createExamSchema, updateExamSchema,
-  PaginationQuery, ExamStatus, EventNames,
+  PaginationQuery, ExamStatus, SessionStatus, EventNames,
 } from '@secure-cbt/shared';
 import { randomBytes } from 'crypto';
 
@@ -34,7 +34,12 @@ export class ExamService {
       }),
       this.prisma.exam.count({ where }),
     ]);
-    return { data, meta: { page, per_page, total, total_pages: Math.ceil(total / per_page) } };
+    const now = new Date();
+    const computed = data.map((exam) => ({
+      ...exam,
+      status: now > exam.end_at ? ExamStatus.FINISHED : now >= exam.start_at ? ExamStatus.ONGOING : ExamStatus.PUBLISHED,
+    }));
+    return { data: computed, meta: { page, per_page, total, total_pages: Math.ceil(total / per_page) } };
   }
 
   async findById(id: string) {
@@ -79,6 +84,7 @@ export class ExamService {
           auto_submit_enabled: data.auto_submit_enabled ?? true,
           fullscreen_required: data.fullscreen_required ?? true,
           package_count: data.package_count ?? 1,
+          status: ExamStatus.PUBLISHED,
         },
       }).catch(err => {
         console.error('Error creating exam in transaction:', err);
@@ -124,10 +130,10 @@ export class ExamService {
 
   async update(id: string, dto: UpdateExamDto) {
     const data = updateExamSchema.parse(dto);
-    await this.findById(id);
+    const existing = await this.findById(id);
 
     return this.prisma.$transaction(async (tx) => {
-      const exam = await tx.exam.update({
+      await tx.exam.update({
         where: { id },
         data: {
           title: data.title,
@@ -140,6 +146,7 @@ export class ExamService {
           warning_limit: data.warning_limit,
           auto_submit_enabled: data.auto_submit_enabled,
           fullscreen_required: data.fullscreen_required,
+          package_count: data.package_count,
         },
       });
 
@@ -155,13 +162,14 @@ export class ExamService {
         await tx.examPackage.deleteMany({ where: { exam_id: id } });
 
         const shuffled = [...data.question_ids].sort(() => Math.random() - 0.5);
-        const pkgCount = data.question_ids.length > 0 ? Math.ceil(data.question_ids.length / 1) : 1;
+        const pkgCount = data.package_count ?? existing.package_count ?? 1;
+        const perPkg = Math.ceil(shuffled.length / pkgCount);
 
         for (let i = 0; i < pkgCount; i++) {
           const pkg = await tx.examPackage.create({
             data: { exam_id: id, name: String.fromCharCode(65 + i) },
           });
-          const pkgQuestions = shuffled.slice(i * Math.ceil(shuffled.length / pkgCount), (i + 1) * Math.ceil(shuffled.length / pkgCount));
+          const pkgQuestions = shuffled.slice(i * perPkg, (i + 1) * perPkg);
           await tx.examQuestion.createMany({
             data: pkgQuestions.map((qid, idx) => ({
               exam_id: id,
@@ -219,16 +227,33 @@ export class ExamService {
     if (!student) throw new NotFoundException('Student not found');
 
     const now = new Date();
-    return this.prisma.exam.findMany({
+
+    // Exams the student has already completed
+    const completedIds = (
+      await this.prisma.examSession.findMany({
+        where: {
+          student_id: student.id,
+          status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.EXPIRED] },
+        },
+        select: { exam_id: true },
+      })
+    ).map((s) => s.exam_id);
+
+    const exams = await this.prisma.exam.findMany({
       where: {
         deleted_at: null,
         status: { in: [ExamStatus.PUBLISHED, ExamStatus.ONGOING] },
-        start_at: { lte: now },
         end_at: { gte: now },
+        id: { notIn: completedIds },
         exam_classes: { some: { class_id: student.class_id } },
       },
-      include: { subject: true },
+      include: { subject: true, _count: { select: { exam_questions: true } } },
       orderBy: { start_at: 'asc' },
     });
+
+    return exams.map((exam) => ({
+      ...exam,
+      status: now >= exam.start_at ? ExamStatus.ONGOING : exam.status,
+    }));
   }
 }

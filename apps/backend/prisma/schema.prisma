@@ -406,6 +406,7 @@ model Answer {
   exam_session_id String    @db.Uuid
   question_id     String    @db.Uuid
   answer_text     String?   @db.Text
+  feedback        String?   @db.Text
   is_correct      Boolean?
   score           Float?
   answered_at     DateTime  @default(now())
@@ -425,16 +426,17 @@ model Answer {
 // ── scores ───────────────────────────────────────────────────────
 
 model Score {
-  id              String    @id @default(uuid()) @db.Uuid
-  exam_session_id String    @unique @db.Uuid
-  total_score     Float     @default(0)
-  correct_count   Int       @default(0)
-  wrong_count     Int       @default(0)
-  essay_score     Float?
-  graded_by       String?   @db.Uuid
-  graded_at       DateTime?
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
+  id               String    @id @default(uuid()) @db.Uuid
+  exam_session_id  String    @unique @db.Uuid
+  total_score      Float     @default(0)
+  correct_count    Int       @default(0)
+  wrong_count      Int       @default(0)
+  essay_score      Float?
+  total_questions  Int       @default(0)
+  graded_by        String?   @db.Uuid
+  graded_at        DateTime?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
   exam_session  ExamSession  @relation(fields: [exam_session_id], references: [id], onDelete: Restrict)
   grader        User?        @relation("GradedBy", fields: [graded_by], references: [id], onDelete: SetNull)
@@ -452,6 +454,7 @@ model Setting {
   lock_task_mode      Boolean  @default(false)
   autosave_interval   Int      @default(5)
   session_timeout     Int      @default(30)
+  passing_grade       Int      @default(70)
   created_at          DateTime @default(now())
   updated_at          DateTime @updatedAt
 
