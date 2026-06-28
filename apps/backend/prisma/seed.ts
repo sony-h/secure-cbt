@@ -12,15 +12,15 @@ import { randomBytes } from 'crypto';
  * Usage: ts-node prisma/seed.ts
  *
  * Creates:
- * - 3 users (admin, operator, 3 teachers)
+ * - 3 users (admin, operator)
  * - 2 academic years (1 active, 1 archived)
  * - 3 majors (IPA, IPS, Bahasa)
  * - 6 classes (2 per major)
  * - 15 subjects across majors
- * - 3 teachers with realistic names & subjects
+ * - 4 teachers with realistic names & subjects
  * - 60 students (10 per class) with realistic Indonesian names
- * - 3 question banks with 25 total questions
- * - 2 sample exams (1 published + token, 1 draft)
+ * - 4 question banks with 30 total questions
+ * - 5 sample exams: 2 published, 1 draft, 1 ongoing, 1 finished
  * - Exam sessions & answers for monitoring/reports demo
  * - Grading scores for reports dashboard
  */
@@ -164,6 +164,7 @@ async function seed() {
       { nip: '198501012010011001', name: 'Budi Santoso, S.Pd.', subjects: ['MTK-W', 'MTK-P'] },
       { nip: '199003152014012002', name: 'Dewi Lestari, S.Pd., M.Pd.', subjects: ['FIS', 'KIM'] },
       { nip: '198807202012011003', name: 'Hendra Gunawan, S.Pd.', subjects: ['BIO', 'BIN'] },
+      { nip: '199107152018012004', name: 'Siti Rahmawati, S.Pd., M.Pd.', subjects: ['EKO', 'GEO', 'SOS'] },
     ];
     const teachers: any[] = [];
     for (const td of teacherData) {
@@ -212,11 +213,13 @@ async function seed() {
     const kimia = subjects.find(s => s.code === 'KIM');
     const bio = subjects.find(s => s.code === 'BIO');
     const bin = subjects.find(s => s.code === 'BIN');
+    const eko = subjects.find(s => s.code === 'EKO');
 
     const banks = await Promise.all([
       prisma.questionBank.create({ data: { title: 'Bank Soal UTBK Matematika', subject_id: mathMinat!.id, teacher_id: teachers[0].id } }),
       prisma.questionBank.create({ data: { title: 'Bank Soal Fisika Kelas XII', subject_id: fisika!.id, teacher_id: teachers[1].id } }),
       prisma.questionBank.create({ data: { title: 'Bank Soal Bahasa Indonesia', subject_id: bin!.id, teacher_id: teachers[2].id } }),
+      prisma.questionBank.create({ data: { title: 'Bank Soal Ekonomi SMA', subject_id: eko!.id, teacher_id: teachers[3].id } }),
     ]);
 
     // ── 11. Questions (10 + 8 + 7 = 25 total) ──────────────
@@ -328,6 +331,28 @@ async function seed() {
       { bank: 2, type: 'ESSAY', difficulty: 'HARD',
         content: 'Tulislah sebuah paragraf argumentatif (minimal 5 kalimat) tentang pentingnya literasi digital di era modern. Perhatikan struktur: pendahuluan, argumen, dan kesimpulan.',
         options: [], tags: ['menulis', 'argumentasi'] },
+
+      // ── Bank 3: Ekonomi (5 questions) ──
+      { bank: 3, type: 'MULTIPLE_CHOICE', difficulty: 'EASY',
+        content: 'Kegiatan menyalurkan barang dari produsen ke konsumen disebut...',
+        options: [{ text: 'Produksi', correct: false }, { text: 'Distribusi', correct: true }, { text: 'Konsumsi', correct: false }, { text: 'Promosi', correct: false }],
+        tags: ['kegiatan_ekonomi', 'dasar'] },
+      { bank: 3, type: 'MULTIPLE_CHOICE', difficulty: 'EASY',
+        content: 'Berikut yang termasuk kebutuhan primer adalah...',
+        options: [{ text: 'Mobil mewah', correct: false }, { text: 'Pakaian', correct: true }, { text: 'Liburan', correct: false }, { text: 'Smartphone terbaru', correct: false }],
+        tags: ['kebutuhan', 'dasar'] },
+      { bank: 3, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
+        content: 'Inflasi dapat menyebabkan...',
+        options: [{ text: 'Nilai uang naik', correct: false }, { text: 'Daya beli turun', correct: true }, { text: 'Harga turun', correct: false }, { text: 'Pengangguran hilang', correct: false }],
+        tags: ['inflasi', 'makro'] },
+      { bank: 3, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
+        content: 'Pasar yang memperjualbelikan instrumen keuangan jangka panjang disebut...',
+        options: [{ text: 'Pasar barang', correct: false }, { text: 'Pasar modal', correct: true }, { text: 'Pasar tenaga kerja', correct: false }, { text: 'Pasar uang', correct: false }],
+        tags: ['pasar_modal', 'keuangan'] },
+      { bank: 3, type: 'TRUE_FALSE', difficulty: 'EASY',
+        content: 'Permintaan (demand) adalah jumlah barang yang diminta konsumen pada tingkat harga tertentu.',
+        options: [{ text: 'Benar', correct: true }, { text: 'Salah', correct: false }],
+        tags: ['permintaan', 'dasar'] },
     ];
 
     const allQuestions: any[] = [];
@@ -382,6 +407,11 @@ async function seed() {
 
     // Assign IPA classes to exam 1
     const ipaClasses = classes.filter(c => c.major_id === majorIPA.id);
+    const ipsClasses = classes.filter(c => c.major_id === majorIPS.id);
+    const bahClasses = classes.filter(c => c.major_id === majorBAH.id);
+    const ipaStudents = allStudents.filter(s => classes.find(c => c.id === s.class_id)?.major_id === majorIPA.id);
+    const ipsStudents = allStudents.filter(s => classes.find(c => c.id === s.class_id)?.major_id === majorIPS.id);
+    const bahStudents = allStudents.filter(s => classes.find(c => c.id === s.class_id)?.major_id === majorBAH.id);
     await prisma.examClass.createMany({
       data: ipaClasses.map(c => ({ exam_id: exam1.id, class_id: c.id })),
     });
@@ -431,10 +461,154 @@ async function seed() {
     }
     logger.log('  Ulangan Harian Fisika (DRAFT)');
 
+    // ── Exam 3: UTS Ekonomi — PASSED (IPS) ────────────────────
+    const ekonomiQuestions = allQuestions.slice(25, 30);
+    const token3 = randomBytes(4).toString('hex').toUpperCase().slice(0, 8);
+    const exam3 = await prisma.exam.create({
+      data: {
+        title: 'UTS Ekonomi — Pasar & Inflasi',
+        description: 'Ujian Tengah Semester Ekonomi. Materi: Kegiatan Ekonomi, Permintaan & Penawaran, Inflasi, Pasar Modal.',
+        subject_id: eko!.id,
+        teacher_id: teachers[3].id,
+        duration_minutes: 60,
+        status: 'FINISHED',
+        start_at: new Date(now.getTime() - 14 * 24 * 3600 * 1000),  // 14 days ago
+        end_at: new Date(now.getTime() - 2 * 24 * 3600 * 1000),     // 2 days ago (passed)
+        randomize_questions: true,
+        randomize_answers: true,
+        warning_limit: 3,
+        auto_submit_enabled: true,
+        fullscreen_required: true,
+        package_count: 1,
+      },
+    });
+    await prisma.examClass.createMany({
+      data: ipsClasses.map(c => ({ exam_id: exam3.id, class_id: c.id })),
+    });
+    const pkg3 = await prisma.examPackage.create({ data: { exam_id: exam3.id, name: 'A' } });
+    for (let i = 0; i < ekonomiQuestions.length; i++) {
+      await prisma.examQuestion.create({ data: { exam_id: exam3.id, question_id: ekonomiQuestions[i].id, position: i + 1, package_id: pkg3.id } });
+    }
+    await prisma.examToken.create({ data: { exam_id: exam3.id, token: token3, expires_at: new Date(now.getTime() - 3 * 24 * 3600 * 1000) } }); // expired
+    logger.log(`  UTS Ekonomi (FINISHED) — ${ipsStudents.length} IPS students completed`);
+
+    // All IPS students have completed Exam 3
+    for (let si = 0; si < ipsStudents.length; si++) {
+      const s = ipsStudents[si];
+      const session3 = await prisma.examSession.create({
+        data: {
+          exam_id: exam3.id,
+          student_id: s.id,
+          package_id: pkg3.id,
+          status: 'SUBMITTED',
+          started_at: new Date(now.getTime() - 10 * 24 * 3600 * 1000 - si * 3600 * 1000),
+          submitted_at: new Date(now.getTime() - 9 * 24 * 3600 * 1000 - si * 3600 * 1000),
+          remaining_time_seconds: 0,
+          device_id: `economy-device-${si}`,
+        },
+      });
+      await prisma.sessionLog.create({
+        data: { exam_session_id: session3.id, event: 'SESSION_STARTED', description: `Siswa ${s.full_name} memulai ujian Ekonomi` },
+      });
+      const correctCount3 = 3 + (si % 3); // 3, 4, or 5 correct
+      await prisma.score.create({
+        data: {
+          exam_session_id: session3.id,
+          total_score: Math.round((correctCount3 / ekonomiQuestions.length) * 100),
+          correct_count: correctCount3,
+          wrong_count: ekonomiQuestions.length - correctCount3,
+          graded_by: null,
+          graded_at: new Date(),
+        },
+      });
+      await prisma.sessionLog.create({
+        data: { exam_session_id: session3.id, event: 'SESSION_SUBMITTED', description: 'Ujian Ekonomi selesai dikerjakan' },
+      });
+    }
+
+    // ── Exam 4: Bahasa Jepang — ONGOING (BAH) ─────────────────
+    const bjepangQuestions = allQuestions.slice(18, 23); // 5 BIN questions as placeholder
+    const token4 = randomBytes(4).toString('hex').toUpperCase().slice(0, 8);
+    const exam4 = await prisma.exam.create({
+      data: {
+        title: 'Latihan Bahasa Jepang — Huruf Hiragana',
+        description: 'Latihan membaca dan menulis huruf Hiragana dasar. Materi: a, i, u, e, o, ka, ki, ku, ke, ko.',
+        subject_id: subjects.find(s => s.code === 'BJE')!.id,
+        teacher_id: teachers[2].id,
+        duration_minutes: 30,
+        status: 'ONGOING',
+        start_at: new Date(now.getTime() - 1 * 3600 * 1000),   // 1 hour ago
+        end_at: new Date(now.getTime() + 1 * 3600 * 1000),      // 1 hour from now
+        randomize_questions: true,
+        randomize_answers: true,
+        warning_limit: 3,
+        auto_submit_enabled: true,
+        fullscreen_required: true,
+        package_count: 1,
+      },
+    });
+    await prisma.examClass.createMany({
+      data: bahClasses.map(c => ({ exam_id: exam4.id, class_id: c.id })),
+    });
+    const pkg4 = await prisma.examPackage.create({ data: { exam_id: exam4.id, name: 'A' } });
+    for (let i = 0; i < bjepangQuestions.length; i++) {
+      await prisma.examQuestion.create({ data: { exam_id: exam4.id, question_id: bjepangQuestions[i].id, position: i + 1, package_id: pkg4.id } });
+    }
+    await prisma.examToken.create({ data: { exam_id: exam4.id, token: token4, expires_at: new Date(now.getTime() + 3 * 24 * 3600 * 1000) } });
+    logger.log(`  Latihan Bahasa Jepang (ONGOING) — Token: ${token4}`);
+
+    // 2 BAH students with ACTIVE sessions
+    for (let si = 0; si < Math.min(2, bahStudents.length); si++) {
+      const s = bahStudents[si];
+      const session4 = await prisma.examSession.create({
+        data: {
+          exam_id: exam4.id,
+          student_id: s.id,
+          package_id: pkg4.id,
+          status: 'ACTIVE',
+          started_at: new Date(now.getTime() - 10 * 60 * 1000),
+          submitted_at: null,
+          remaining_time_seconds: 1200,
+          device_id: `japanese-device-${si}`,
+        },
+      });
+      await prisma.sessionLog.create({
+        data: { exam_session_id: session4.id, event: 'SESSION_STARTED', description: `Siswa ${s.full_name} memulai ujian Bahasa Jepang` },
+      });
+    }
+
+    // ── Exam 5: Tryout PKN — UPCOMING (All Classes) ──────────
+    const pknQuestions = allQuestions.slice(23, 28); // last 2 BIN + first 3 Ekonomi
+    const exam5 = await prisma.exam.create({
+      data: {
+        title: 'Tryout Nasional PKN — Pancasila & UUD 1945',
+        description: 'Tryout persiapan ujian nasional. Materi: Pancasila, UUD 1945, Hak & Kewajiban Warga Negara, Sistem Pemerintahan.',
+        subject_id: subjects.find(s => s.code === 'PKN')!.id,
+        teacher_id: teachers[2].id,
+        duration_minutes: 45,
+        status: 'PUBLISHED',
+        start_at: new Date(now.getTime() + 7 * 24 * 3600 * 1000),   // 7 days from now (upcoming)
+        end_at: new Date(now.getTime() + 37 * 24 * 3600 * 1000),     // 37 days from now
+        randomize_questions: true,
+        randomize_answers: true,
+        warning_limit: 3,
+        auto_submit_enabled: true,
+        fullscreen_required: true,
+        package_count: 1,
+      },
+    });
+    await prisma.examClass.createMany({
+      data: classes.map(c => ({ exam_id: exam5.id, class_id: c.id })), // ALL classes
+    });
+    const pkg5 = await prisma.examPackage.create({ data: { exam_id: exam5.id, name: 'A' } });
+    for (let i = 0; i < pknQuestions.length; i++) {
+      await prisma.examQuestion.create({ data: { exam_id: exam5.id, question_id: pknQuestions[i].id, position: i + 1, package_id: pkg5.id } });
+    }
+    logger.log('  Tryout PKN (PUBLISHED — upcoming, all classes)');
+
     // ── 13. Exam Sessions & Answers (for monitoring/reports demo) ──
     logger.log('Creating demo exam sessions & answers...');
-    const ipaStudents = allStudents.filter(s => classes.find(c => c.id === s.class_id)?.major_id === majorIPA.id);
-    const demoStudents = ipaStudents.slice(0, 5); // 5 students
+    const demoStudents = ipaStudents.slice(0, 5); // 5 IPA students for demo
 
     for (let si = 0; si < demoStudents.length; si++) {
       const student = demoStudents[si];
@@ -525,11 +699,16 @@ async function seed() {
     logger.log('     • 198501012010011001 / teacher123 (Budi S. — Matematika)');
     logger.log('     • 199003152014012002 / teacher123 (Dewi L. — Fisika, Kimia)');
     logger.log('     • 198807202012011003 / teacher123 (Hendra G. — Biologi, BIN)');
+    logger.log('     • 199107152018012004 / teacher123 (Siti R. — Ekonomi, Geografi, Sosiologi)');
     logger.log('  🔑 Students: NIS-based login (e.g., 202501001 / 202501001)');
-    logger.log('  📝 Questions: 25 across 3 banks (Math, Physics, Indonesian)');
-    logger.log('  📋 Exams: 2 (1 published with demo sessions, 1 draft)');
-    logger.log('  🎫 Exam Token: ' + token1);
-    logger.log('  📊 Demo Data: 5 exam sessions, answers, and scores for reports');
+    logger.log('  📝 Questions: 30 across 4 banks (Math, Physics, Indonesian, Economics)');
+    logger.log('  📋 Exams:');
+    logger.log('     • UTS Matematika (PUBLISHED — IPA) — Token: ' + token1);
+    logger.log('     • Ulangan Fisika (DRAFT — IPA)');
+    logger.log('     • UTS Ekonomi (FINISHED — IPS, ' + ipsStudents.length + ' sessions completed) — Token: ' + token3);
+    logger.log('     • Latihan Bahasa Jepang (ONGOING — BAH) — Token: ' + token4);
+    logger.log('     • Tryout PKN (PUBLISHED — upcoming, ALL classes)');
+    logger.log('  📊 Demo Data: 5 IPA sessions (Exam 1) + ' + ipsStudents.length + ' IPS sessions (Exam 3) + 2 BAH sessions (Exam 4)');
     logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   } catch (error) {
