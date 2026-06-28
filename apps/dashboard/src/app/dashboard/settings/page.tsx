@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { formatDate } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { UserRole } from '@secure-cbt/shared';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ interface SettingsData {
   lock_task_mode: boolean;
   autosave_interval: number;
   session_timeout: number;
+  passing_grade: number;
   created_at: string;
   updated_at: string;
 }
@@ -109,6 +111,16 @@ export default function SettingsPage() {
             onSave={(val) => updateMutation.mutate({ session_timeout: Number(val) })}
             disabled={updateMutation.isPending}
           />
+          <SettingRow
+            label="Kriteria Ketuntasan Minimal (KKM / Passing Grade)"
+            description="Nilai minimal standar kelulusan ujian untuk siswa"
+            value={settings.passing_grade}
+            type="number"
+            min={0}
+            max={100}
+            onSave={(val) => updateMutation.mutate({ passing_grade: Number(val) })}
+            disabled={updateMutation.isPending}
+          />
           <SettingToggle
             label="Auto Submit"
             description="Kumpulkan ujian otomatis saat batas peringatan terlampaui"
@@ -135,7 +147,7 @@ export default function SettingsPage() {
 
       {/* Last saved info */}
       <p className="text-xs text-muted-foreground text-right">
-        Terakhir diperbarui: {new Date(settings.updated_at).toLocaleString('id-ID')}
+        Terakhir diperbarui: {formatDate(settings.updated_at)}
       </p>
     </div>
   );

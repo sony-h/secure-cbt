@@ -102,6 +102,7 @@ export default function MonitoringPage() {
       if (userId) {
         map.set(userId, { name: s.student.full_name, sessionId: s.id });
       }
+      map.set(s.id, { name: s.student.full_name, sessionId: s.id });
     }
     studentNameMap.current = map;
   }, [sessionData]);
@@ -164,10 +165,10 @@ export default function MonitoringPage() {
       toast.warning(`Siswa terputus: ${name}`);
     });
 
-    socket.on('progress.updated', (data: any) => {
+    socket.on('progress.updated', (data: { sessionId: string }) => {
       setSessionData((prev) =>
         prev.map((s) =>
-          s.id === data.sessionId ? { ...s, progress: (s.progress || 0) + 1 } : s
+          s.id === data.sessionId ? { ...s } : s
         )
       );
     });
@@ -390,7 +391,7 @@ export default function MonitoringPage() {
                               {logs.map((log) => (
                                 <div key={log.id} className="flex items-center gap-2 text-xs">
                                   <span className="text-muted-foreground w-20 shrink-0">
-                                    {new Date(log.created_at).toLocaleTimeString('id-ID')}
+                                    {new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }).format(new Date(log.created_at))}
                                   </span>
                                   <span>{log.description || log.event}</span>
                                 </div>

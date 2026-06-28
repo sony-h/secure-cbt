@@ -5,17 +5,52 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/lib/api';
-import { Spinner } from '@/components/ui/table';
-import { Users, GraduationCap, BookOpen, FileText } from 'lucide-react';
+import { Spinner, Badge } from '@/components/ui/table';
+import { Users, GraduationCap, BookOpen, FileText, MonitorPlay, CheckCircle, ArrowRight, TrendingUp, Calendar } from 'lucide-react';
+import Link from 'next/link';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+
+interface ExamItem {
+  id: string;
+  title: string;
+  subject?: { name: string };
+  status: string;
+  duration_minutes: number;
+  start_at: string;
+  end_at: string;
+  _count?: { exam_sessions: number; exam_questions: number };
+}
+
+const statusColors: Record<string, string> = {
+  DRAFT: '#F59E0B',
+  PUBLISHED: '#3B82F6',
+  ONGOING: '#10B981',
+  FINISHED: '#6366F1',
+  CANCELLED: '#EF4444',
+};
+
+const statusLabels: Record<string, string> = {
+  DRAFT: 'Draft',
+  PUBLISHED: 'Terbit',
+  ONGOING: 'Aktif',
+  FINISHED: 'Selesai',
+  CANCELLED: 'Batal',
+};
+
+const badgeVariants: Record<string, 'default' | 'success' | 'warning' | 'destructive'> = {
+  DRAFT: 'warning',
+  PUBLISHED: 'default',
+  ONGOING: 'success',
+  FINISHED: 'default',
+  CANCELLED: 'destructive',
+};
 
 export default function DashboardHome() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login');
-    }
+    if (!authLoading && !isAuthenticated) router.push('/login');
   }, [authLoading, isAuthenticated, router]);
 
   const { data: studentsData } = useQuery({
@@ -36,12 +71,9 @@ export default function DashboardHome() {
     enabled: isAuthenticated,
   });
 
-  const { data: activeExamsData } = useQuery({
-    queryKey: ['dashboard-active-exams'],
-    queryFn: async () => {
-      const res = await api.get('/exams', { params: { status: 'PUBLISHED', per_page: 1 } });
-      return res.data;
-    },
+  const { data: allExamsData } = useQuery({
+    queryKey: ['dashboard-all-exams'],
+    queryFn: async () => { const res = await api.get('/exams', { params: { per_page: 100 } }); return res.data; },
     enabled: isAuthenticated,
   });
 
@@ -52,55 +84,184 @@ export default function DashboardHome() {
   const studentCount = studentsData?.meta?.total ?? '—';
   const teacherCount = teachersData?.meta?.total ?? '—';
   const subjectCount = Array.isArray(subjectsData?.data) ? subjectsData.data.length : '—';
-  const activeExamCount = activeExamsData?.meta?.total ?? '—';
+  const allExams: ExamItem[] = allExamsData?.data || [];
+  const activeCount = allExams.filter(e => ['PUBLISHED', 'ONGOING'].includes(e.status)).length;
+  const totalExams = allExams.length;
+
+  // Pie chart data
+  const statusCounts = allExams.reduce<Record<string, number>>((acc, e) => {
+    acc[e.status] = (acc[e.status] || 0) + 1;
+    return acc;
+  }, {});
+  const pieData = Object.entries(statusCounts).map(([name, value]) => ({
+    name: statusLabels[name] || name,
+    value,
+    color: statusColors[name] || '#94A3B8',
+  }));
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Selamat datang, {user?.full_name || user?.username}. Berikut ringkasan sistem.
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Selamat datang kembali, {user?.full_name || user?.username}. Berikut ikhtisar sistem hari ini.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatsCard icon={<Users className="h-5 w-5" />} title="Total Siswa" value={studentCount} subtitle="Terdaftar" />
-        <StatsCard icon={<GraduationCap className="h-5 w-5" />} title="Total Guru" value={teacherCount} subtitle="Terdaftar" />
-        <StatsCard icon={<BookOpen className="h-5 w-5" />} title="Mata Pelajaran" value={subjectCount} subtitle="Tersedia" />
-        <StatsCard icon={<FileText className="h-5 w-5" />} title="Ujian Aktif" value={activeExamCount} subtitle="Dipublikasi" />
+      {/* Stats Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={<Users className="h-5 w-5" />}
+          title="Total Siswa"
+          value={studentCount}
+          subtitle="Terdaftar aktif"
+          gradient="from-indigo-500 to-indigo-600"
+        />
+        <StatCard
+          icon={<GraduationCap className="h-5 w-5" />}
+          title="Total Guru"
+          value={teacherCount}
+          subtitle="Pengajar terdaftar"
+          gradient="from-emerald-500 to-emerald-600"
+        />
+        <StatCard
+          icon={<BookOpen className="h-5 w-5" />}
+          title="Mata Pelajaran"
+          value={subjectCount}
+          subtitle="Tersedia di kurikulum"
+          gradient="from-violet-500 to-violet-600"
+        />
+        <StatCard
+          icon={<FileText className="h-5 w-5" />}
+          title="Ujian Aktif"
+          value={activeCount}
+          subtitle="Sedang berlangsung"
+          gradient="from-amber-500 to-amber-600"
+        />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="mb-4 text-lg font-semibold">Aktivitas Terbaru</h3>
-          <p className="text-sm text-muted-foreground">
-            Belum ada aktivitas terbaru. Mulai dengan membuat data akademik, siswa, dan guru.
-          </p>
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Pie Chart - Status Distribution */}
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-bold text-slate-900">Status Ujian</h3>
+            <span className="text-xs text-muted-foreground">Total: {totalExams} ujian</span>
+          </div>
+          {pieData.length > 0 ? (
+            <div className="flex items-center gap-4">
+              <ResponsiveContainer width="60%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-2 text-sm">
+                {pieData.map((entry) => (
+                  <div key={entry.name} className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: entry.color }} />
+                    <span className="text-slate-600">{entry.name}</span>
+                    <span className="font-semibold text-slate-900 ml-auto">{entry.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-8 text-center">Belum ada data ujian.</p>
+          )}
         </div>
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="mb-4 text-lg font-semibold">Panduan Cepat</h3>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>1. Tambahkan Tahun Ajaran dan Jurusan</li>
-            <li>2. Buat kelas dan mata pelajaran</li>
-            <li>3. Daftarkan siswa dan guru</li>
-            <li>4. Buat bank soal dan ujian</li>
-            <li>5. Pantau ujian secara real-time</li>
-          </ul>
+
+        {/* Recent Exam Sessions */}
+        <div className="lg:col-span-2 rounded-xl border bg-card p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-bold text-slate-900">Daftar Ujian</h3>
+            {(user?.role === 'ADMIN' || user?.role === 'TEACHER') && (
+              <Link href="/dashboard/exams" className="text-xs font-semibold text-indigo-600 hover:underline flex items-center gap-1">
+                Kelola Ujian <ArrowRight className="h-3 w-3" />
+              </Link>
+            )}
+          </div>
+          <div className="space-y-2 max-h-[360px] overflow-y-auto">
+            {allExams.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                Belum ada ujian.
+              </p>
+            ) : (
+              allExams.slice(0, 8).map((exam) => (
+                <div key={exam.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50/50 transition">
+                  <div className="space-y-0.5 min-w-0">
+                    <p className="font-semibold text-slate-900 text-sm truncate">{exam.title}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="font-medium text-indigo-600">{exam.subject?.name}</span>
+                      <span>&middot;</span>
+                      <span>{exam.duration_minutes} menit</span>
+                      <span>&middot;</span>
+                      <span>{exam._count?.exam_questions || 0} soal</span>
+                    </div>
+                  </div>
+                  <Badge variant={badgeVariants[exam.status] || 'default'}>{statusLabels[exam.status] || exam.status}</Badge>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Guide */}
+      <div className="rounded-xl border bg-card p-6 shadow-sm">
+        <div className="grid gap-6 md:grid-cols-3">
+          {steps.map((step, i) => (
+            <div key={i} className="flex gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-sm font-bold text-indigo-600">
+                {i + 1}
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 text-sm">{step.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">{step.desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-function StatsCard({ icon, title, value, subtitle }: { icon: React.ReactNode; title: string; value: string | number; subtitle: string }) {
+const steps = [
+  { title: 'Setup Akademik', desc: 'Atur tahun ajaran, jurusan, kelas & mata pelajaran.' },
+  { title: 'Bank Soal & Ujian', desc: 'Buat soal (PG/esai) lalu susun paket ujian dan jadwalkan.' },
+  { title: 'Ujian & Monitoring', desc: 'Terbitkan ujian, bagikan token, pantau siswa secara realtime.' },
+];
+
+function StatCard({ icon, title, value, subtitle, gradient }: {
+  icon: React.ReactNode;
+  title: string;
+  value: string | number;
+  subtitle: string;
+  gradient: string;
+}) {
   return (
-    <div className="rounded-lg border bg-card p-6">
-      <div className="flex items-center gap-3 mb-2">
-        <span className="text-muted-foreground">{icon}</span>
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+    <div className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${gradient} p-5 text-white shadow-sm`}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-semibold text-white/80">{title}</p>
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-white">
+          {icon}
+        </span>
       </div>
-      <p className="text-3xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+      <p className="text-3xl font-extrabold">{value}</p>
+      <p className="text-xs text-white/70 mt-1">{subtitle}</p>
     </div>
   );
 }

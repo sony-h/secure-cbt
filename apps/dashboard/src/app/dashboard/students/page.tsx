@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Spinner } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
+import { Badge } from '@/components/ui/table';
+import { DataTable, type DataTableFilter } from '@/components/ui/data-table';
+import type { ColumnDef } from '@tanstack/react-table';
+import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 
@@ -103,21 +105,15 @@ export default function StudentsPage() {
   const { user } = useAuthStore();
   const canEdit = user?.role === UserRole.ADMIN || user?.role === UserRole.OPERATOR;
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [classFilter, setClassFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<StudentForm>(emptyForm);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['students', page, search, classFilter],
+  const { data: students, isLoading } = useQuery({
+    queryKey: ['students'],
     queryFn: async () => {
-      const params: any = { page, per_page: 20 };
-      if (search) params.search = search;
-      if (classFilter) params.class_id = classFilter;
-      const res = await api.get('/students', { params });
-      return res.data;
+      const res = await api.get('/students');
+      return res.data.data;
     },
   });
 
@@ -164,6 +160,38 @@ export default function StudentsPage() {
 
   const handleAdd = () => { setEditingId(null); setForm(emptyForm); setModalOpen(true); };
 
+  const classFilterOpts: DataTableFilter = {
+    column: 'className',
+    label: 'Semua Kelas',
+    options: (classes || []).map((c: any) => ({ value: c.name, label: c.name })),
+  };
+
+  const studentColumns: ColumnDef<any>[] = [
+    { accessorKey: 'nis', header: 'NIS', enableSorting: true, cell: ({ row }) => <span className="font-medium">{row.original.nis}</span> },
+    { accessorKey: 'full_name', header: 'Nama Lengkap', enableSorting: true },
+    { id: 'className', accessorFn: (row: any) => row.class?.name, header: 'Kelas', filterFn: 'equalsString', cell: ({ row }: any) => row.original.class?.name || '-' },
+    { 
+      accessorKey: 'status', 
+      header: 'Status', 
+      enableSorting: true,
+      cell: ({ row }) => {
+        const status = row.original.status;
+        return <Badge variant={status === 'ACTIVE' ? 'success' : status === 'GRADUATED' ? 'default' : 'warning'}>{status === 'ACTIVE' ? 'Aktif' : status === 'GRADUATED' ? 'Lulus' : 'Nonaktif'}</Badge>;
+      },
+    },
+    { accessorKey: 'created_at', header: 'Tanggal Daftar', enableSorting: true, cell: ({ row }) => formatDate(row.original.created_at) },
+    ...(canEdit ? [{
+      id: 'actions' as const,
+      header: 'Aksi',
+      cell: ({ row }: any) => (
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus siswa ini?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      ),
+    }] : []),
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -171,63 +199,15 @@ export default function StudentsPage() {
         {canEdit && <Button onClick={handleAdd}><Plus className="mr-2 h-4 w-4" />Tambah Siswa</Button>}
       </div>
       <Card>
-        <CardHeader>
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Cari berdasarkan NIS atau nama..." className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-            </div>
-            <select
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[180px]"
-              value={classFilter}
-              onChange={(e) => { setClassFilter(e.target.value); setPage(1); }}
-            >
-              <option value="">Semua Kelas</option>
-              {classes?.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}{c.major ? ` (${c.major.name})` : ''}</option>
-              ))}
-            </select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (<div className="flex h-48 items-center justify-center"><Spinner className="h-8 w-8" /></div>) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>NIS</TableHead><TableHead>Nama Lengkap</TableHead><TableHead>Kelas</TableHead><TableHead>Status</TableHead><TableHead>Tanggal Daftar</TableHead><TableHead className="w-[100px]">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data?.data?.map((student: Student) => (
-                    <TableRow key={student.id}>
-                      <TableCell className="font-medium">{student.nis}</TableCell>
-                      <TableCell>{student.full_name}</TableCell>
-                      <TableCell>{student.class?.name || '-'}</TableCell>
-                      <TableCell><Badge variant={student.status === 'ACTIVE' ? 'success' : 'warning'}>{student.status === 'ACTIVE' ? 'Aktif' : student.status}</Badge></TableCell>
-                      <TableCell className="text-muted-foreground">{formatDate(student.created_at)}</TableCell>
-                      <TableCell>
-                        {canEdit && <div className="flex gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(student)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Yakin ingin menghapus siswa ini?')) deleteMutation.mutate(student.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {(!data?.data || data.data.length === 0) && (<TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Belum ada data siswa</TableCell></TableRow>)}
-                </TableBody>
-              </Table>
-              {data?.meta && (
-                <div className="mt-4 flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">Menampilkan {((page - 1) * 20) + 1}-{Math.min(page * 20, data.meta.total)} dari {data.meta.total}</p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Sebelumnya</Button>
-                    <Button variant="outline" size="sm" disabled={page >= data.meta.total_pages} onClick={() => setPage(page + 1)}>Selanjutnya</Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+        <CardContent className="pt-6">
+          <DataTable
+            columns={studentColumns}
+            data={students || []}
+            searchKey="full_name"
+            searchPlaceholder="Cari berdasarkan NIS atau nama..."
+            filters={canEdit ? [classFilterOpts] : undefined}
+            emptyMessage="Belum ada data siswa"
+          />
         </CardContent>
       </Card>
       <StudentDialog open={modalOpen} onClose={() => { setModalOpen(false); setEditingId(null); }} form={form} setForm={setForm} classes={classes || []} onSave={handleSave} isEditing={!!editingId} isSaving={saveMutation.isPending} />

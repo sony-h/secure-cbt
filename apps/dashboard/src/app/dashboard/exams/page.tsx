@@ -1,14 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Spinner } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, Search, X, Rocket, Key, Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/table';
+import { DataTable } from '@/components/ui/data-table';
+import type { ColumnDef } from '@tanstack/react-table';
+import { formatDate } from '@/lib/utils';
+import { Plus, Pencil, Trash2, X, Rocket, Key, Clock, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -139,6 +142,10 @@ function CreateExamModal({
   isEditing: boolean;
 }) {
   const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    if (open) setStep(0);
+  }, [open]);
 
   if (!open) return null;
 
@@ -359,9 +366,7 @@ function TokenModal({ token, onClose }: { token: string | null; onClose: () => v
 // ── Main Page ──────────────────────────────────────────────────────
 export default function ExamsPage() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState('');
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ExamFormData>(emptyExamForm);
@@ -400,14 +405,11 @@ export default function ExamsPage() {
     },
   });
 
-  const { data: examsData, isLoading } = useQuery({
-    queryKey: ['exams', page, search, statusFilter],
+  const { data: exams, isLoading } = useQuery({
+    queryKey: ['exams'],
     queryFn: async () => {
-      const params: any = { page, per_page: 20 };
-      if (search) params.search = search;
-      if (statusFilter) params.status = statusFilter;
-      const { data } = await api.get('/exams', { params });
-      return data;
+      const { data } = await api.get('/exams');
+      return data.data as Exam[];
     },
   });
 
@@ -455,16 +457,27 @@ export default function ExamsPage() {
     if (form.class_ids.length === 0) return toast.error('Pilih minimal satu kelas');
     if (form.question_ids.length === 0) return toast.error('Pilih minimal satu soal');
 
+    const wibToUTC = (wib: string) => new Date(wib + '+07:00').toISOString();
+
     const dto = {
       ...form,
-      start_at: new Date(form.start_at).toISOString(),
-      end_at: new Date(form.end_at).toISOString(),
+      start_at: wibToUTC(form.start_at),
+      end_at: wibToUTC(form.end_at),
     };
     saveMutation.mutate(dto);
   };
 
   const handleEdit = (exam: Exam) => {
     setEditingId(exam.id);
+
+    // Convert UTC ISO → datetime-local value in WIB
+    const toWIB = (iso: string) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      d.setTime(d.getTime() + 7 * 60 * 60 * 1000);
+      return d.toISOString().slice(0, 16);
+    };
+
     // Fetch full exam detail to get existing question_ids
     api.get(`/exams/${exam.id}`).then((res) => {
       const full = res.data.data;
@@ -473,8 +486,8 @@ export default function ExamsPage() {
         description: full.description || '',
         subject_id: full.subject?.id || '',
         duration_minutes: full.duration_minutes,
-        start_at: full.start_at ? full.start_at.slice(0, 16) : '',
-        end_at: full.end_at ? full.end_at.slice(0, 16) : '',
+        start_at: toWIB(full.start_at),
+        end_at: toWIB(full.end_at),
         class_ids: full.exam_classes?.map((ec: any) => ec.class.id) || [],
         question_ids: full.exam_questions?.map((eq: any) => eq.question_id) || [],
         package_count: full.package_count || 1,
@@ -492,8 +505,8 @@ export default function ExamsPage() {
         description: exam.description || '',
         subject_id: exam.subject?.id || '',
         duration_minutes: exam.duration_minutes,
-        start_at: exam.start_at ? exam.start_at.slice(0, 16) : '',
-        end_at: exam.end_at ? exam.end_at.slice(0, 16) : '',
+        start_at: toWIB(exam.start_at),
+        end_at: toWIB(exam.end_at),
         class_ids: exam.classes?.map((c) => c.class.id) || [],
         question_ids: [],
         package_count: exam.package_count || 1,
@@ -507,10 +520,85 @@ export default function ExamsPage() {
     });
   };
 
-  const exams = examsData?.data ?? [];
-  const meta = examsData?.meta;
-
-  console.log(examsData)
+  const examColumns: ColumnDef<Exam>[] = [
+    {
+      accessorKey: 'title',
+      header: 'Judul',
+      enableSorting: true,
+      cell: ({ row }: any) => (
+        <div>
+          <p className="font-medium">{row.original.title}</p>
+          {row.original.description && <p className="text-xs text-muted-foreground line-clamp-1">{row.original.description}</p>}
+        </div>
+      ),
+    },
+    { accessorKey: 'subject.name', header: 'Mapel', cell: ({ row }: any) => <span className="text-sm">{row.original.subject?.name || '-'}</span> },
+    {
+      accessorKey: 'duration_minutes',
+      header: 'Durasi',
+      enableSorting: true,
+      cell: ({ row }: any) => (
+        <span className="flex items-center gap-1 text-sm">
+          <Clock className="h-3 w-3" /> {row.original.duration_minutes} menit
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'start_at',
+      header: 'Mulai',
+      enableSorting: true,
+      cell: ({ row }: any) => (
+        <span className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Calendar className="h-3 w-3" /> {formatDate(row.original.start_at)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'end_at',
+      header: 'Selesai',
+      enableSorting: true,
+      cell: ({ row }: any) => (
+        <span className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Calendar className="h-3 w-3" /> {formatDate(row.original.end_at)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      enableSorting: true,
+      cell: ({ row }: any) => (
+        <Badge variant={statusColors[row.original.status] || 'default'}>
+          {statusLabels[row.original.status] || row.original.status}
+        </Badge>
+      ),
+    },
+    { accessorKey: '_count.exam_questions', header: 'Soal', enableSorting: true, cell: ({ row }: any) => <Badge>{row.original._count?.exam_questions || 0}</Badge> },
+    {
+      id: 'actions',
+      header: 'Aksi',
+      cell: ({ row }: any) => (
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          {row.original.status === 'DRAFT' && (
+            <Button variant="ghost" size="icon" onClick={() => publishMutation.mutate(row.original.id)} title="Publish">
+              <Rocket className="h-4 w-4 text-green-600" />
+            </Button>
+          )}
+          {(row.original.status === 'PUBLISHED' || row.original.status === 'ONGOING') && (
+            <Button variant="ghost" size="icon" onClick={() => tokenMutation.mutate(row.original.id)} title="Generate Token">
+              <Key className="h-4 w-4" />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus ujian ini?')) deleteMutation.mutate(row.original.id); }}>
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -526,92 +614,28 @@ export default function ExamsPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Cari ujian..." className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-            </div>
-            <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
-              <option value="">Semua Status</option>
-              {Object.entries(statusLabels).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}
-            </select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex h-48 items-center justify-center"><Spinner className="h-8 w-8" /></div>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Judul</TableHead>
-                    <TableHead>Mapel</TableHead>
-                    <TableHead>Durasi</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Soal</TableHead>
-                    <TableHead className="w-[160px]">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {exams.map((exam: Exam) => (
-                    <TableRow key={exam.id}>
-                      <TableCell>
-                        <p className="font-medium">{exam.title}</p>
-                        {exam.description && <p className="text-xs text-muted-foreground line-clamp-1">{exam.description}</p>}
-                      </TableCell>
-                      <TableCell className="text-sm">{exam.subject?.name || '-'}</TableCell>
-                      <TableCell>
-                        <span className="flex items-center gap-1 text-sm">
-                          <Clock className="h-3 w-3" /> {exam.duration_minutes} menit
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusColors[exam.status] || 'default'}>
-                          {statusLabels[exam.status] || exam.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">{exam._count?.exam_questions || 0}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(exam)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {exam.status === 'DRAFT' && (
-                            <Button variant="ghost" size="icon" onClick={() => publishMutation.mutate(exam.id)} title="Publish">
-                              <Rocket className="h-4 w-4 text-green-600" />
-                            </Button>
-                          )}
-                          {(exam.status === 'PUBLISHED' || exam.status === 'ONGOING') && (
-                            <Button variant="ghost" size="icon" onClick={() => tokenMutation.mutate(exam.id)} title="Generate Token">
-                              <Key className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus ujian ini?')) deleteMutation.mutate(exam.id); }}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {exams.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Belum ada ujian</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
-
-              {meta && (
-                <div className="mt-4 flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">Menampilkan {((page - 1) * 20) + 1}-{Math.min(page * 20, meta.total)} dari {meta.total}</p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Sebelumnya</Button>
-                    <Button variant="outline" size="sm" disabled={page >= meta.total_pages} onClick={() => setPage(page + 1)}>Selanjutnya</Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+        <CardContent className="pt-6">
+          <DataTable
+            columns={examColumns}
+            data={exams || []}
+            searchKey="title"
+            searchPlaceholder="Cari ujian..."
+            filters={[
+              {
+                column: 'status',
+                label: 'Semua Status',
+                options: [
+                  { value: 'DRAFT', label: 'Draft' },
+                  { value: 'PUBLISHED', label: 'Terbit' },
+                  { value: 'ONGOING', label: 'Berlangsung' },
+                  { value: 'FINISHED', label: 'Selesai' },
+                  { value: 'CANCELLED', label: 'Dibatalkan' },
+                ],
+              },
+            ]}
+            loading={isLoading}
+            emptyMessage="Belum ada ujian"
+          />
         </CardContent>
       </Card>
 

@@ -10,9 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Spinner } from '@/components/ui/table';
+import { Badge } from '@/components/ui/table';
+import { DataTable } from '@/components/ui/data-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, Copy, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 
@@ -331,10 +333,6 @@ export default function QuestionsPage() {
     }
   }, [user, router]);
 
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [bankFilter, setBankFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<QuestionFormData>(emptyForm);
@@ -360,15 +358,11 @@ export default function QuestionsPage() {
   });
 
   // ── Fetch questions ────────────────────────────────────────────
-  const { data, isLoading } = useQuery({
-    queryKey: ['questions', page, search, bankFilter, typeFilter],
+  const { data: questions, isLoading } = useQuery({
+    queryKey: ['questions'],
     queryFn: async () => {
-      const params: any = { page, per_page: 20 };
-      if (search) params.search = search;
-      if (bankFilter) params.bank_id = bankFilter;
-      if (typeFilter) params.type = typeFilter;
-      const { data } = await api.get('/questions', { params });
-      return data;
+      const { data } = await api.get('/questions');
+      return data.data as Question[];
     },
   });
 
@@ -468,8 +462,68 @@ export default function QuestionsPage() {
     setModalOpen(true);
   };
 
-  const questions = data?.data ?? [];
-  const meta = data?.meta;
+  const questionColumns: ColumnDef<Question>[] = [
+    {
+      accessorKey: 'content',
+      header: 'Pertanyaan',
+      cell: ({ row }: any) => (
+        <div>
+          <div className="max-w-md truncate font-medium">{row.original.content}</div>
+          {row.original.tags?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {row.original.tags.map((t: any) => (
+                <Badge key={t.id} variant="secondary" className="text-xs">{t.tag}</Badge>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'bankName',
+      accessorFn: (row: any) => row.question_bank?.title,
+      header: 'Bank',
+      filterFn: 'equalsString',
+      cell: ({ row }: any) => <span className="text-sm">{row.original.question_bank?.title || '-'}</span>,
+    },
+    {
+      accessorKey: 'type',
+      header: 'Tipe',
+      cell: ({ row }: any) => (
+        <Badge variant="default">{questionTypes.find((t: any) => t.value === row.original.type)?.label || row.original.type}</Badge>
+      ),
+    },
+    {
+      accessorKey: 'difficulty',
+      header: 'Kesulitan',
+      cell: ({ row }: any) => (
+        <Badge
+          variant={
+            row.original.difficulty === 'EASY' ? 'success' : row.original.difficulty === 'HARD' ? 'destructive' : 'warning'
+          }
+        >
+          {difficultyLevels.find((d: any) => d.value === row.original.difficulty)?.label || row.original.difficulty}
+        </Badge>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Aksi',
+      cell: ({ row }: any) => (
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => duplicateMutation.mutate(row.original.id)}>
+            <Copy className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Yakin ingin menghapus soal ini?')) deleteMutation.mutate(row.original.id); }}>
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -493,136 +547,27 @@ export default function QuestionsPage() {
         {/* ── Questions Tab ─────────────────────────────────────────── */}
         <TabsContent value="questions" className="space-y-4">
           <Card>
-            <CardHeader>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Cari soal..."
-                    className="pl-9"
-                    value={search}
-                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  />
-                </div>
-                <select
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                  value={bankFilter}
-                  onChange={(e) => { setBankFilter(e.target.value); setPage(1); }}
-                >
-                  <option value="">Semua Bank</option>
-                  {banks?.map((b) => (
-                    <option key={b.id} value={b.id}>{b.title}</option>
-                  ))}
-                </select>
-                <select
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                  value={typeFilter}
-                  onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-                >
-                  <option value="">Semua Tipe</option>
-                  {questionTypes.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex h-48 items-center justify-center">
-                  <Spinner className="h-8 w-8" />
-                </div>
-              ) : (
-                <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[40%]">Pertanyaan</TableHead>
-                        <TableHead>Bank</TableHead>
-                        <TableHead>Tipe</TableHead>
-                        <TableHead>Kesulitan</TableHead>
-                        <TableHead className="w-[120px]">Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {questions.map((q: Question) => (
-                        <TableRow key={q.id}>
-                          <TableCell>
-                            <div className="max-w-md truncate font-medium">{q.content}</div>
-                            {q.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {q.tags.map((t) => (
-                                  <Badge key={t.id} variant="secondary" className="text-xs">{t.tag}</Badge>
-                                ))}
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm">{q.question_bank?.title || '-'}</TableCell>
-                          <TableCell>
-                            <Badge variant="default">{questionTypes.find((t) => t.value === q.type)?.label || q.type}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                q.difficulty === 'EASY' ? 'success' : q.difficulty === 'HARD' ? 'destructive' : 'warning'
-                              }
-                            >
-                              {difficultyLevels.find((d) => d.value === q.difficulty)?.label || q.difficulty}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => handleEdit(q)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => duplicateMutation.mutate(q.id)}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                  if (confirm('Yakin ingin menghapus soal ini?')) {
-                                    deleteMutation.mutate(q.id);
-                                  }
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {questions.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground">
-                            Belum ada soal. Buat bank soal terlebih dahulu.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-
-                  {meta && (
-                    <div className="mt-4 flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">
-                        Menampilkan {((page - 1) * 20) + 1}-{Math.min(page * 20, meta.total)} dari {meta.total}
-                      </p>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                          Sebelumnya
-                        </Button>
-                        <Button variant="outline" size="sm" disabled={page >= meta.total_pages} onClick={() => setPage(page + 1)}>
-                          Selanjutnya
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
+            <CardContent className="pt-6">
+              <DataTable
+                columns={questionColumns}
+                data={questions || []}
+                searchKey="content"
+                searchPlaceholder="Cari soal..."
+                filters={[
+                  {
+                    column: 'bankName',
+                    label: 'Semua Bank',
+                    options: (banks || []).map((b: any) => ({ value: b.title, label: b.title })),
+                  },
+                  {
+                    column: 'type',
+                    label: 'Semua Tipe',
+                    options: questionTypes.map((t) => ({ value: t.value, label: t.label })),
+                  },
+                ]}
+                loading={isLoading}
+                emptyMessage="Belum ada soal. Buat bank soal terlebih dahulu."
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -670,51 +615,30 @@ export default function QuestionsPage() {
               </div>
 
               {/* Banks list */}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nama Bank</TableHead>
-                    <TableHead>Mata Pelajaran</TableHead>
-                    <TableHead>Jumlah Soal</TableHead>
-                    <TableHead>Dibuat</TableHead>
-                    <TableHead className="w-[80px]">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {banks?.map((bank) => (
-                    <TableRow key={bank.id}>
-                      <TableCell className="font-medium">{bank.title}</TableCell>
-                      <TableCell>{bank.subject?.name || '-'}</TableCell>
-                      <TableCell>
-                        <Badge>{bank._count?.questions || 0}</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {formatDate(bank.created_at)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            if (confirm(`Yakin ingin menghapus bank "${bank.title}"? Semua soal di dalamnya akan dihapus.`)) {
-                              deleteBankMutation.mutate(bank.id);
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {(!banks || banks.length === 0) && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        Belum ada bank soal
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+              <DataTable
+                columns={[
+                  { accessorKey: 'title', header: 'Nama Bank', enableSorting: true },
+                  { accessorKey: 'subject.name', header: 'Mata Pelajaran', cell: ({ row }: any) => row.original.subject?.name || '-' },
+                  { accessorKey: '_count.questions', header: 'Jumlah Soal', enableSorting: true, cell: ({ row }: any) => <Badge>{row.original._count?.questions || 0}</Badge> },
+                  { accessorKey: 'created_at', header: 'Dibuat', enableSorting: true, cell: ({ row }: any) => <span className="text-muted-foreground text-sm">{formatDate(row.original.created_at)}</span> },
+                  {
+                    id: 'actions',
+                    header: 'Aksi',
+                    cell: ({ row }: any) => (
+                      <Button variant="ghost" size="icon" onClick={() => {
+                        const bank = row.original;
+                        if (confirm(`Yakin ingin menghapus bank "${bank.title}"? Semua soal di dalamnya akan dihapus.`)) {
+                          deleteBankMutation.mutate(bank.id);
+                        }
+                      }}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    ),
+                  },
+                ]}
+                data={banks || []}
+                emptyMessage="Belum ada bank soal"
+              />
             </CardContent>
           </Card>
         </TabsContent>

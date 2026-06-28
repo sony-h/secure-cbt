@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Spinner } from '@/components/ui/table';
+import { Badge } from '@/components/ui/table';
+import { DataTable } from '@/components/ui/data-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import { Plus, Trash2, School, BookOpen, Users, X, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -152,6 +154,88 @@ function SubjectDialog({ open, onClose, form, setForm, majors, onSave, isEditing
 const emptyClassForm = { name: '', major_id: '', academic_year_id: '', grade_level: 10 };
 const emptySubjectForm = { name: '', code: '', major_id: '' };
 
+function getYearColumns(isAdmin: boolean, setEditing: any, setOpen: any, deleteMutation: any): ColumnDef<any>[] {
+  return [
+    { accessorKey: 'name', header: 'Nama', enableSorting: true },
+    { accessorKey: 'is_active', header: 'Status', enableSorting: true, cell: ({ row }) => (
+      <Badge variant={row.original.is_active ? 'success' : 'warning'}>{row.original.is_active ? 'Aktif' : 'Nonaktif'}</Badge>
+    )},
+    ...(isAdmin ? [{
+      id: 'actions' as const,
+      header: 'Aksi',
+      cell: ({ row }: any) => (
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={() => { setEditing(row.original); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      ),
+    }] : []),
+  ];
+}
+
+function getMajorColumns(isAdmin: boolean, setEditing: any, setOpen: any, deleteMutation: any): ColumnDef<any>[] {
+  return [
+    { accessorKey: 'code', header: 'Kode', enableSorting: true },
+    { accessorKey: 'name', header: 'Nama', enableSorting: true },
+    ...(isAdmin ? [{
+      id: 'actions' as const,
+      header: 'Aksi',
+      cell: ({ row }: any) => (
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={() => { setEditing(row.original); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      ),
+    }] : []),
+  ];
+}
+
+function getClassColumns(canEdit: boolean, setEditingId: any, setForm: any, setOpen: any, deleteMutation: any): ColumnDef<any>[] {
+  return [
+    { accessorKey: 'name', header: 'Nama', enableSorting: true },
+    { accessorKey: 'major.name', header: 'Jurusan', enableSorting: true, cell: ({ row }) => row.original.major?.name || '-' },
+    { accessorKey: 'grade_level', header: 'Tingkat', enableSorting: true },
+    ...(canEdit ? [{
+      id: 'actions' as const,
+      header: 'Aksi',
+      cell: ({ row }: any) => (
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={() => {
+            const c = row.original;
+            setEditingId(c.id);
+            setForm({ name: c.name, major_id: c.major?.id || '', academic_year_id: c.academic_year?.id || '', grade_level: c.grade_level });
+            setOpen(true);
+          }}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      ),
+    }] : []),
+  ];
+}
+
+function getSubjectColumns(canEdit: boolean, setEditingId: any, setForm: any, setOpen: any, deleteMutation: any): ColumnDef<any>[] {
+  return [
+    { accessorKey: 'code', header: 'Kode', enableSorting: true },
+    { accessorKey: 'name', header: 'Nama', enableSorting: true },
+    { accessorKey: 'major.name', header: 'Jurusan', enableSorting: true, cell: ({ row }) => row.original.major?.name || 'Umum' },
+    ...(canEdit ? [{
+      id: 'actions' as const,
+      header: 'Aksi',
+      cell: ({ row }: any) => (
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={() => {
+            const s = row.original;
+            setEditingId(s.id);
+            setForm({ name: s.name, code: s.code, major_id: s.major?.id || '' });
+            setOpen(true);
+          }}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        </div>
+      ),
+    }] : []),
+  ];
+}
+
 export default function AcademicPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === UserRole.ADMIN;
@@ -249,13 +333,7 @@ export default function AcademicPage() {
               {isAdmin && <Button size="sm" onClick={() => setYearOpen(true)}><Plus className="mr-2 h-4 w-4" />Tambah</Button>}
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader><TableRow><TableHead>Nama</TableHead><TableHead>Status</TableHead><TableHead className="w-[100px]">Aksi</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {years?.map((y: any) => (<TableRow key={y.id}><TableCell className="font-medium">{y.name}</TableCell><TableCell><Badge variant={y.is_active ? 'success' : 'warning'}>{y.is_active ? 'Aktif' : 'Nonaktif'}</Badge></TableCell><TableCell>{isAdmin && <div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => { setEditingYear(y); setYearOpen(true); }}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus tahun ajaran?')) deleteYearMutation.mutate(y.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>}</TableCell></TableRow>))}
-                  {(!years || years.length === 0) && (<TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Belum ada tahun ajaran</TableCell></TableRow>)}
-                </TableBody>
-              </Table>
+              {years && <DataTable columns={getYearColumns(isAdmin, setEditingYear, setYearOpen, deleteYearMutation)} data={years} emptyMessage="Belum ada tahun ajaran" />}
             </CardContent>
           </Card>
         </TabsContent>
@@ -267,13 +345,7 @@ export default function AcademicPage() {
               {isAdmin && <Button size="sm" onClick={() => setMajorOpen(true)}><Plus className="mr-2 h-4 w-4" />Tambah</Button>}
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader><TableRow><TableHead>Kode</TableHead><TableHead>Nama</TableHead><TableHead className="w-[100px]">Aksi</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {majors?.map((m: any) => (<TableRow key={m.id}><TableCell className="font-medium">{m.code}</TableCell><TableCell>{m.name}</TableCell><TableCell>{isAdmin && <div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => { setEditingMajor(m); setMajorOpen(true); }}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus jurusan?')) deleteMajorMutation.mutate(m.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>}</TableCell></TableRow>))}
-                  {(!majors || majors.length === 0) && (<TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Belum ada jurusan</TableCell></TableRow>)}
-                </TableBody>
-              </Table>
+              {majors && <DataTable columns={getMajorColumns(isAdmin, setEditingMajor, setMajorOpen, deleteMajorMutation)} data={majors} emptyMessage="Belum ada jurusan" />}
             </CardContent>
           </Card>
         </TabsContent>
@@ -285,22 +357,7 @@ export default function AcademicPage() {
               {canEditAcademic && <Button size="sm" onClick={() => { setEditingClassId(null); setClassForm(emptyClassForm); setClassOpen(true); }}><Plus className="mr-2 h-4 w-4" />Tambah Kelas</Button>}
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader><TableRow><TableHead>Nama</TableHead><TableHead>Jurusan</TableHead><TableHead>Tingkat</TableHead><TableHead className="w-[120px]">Aksi</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {classes?.map((c: any) => (<TableRow key={c.id}><TableCell className="font-medium">{c.name}</TableCell><TableCell>{c.major?.name || '-'}</TableCell><TableCell>{c.grade_level}</TableCell><TableCell>
-                    {canEditAcademic && <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => {
-                        setEditingClassId(c.id);
-                        setClassForm({ name: c.name, major_id: c.major?.id || '', academic_year_id: c.academic_year?.id || '', grade_level: c.grade_level });
-                        setClassOpen(true);
-                      }}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus kelas?')) deleteClassMutation.mutate(c.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>}
-                  </TableCell></TableRow>))}
-                  {(!classes || classes.length === 0) && (<TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Belum ada kelas</TableCell></TableRow>)}
-                </TableBody>
-              </Table>
+              {classes && <DataTable columns={getClassColumns(canEditAcademic, setEditingClassId, setClassForm, setClassOpen, deleteClassMutation)} data={classes} emptyMessage="Belum ada kelas" />}
             </CardContent>
           </Card>
         </TabsContent>
@@ -312,22 +369,7 @@ export default function AcademicPage() {
               {canEditAcademic && <Button size="sm" onClick={() => { setEditingSubjectId(null); setSubjectForm(emptySubjectForm); setSubjectOpen(true); }}><Plus className="mr-2 h-4 w-4" />Tambah Mapel</Button>}
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader><TableRow><TableHead>Kode</TableHead><TableHead>Nama</TableHead><TableHead>Jurusan</TableHead><TableHead className="w-[120px]">Aksi</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {subjects?.map((s: any) => (<TableRow key={s.id}><TableCell className="font-medium">{s.code}</TableCell><TableCell>{s.name}</TableCell><TableCell>{s.major?.name || 'Umum'}</TableCell><TableCell>
-                    {canEditAcademic && <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => {
-                        setEditingSubjectId(s.id);
-                        setSubjectForm({ name: s.name, code: s.code, major_id: s.major?.id || '' });
-                        setSubjectOpen(true);
-                      }}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus mapel?')) deleteSubjectMutation.mutate(s.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>}
-                  </TableCell></TableRow>))}
-                  {(!subjects || subjects.length === 0) && (<TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Belum ada mata pelajaran</TableCell></TableRow>)}
-                </TableBody>
-              </Table>
+              {subjects && <DataTable columns={getSubjectColumns(canEditAcademic, setEditingSubjectId, setSubjectForm, setSubjectOpen, deleteSubjectMutation)} data={subjects} emptyMessage="Belum ada mata pelajaran" />}
             </CardContent>
           </Card>
         </TabsContent>
