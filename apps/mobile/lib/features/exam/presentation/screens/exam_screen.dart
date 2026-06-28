@@ -84,9 +84,9 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       ]);
 
       final notifier = ref.read(examProvider.notifier);
-      notifier.setWarningLimit(warningLimit);
       notifier.setOnForceSubmit(() => _forceSubmit());
       notifier.loadSession(widget.sessionId, questions, remainingSeconds);
+      notifier.setWarningLimit(warningLimit);
 
       // Connect monitoring socket
       final authState = ref.read(authProvider);
@@ -102,10 +102,6 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
 
         notifier.setOnViolation((event, count, sessionId) {
           socket.emitViolation(examId, count, event, sessionId ?? widget.sessionId, studentName: studentName);
-        });
-
-        notifier.setOnExamSubmitted(() {
-          socket.emitExamSubmitted(widget.sessionId, examId, authState.userId!, studentName: studentName);
         });
       }
 
@@ -285,7 +281,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
     final seconds = examState.remainingSeconds % 60;
 
     return AppBar(
-      title: Text(widget.examTitle, style: theme.textTheme.titleMedium),
+      title: Text(widget.examTitle, style: theme.textTheme.titleMedium, overflow: TextOverflow.ellipsis, maxLines: 1),
       automaticallyImplyLeading: false,
       actions: [
         // Timer

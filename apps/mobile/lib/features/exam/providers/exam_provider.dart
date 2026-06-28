@@ -93,6 +93,8 @@ class ExamNotifier extends StateNotifier<ExamState> {
       violations: [],
       answers: {},
       showSaveIndicator: false,
+      isSubmitted: false,
+      isFullscreen: true,
     );
     state = state.copyWith(isLoading: false);
     _startTimer();

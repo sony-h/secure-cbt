@@ -7,8 +7,9 @@ import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 
 class TokenScreen extends ConsumerStatefulWidget {
   final String? examTitle;
+  final String? examId;
 
-  const TokenScreen({super.key, this.examTitle});
+  const TokenScreen({super.key, this.examTitle, this.examId});
 
   @override
   ConsumerState<TokenScreen> createState() => _TokenScreenState();
@@ -17,6 +18,7 @@ class TokenScreen extends ConsumerStatefulWidget {
 class _TokenScreenState extends ConsumerState<TokenScreen> {
   final _tokenController = TextEditingController();
   bool _isLoading = false;
+  bool _rulesAgreed = false; // Checkbox state (Pattern 14)
 
   @override
   void initState() {
@@ -37,6 +39,8 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
   }
 
   Future<void> _startExam() async {
+    if (!_rulesAgreed) return;
+
     final token = _tokenController.text.trim().toUpperCase();
     if (token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -51,6 +55,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
       final response = await dio.post('/sessions/start', data: {
         'token': token,
         'device_id': 'android_${DateTime.now().millisecondsSinceEpoch}',
+        if (widget.examId != null) 'exam_id': widget.examId,
       });
 
       final session = response.data['data'];
@@ -66,7 +71,13 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
       final message = e.response?.data?['message'] ?? 'Token tidak valid atau sudah kadaluarsa';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red),
+          SnackBar(content: Text(message), backgroundColor: Colors.red.shade700),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
         );
       }
     } finally {
@@ -76,83 +87,134 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Ujian'),
+        title: const Text('Persiapan Ujian', style: TextStyle(fontWeight: FontWeight.bold)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.goNamed('exam-select'),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => context.goNamed('home'),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(authProvider.notifier).logout();
-              if (context.mounted) context.goNamed('login');
-            },
-          ),
-        ],
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(
-                Icons.vpn_key,
-                size: 64,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 24),
-              if (widget.examTitle != null) ...[
-                Text(
-                  widget.examTitle!,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.primary,
+              // Subject Icon & Title Card
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Icon(Icons.assignment_turned_in_rounded, size: 48, color: theme.colorScheme.primary),
+                      const SizedBox(height: 12),
+                      Text(
+                        widget.examTitle ?? 'Informasi Ujian',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF0F172A),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-              ],
+              ),
+              const SizedBox(height: 20),
+
+              // Exam Rules List (Pattern 14)
+              Text(
+                'Peraturan & Petunjuk Ujian',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Card(
+                color: const Color(0xFFF8FAFC),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      _RuleItem(text: 'Dilarang keluar dari layar penuh / meminimalkan aplikasi.'),
+                      _RuleItem(text: 'Aplikasi akan otomatis mengunci dalam mode kiosk (Lock Task).'),
+                      _RuleItem(text: 'Pelanggaran/membuka aplikasi lain akan dicatat sebagai kecurangan.'),
+                      _RuleItem(text: 'Jawaban disimpan otomatis (auto-save) setiap beberapa detik.'),
+                      _RuleItem(text: 'Jika batas pelanggaran terlampaui, ujian akan otomatis dikumpulkan.'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Token input field
               Text(
                 'Masukkan Token Ujian',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: const Color(0xFF334155),
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Token diberikan oleh pengawas ujian',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 32),
-
-              // Token input
               TextFormField(
                 controller: _tokenController,
                 textAlign: TextAlign.center,
                 textCapitalization: TextCapitalization.characters,
-                style: const TextStyle(fontSize: 24, letterSpacing: 4, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 22, letterSpacing: 6, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                 decoration: InputDecoration(
                   hintText: 'XXXXXXXX',
                   hintStyle: TextStyle(
-                    fontSize: 24,
-                    letterSpacing: 4,
+                    fontSize: 22,
+                    letterSpacing: 6,
                     color: Colors.grey[400],
                   ),
+                  counterText: '',
                 ),
                 maxLength: 8,
                 onFieldSubmitted: (_) => _startExam(),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
+              // Aggrement Checkbox
+              CheckboxListTile(
+                value: _rulesAgreed,
+                onChanged: (val) => setState(() => _rulesAgreed = val ?? false),
+                title: Text(
+                  'Saya telah membaca dan memahami seluruh peraturan ujian di atas.',
+                  style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF475569), fontWeight: FontWeight.w500),
+                ),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                activeColor: theme.colorScheme.primary,
+              ),
+              const SizedBox(height: 16),
 
               ElevatedButton(
-                onPressed: _isLoading ? null : _startExam,
+                onPressed: (_isLoading || !_rulesAgreed) ? null : _startExam,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                  disabledForegroundColor: Colors.grey.shade500,
+                ),
                 child: _isLoading
                     ? const SizedBox(
                         height: 20,
@@ -164,6 +226,30 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _RuleItem extends StatelessWidget {
+  final String text;
+  const _RuleItem({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF475569)),
+            ),
+          ),
+        ],
       ),
     );
   }
