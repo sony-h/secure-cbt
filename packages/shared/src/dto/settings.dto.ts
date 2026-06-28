@@ -9,6 +9,7 @@ export interface UpdateSettingsDto {
   lock_task_mode?: boolean;
   autosave_interval?: number;
   session_timeout?: number;
+  passing_grade?: number;
 }
 
 export interface SettingsResponseDto {
@@ -19,5 +20,6 @@ export interface SettingsResponseDto {
   lock_task_mode: boolean;
   autosave_interval: number;
   session_timeout: number;
+  passing_grade: number;
   updated_at: string;
 }

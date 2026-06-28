@@ -124,15 +124,16 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
         timestamp: data.timestamp,
       });
     }
-    // Persist warning to session_logs
+    // Persist warning and increment counter
     try {
       await this.monitoringService.logEvent(
         data.sessionId,
         `WARNING_TRIGGERED:${data.event}`,
         `Peringatan #${data.warningCount}: ${data.studentName || data.studentId || client.handshake.query.userId} - ${data.event}`,
       );
+      await this.monitoringService.incrementWarning(data.sessionId);
     } catch (e) {
-      this.logger.error('Failed to log warning event', e as any);
+      this.logger.error('Failed to persist warning', e as any);
     }
   }
 
@@ -158,12 +159,13 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
   notifySessionFinished(examId: string, data: {
     sessionId: string;
     studentId: string;
+    studentName: string;
     status: string;
   }): void {
     this.server.to(`exam:${examId}`).emit(SocketEvent.EXAM_SUBMITTED, {
       sessionId: data.sessionId,
       studentId: data.studentId,
-      studentName: '',
+      studentName: data.studentName,
       status: data.status,
       timestamp: new Date().toISOString(),
     });

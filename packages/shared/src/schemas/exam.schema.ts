@@ -25,6 +25,7 @@ export const updateExamSchema = z.object({
   end_at: z.string().datetime().optional(),
   class_ids: z.array(z.string().uuid()).min(1).optional(),
   question_ids: z.array(z.string().uuid()).min(1).optional(),
+  package_count: z.number().int().min(1).max(10).optional(),
   randomize_questions: z.boolean().optional(),
   randomize_answers: z.boolean().optional(),
   warning_limit: z.number().int().min(1).max(10).optional(),

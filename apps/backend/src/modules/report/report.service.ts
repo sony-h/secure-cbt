@@ -5,20 +5,26 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class ReportService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getExamReport(examId: string) {
+  async getExamReport(examId: string, classId?: string, sortBy?: string, sortOrder?: 'asc' | 'desc') {
     const exam = await this.prisma.exam.findFirst({
       where: { id: examId, deleted_at: null },
       include: { subject: true },
     });
     if (!exam) throw new NotFoundException('Exam not found');
 
+    const where: any = { exam_id: examId, score: { isNot: null } };
+    if (classId) where.student = { class_id: classId };
+
     const sessions = await this.prisma.examSession.findMany({
-      where: { exam_id: examId },
+      where,
       include: {
         student: { include: { class: true } },
         score: true,
       },
     });
+
+    const settings = await this.prisma.setting.findFirst();
+    const passingGrade = settings?.passing_grade ?? 70;
 
     const students = sessions
       .filter((s) => s.score)
@@ -30,8 +36,20 @@ export class ReportService {
         score: s.score!.total_score,
         correct_count: s.score!.correct_count,
         wrong_count: s.score!.wrong_count,
-        status: (s.score!.total_score >= 70 ? 'passed' : 'failed') as 'passed' | 'failed',
+        essay_score: s.score!.essay_score,
+        total_questions: s.score!.total_questions,
+        status: (s.score!.total_score >= passingGrade ? 'passed' : 'failed') as 'passed' | 'failed',
       }));
+
+    const sorted = [...students];
+    if (sortBy) {
+      sorted.sort((a, b) => {
+        const aVal = (a as any)[sortBy] ?? '';
+        const bVal = (b as any)[sortBy] ?? '';
+        const cmp = typeof aVal === 'number' ? aVal - bVal : String(aVal).localeCompare(String(bVal));
+        return sortOrder === 'desc' ? -cmp : cmp;
+      });
+    }
 
     const scores = students.map((s) => s.score);
     return {
@@ -43,7 +61,7 @@ export class ReportService {
       highest_score: scores.length > 0 ? Math.max(...scores) : 0,
       lowest_score: scores.length > 0 ? Math.min(...scores) : 0,
       generated_at: new Date().toISOString(),
-      students,
+      students: sorted,
     };
   }
 

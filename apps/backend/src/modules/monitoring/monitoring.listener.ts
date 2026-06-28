@@ -24,11 +24,12 @@ export class MonitoringListener {
   }
 
   @OnEvent(EventNames.SESSION_FINISHED)
-  async handleSessionFinished(payload: { sessionId: string; examId: string; studentId: string }) {
+  async handleSessionFinished(payload: { sessionId: string; examId: string; studentId: string; studentName: string }) {
     this.logger.log(`Session finished: ${payload.sessionId}`);
     this.gateway.notifySessionFinished(payload.examId, {
       sessionId: payload.sessionId,
       studentId: payload.studentId,
+      studentName: payload.studentName,
       status: 'SUBMITTED',
     });
     try {
@@ -39,11 +40,12 @@ export class MonitoringListener {
   }
 
   @OnEvent(EventNames.SESSION_EXPIRED)
-  async handleSessionExpired(payload: { sessionId: string; examId: string; studentId: string }) {
+  async handleSessionExpired(payload: { sessionId: string; examId: string; studentId: string; studentName: string }) {
     this.logger.log(`Session expired: ${payload.sessionId}`);
     this.gateway.notifySessionFinished(payload.examId, {
       sessionId: payload.sessionId,
       studentId: payload.studentId,
+      studentName: payload.studentName,
       status: 'EXPIRED',
     });
     try {

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ReportService } from './report.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -15,8 +15,13 @@ export class ReportController {
   @Get('exam/:id')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get exam report' })
-  async getExamReport(@Param('id') id: string) {
-    const data = await this.reportService.getExamReport(id);
+  async getExamReport(
+    @Param('id') id: string,
+    @Query('class_id') classId?: string,
+    @Query('sort_by') sortBy?: string,
+    @Query('sort_order') sortOrder?: 'asc' | 'desc',
+  ) {
+    const data = await this.reportService.getExamReport(id, classId, sortBy, sortOrder);
     return { success: true, message: 'Exam report retrieved', data };
   }
 

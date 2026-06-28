@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SessionStatus } from '@secure-cbt/shared';
+import { SessionService } from '../session/session.service';
 
 @Injectable()
 export class MonitoringService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly sessionService: SessionService,
+  ) {}
 
   async getExamMonitoring(examId: string) {
     const exam = await this.prisma.exam.findFirst({
@@ -34,10 +38,19 @@ export class MonitoringService {
       last_activity_at: s.updated_at.toISOString(),
     }));
 
-    // Get answer counts for each session
-    for (const student of students) {
-      const answerCount = await this.prisma.answer.count({ where: { exam_session_id: student.session_id } });
-      const questionCount = await this.prisma.examQuestion.count({ where: { exam_id: examId } });
+    // Get answer counts for each session (respecting package assignment)
+    for (const s of sessions) {
+      const student = students.find((st) => st.session_id === s.id);
+      if (!student) continue;
+      const answerCount = await this.prisma.answer.count({ where: { exam_session_id: s.id } });
+      const questionFilter: any = { exam_id: examId };
+      if (s.package_id) {
+        questionFilter.OR = [
+          { package_id: s.package_id },
+          { package_id: null },
+        ];
+      }
+      const questionCount = await this.prisma.examQuestion.count({ where: questionFilter });
       student.progress = { answered: answerCount, total: questionCount };
     }
 
@@ -81,7 +94,7 @@ export class MonitoringService {
     // Check if warning limit exceeded
     const exam = await this.prisma.exam.findUnique({ where: { id: session.exam_id } });
     if (exam && updated.warning_count >= exam.warning_limit && exam.auto_submit_enabled) {
-      // Auto-submit will be handled by the SessionService
+      await this.sessionService.autoSubmit(sessionId);
     }
 
     return updated;

@@ -21,12 +21,32 @@ export interface ScoreResultDto {
   graded_at?: string;
 }
 
+export interface PendingEssayDto {
+  session_id: string;
+  student_name: string;
+  nis: string;
+  class_name: string;
+  pending_count: number;
+}
+
+export interface SessionEssayDto {
+  session_id: string;
+  student_name: string;
+  nis: string;
+  class_name: string;
+  essays: {
+    question_id: string;
+    question_content: string;
+    answer_text: string | null;
+    score: number | null;
+    feedback: string | null;
+  }[];
+}
+
 export interface ClassScoreDto {
   class_id: string;
   class_name: string;
   exam_id: string;
-  exam_title: string;
-  student_count: number;
   average_score: number;
   highest_score: number;
   lowest_score: number;

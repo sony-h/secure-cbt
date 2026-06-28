@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const startSessionSchema = z.object({
   token: z.string().min(4).max(20),
   device_id: z.string().max(255),
+  exam_id: z.string().uuid().optional(),
 });
 
 export const resumeSessionSchema = z.object({

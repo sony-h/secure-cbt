@@ -29,6 +29,7 @@ export interface UpdateExamDto {
   end_at?: string;
   class_ids?: string[];
   question_ids?: string[];
+  package_count?: number;
   randomize_questions?: boolean;
   randomize_answers?: boolean;
   warning_limit?: number;
