@@ -54,3 +54,6 @@ ios/build/
 *.pem
 *.key
 *.crt
+docs/
+seed-csv/
+apps/backend/test/

@@ -7,6 +7,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: secure_cbt
+      TZ: Asia/Jakarta
     ports:
       - '5433:5432'
     volumes:
@@ -107,6 +108,7 @@ services:
       PORT: '3000'
       NODE_ENV: 'development'
       CORS_ORIGIN: 'http://localhost:3001'
+      TZ: Asia/Jakarta
     ports:
       - '3000:3000'
     volumes:
