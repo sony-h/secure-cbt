@@ -13,6 +13,7 @@ import { DataTable } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { BarChart3, FileText, Download, Printer, FileSpreadsheet } from 'lucide-react';
 
 interface Exam { id: string; title: string; subject?: { name: string }; status: string; _count?: { exam_sessions: number }; }
@@ -164,17 +165,21 @@ function ReportsPageContent() {
           <div className="flex items-end gap-3 mb-6 print:hidden">
             <div className="flex-1 space-y-2">
               <Label>Ujian</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={selectedExam} onChange={(e) => { setSelectedExam(e.target.value); setSelectedClass(''); }}>
-                <option value="">Pilih Ujian</option>
-                {exams?.map((e) => (<option key={e.id} value={e.id}>{e.title} ({e.subject?.name}) - {e._count?.exam_sessions || 0} peserta</option>))}
-              </select>
+              <Select value={selectedExam} onValueChange={(v) => { setSelectedExam(v); setSelectedClass(''); }}>
+                <SelectTrigger><SelectValue placeholder="Pilih Ujian" /></SelectTrigger>
+                <SelectContent>
+                  {exams?.map((e) => (<SelectItem key={e.id} value={e.id}>{e.title} ({e.subject?.name}) - {e._count?.exam_sessions || 0} peserta</SelectItem>))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="w-48 space-y-2">
               <Label>Kelas</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}>
-                <option value="">Semua Kelas</option>
-                {classes?.map((c) => (<option key={c.id} value={c.id}>{c.name} {c.major?.name ? `- ${c.major.name}` : ''}</option>))}
-              </select>
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <SelectTrigger><SelectValue placeholder="Semua Kelas" /></SelectTrigger>
+                <SelectContent>
+                  {classes?.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name} {c.major?.name ? `- ${c.major.name}` : ''}</SelectItem>))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" disabled={!results?.length} onClick={handleExportCSV}><FileSpreadsheet className="mr-2 h-4 w-4" />Export CSV</Button>

@@ -11,7 +11,9 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { FileCheck, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -90,10 +92,12 @@ function GradingPageContent() {
           <div className="flex items-end gap-3">
             <div className="flex-1 space-y-2">
               <Label>Ujian</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={selectedExam} onChange={(e) => { setSelectedExam(e.target.value); setSelectedStudent(null); }}>
-                <option value="">Pilih Ujian</option>
-                {exams?.map((e) => (<option key={e.id} value={e.id}>{e.title} ({e.subject?.name})</option>))}
-              </select>
+              <Select value={selectedExam} onValueChange={(v) => { setSelectedExam(v); setSelectedStudent(null); }}>
+                <SelectTrigger><SelectValue placeholder="Pilih Ujian" /></SelectTrigger>
+                <SelectContent>
+                  {exams?.map((e) => (<SelectItem key={e.id} value={e.id}>{e.title} ({e.subject?.name})</SelectItem>))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -141,11 +145,11 @@ function GradingPageContent() {
                                 <div className="flex items-end gap-4">
                                   <div className="space-y-1">
                                     <Label>Nilai (0-100)</Label>
-                                    <input type="number" min={0} max={100} className="flex h-10 w-24 rounded-md border border-input bg-background px-3 py-2 text-sm" value={scores[essay.question_id] ?? ''} onChange={(e) => setScores((prev) => ({ ...prev, [essay.question_id]: Number(e.target.value) }))} />
+                                    <Input type="number" min={0} max={100} className="w-24" value={scores[essay.question_id] ?? ''} onChange={(e) => setScores((prev) => ({ ...prev, [essay.question_id]: Number(e.target.value) }))} />
                                   </div>
                                   <div className="flex-1 space-y-1">
                                     <Label>Catatan</Label>
-                                    <input className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={feedbacks[essay.question_id] ?? ''} onChange={(e) => setFeedbacks((prev) => ({ ...prev, [essay.question_id]: e.target.value }))} placeholder="Catatan untuk siswa (opsional)" />
+                                    <Input value={feedbacks[essay.question_id] ?? ''} onChange={(e) => setFeedbacks((prev) => ({ ...prev, [essay.question_id]: e.target.value }))} placeholder="Catatan untuk siswa (opsional)" />
                                   </div>
                                   <Button onClick={() => {
                                     const score = scores[essay.question_id];

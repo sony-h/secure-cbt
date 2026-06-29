@@ -83,7 +83,12 @@ export function QuestionModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Soal' : 'Tambah Soal'}>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Soal' : 'Tambah Soal'} footer={
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Buat Soal'}</Button>
+      </div>
+    }>
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>Bank Soal</Label>
@@ -148,29 +153,27 @@ export function QuestionModal({
                     onChange={(e) => {
                       const newOpts = [...form.options];
                       const curr = newOpts[idx]!;
-                      newOpts[idx] = { content: e.target.value, is_correct: curr.is_correct };
+                      newOpts[idx] = { ...curr, content: e.target.value };
                     setForm({ ...form, options: newOpts });
                   }}
                   placeholder={`Pilihan ${String.fromCharCode(65 + idx)}`}
                 />
-                <label className="flex items-center gap-1 text-sm cursor-pointer shrink-0">
-                  <Checkbox
+                  <Checkbox id={`correct-${idx}`}
                     checked={opt.is_correct}
                     onCheckedChange={() => {
                       const newOpts = [...form.options];
                       if (form.type === 'MULTI_SELECT') {
                         const curr = newOpts[idx]!;
-                        newOpts[idx] = { content: curr.content, is_correct: !opt.is_correct };
+                        newOpts[idx] = { ...curr, is_correct: !opt.is_correct };
                       } else {
                         newOpts.forEach((opt, i) => {
-                          newOpts[i] = { content: opt.content, is_correct: i === idx };
+                          newOpts[i] = { ...opt, is_correct: i === idx };
                         });
                       }
                       setForm({ ...form, options: newOpts });
                     }}
                   />
-                  Benar
-                </label>
+                <label htmlFor={`correct-${idx}`} className="flex items-center gap-1 text-sm cursor-pointer shrink-0">Benar</label>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -260,11 +263,6 @@ export function QuestionModal({
             </div>
           )}
         </div>
-      </div>
-
-      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Buat Soal'}</Button>
       </div>
     </Modal>
   );

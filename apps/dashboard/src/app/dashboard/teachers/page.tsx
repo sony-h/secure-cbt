@@ -70,7 +70,12 @@ function TeacherDialog({
     setForm({ ...form, subject_ids: ids });
   };
   return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Guru' : 'Tambah Guru'}>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Guru' : 'Tambah Guru'} footer={
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={onSave} disabled={isSaving}>{isSaving ? 'Menyimpan...' : isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    }>
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>NIP</Label>
@@ -92,10 +97,6 @@ function TeacherDialog({
             {subjects.length === 0 && <p className="text-sm text-muted-foreground p-2">Belum ada mata pelajaran</p>}
           </div>
         </div>
-      </div>
-      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={onSave} disabled={isSaving}>{isSaving ? 'Menyimpan...' : isEditing ? 'Simpan' : 'Tambah'}</Button>
       </div>
     </Modal>
   );

@@ -40,17 +40,18 @@ function YearDialog({ open, onClose, onSave, isEditing, initialName, initialActi
     if (open) { setName(initialName || ''); setIsActive(initialActive || false); }
   }, [open, initialName, initialActive]);
   return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Tahun Ajaran' : 'Tambah Tahun Ajaran'}>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Tahun Ajaran' : 'Tambah Tahun Ajaran'} footer={
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={() => { if (name.trim()) { onSave(name, isActive); } else toast.error('Nama harus diisi'); }}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    }>
       <div className="space-y-4">
         <div className="space-y-2"><Label>Nama Tahun Ajaran</Label><Input placeholder="contoh: 2026/2027" value={name} onChange={(e) => setName(e.target.value)} /></div>
         <label className="flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer hover:bg-muted/50">
           <Checkbox checked={isActive} onCheckedChange={(v) => setIsActive(v === true)} />
           <span className="text-sm">Jadikan tahun ajaran aktif</span>
         </label>
-      </div>
-      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={() => { if (name.trim()) { onSave(name, isActive); } else toast.error('Nama harus diisi'); }}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
       </div>
     </Modal>
   );
@@ -65,14 +66,15 @@ function MajorDialog({ open, onClose, onSave, isEditing, initialName, initialCod
     if (open) { setName(initialName || ''); setCode(initialCode || ''); }
   }, [open, initialName, initialCode]);
   return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Jurusan' : 'Tambah Jurusan'}>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Jurusan' : 'Tambah Jurusan'} footer={
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={() => { if (name.trim() && code.trim()) { onSave(name, code); } else toast.error('Nama dan kode harus diisi'); }}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    }>
       <div className="space-y-4">
         <div className="space-y-2"><Label>Nama Jurusan</Label><Input placeholder="contoh: MIPA" value={name} onChange={(e) => setName(e.target.value)} /></div>
         <div className="space-y-2"><Label>Kode Jurusan</Label><Input placeholder="contoh: MIPA" value={code} onChange={(e) => setCode(e.target.value)} /></div>
-      </div>
-      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={() => { if (name.trim() && code.trim()) { onSave(name, code); } else toast.error('Nama dan kode harus diisi'); }}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
       </div>
     </Modal>
   );
@@ -86,7 +88,12 @@ function ClassDialog({ open, onClose, form, setForm, majors, years, onSave, isEd
   onSave: () => void; isEditing: boolean;
 }) {
   return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Kelas' : 'Tambah Kelas'}>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Kelas' : 'Tambah Kelas'} footer={
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    }>
       <div className="space-y-4">
         <div className="space-y-2"><Label>Nama Kelas</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="contoh: XII MIPA 1" /></div>
         <div className="grid grid-cols-2 gap-4">
@@ -114,10 +121,6 @@ function ClassDialog({ open, onClose, form, setForm, majors, years, onSave, isEd
           </Select>
         </div>
       </div>
-      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
-      </div>
     </Modal>
   );
 }
@@ -130,7 +133,12 @@ function SubjectDialog({ open, onClose, form, setForm, majors, onSave, isEditing
   onSave: () => void; isEditing: boolean;
 }) {
   return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Mapel' : 'Tambah Mata Pelajaran'}>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Mapel' : 'Tambah Mata Pelajaran'} footer={
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    }>
       <div className="space-y-4">
         <div className="space-y-2"><Label>Nama Mapel</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="contoh: Matematika" /></div>
         <div className="space-y-2"><Label>Kode Mapel</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="contoh: MTK" /></div>
@@ -143,10 +151,6 @@ function SubjectDialog({ open, onClose, form, setForm, majors, onSave, isEditing
             </SelectContent>
           </Select>
         </div>
-      </div>
-      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
       </div>
     </Modal>
   );

@@ -61,6 +61,24 @@ export function CreateExamModal({
       open={open}
       onClose={onClose}
       title={isEditing ? 'Edit Ujian' : 'Buat Ujian Baru'}
+      maxWidth="sm:max-w-lg"
+      footer={
+        <div className="flex justify-between w-full">
+          <div>
+            {step > 0 && (
+              <Button variant="outline" onClick={() => setStep(step - 1)}>Sebelumnya</Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>Batal</Button>
+            {step < 3 ? (
+              <Button onClick={() => setStep(step + 1)}>Selanjutnya</Button>
+            ) : (
+              <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Buat Ujian'}</Button>
+            )}
+          </div>
+        </div>
+      }
     >
       <div className="flex items-center gap-2 mb-6">
         {steps.map((s, i) => (
@@ -84,22 +102,6 @@ export function CreateExamModal({
         {step === 1 && <ClassesStep form={form} setForm={setForm} classes={classes} />}
         {step === 2 && <QuestionsStep form={form} setForm={setForm} banks={banks} questions={questions} bankFilter={bankFilter} setBankFilter={setBankFilter} />}
         {step === 3 && <SettingsStep form={form} setForm={setForm} />}
-      </div>
-
-      <div className="flex justify-between mt-6 pt-4 border-t">
-        <div>
-          {step > 0 && (
-            <Button variant="outline" onClick={() => setStep(step - 1)}>Sebelumnya</Button>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          {step < 3 ? (
-            <Button onClick={() => setStep(step + 1)}>Selanjutnya</Button>
-          ) : (
-            <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Buat Ujian'}</Button>
-          )}
-        </div>
       </div>
     </Modal>
   );

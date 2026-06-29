@@ -70,7 +70,12 @@ function StudentDialog({
   isSaving: boolean;
 }) {
   return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Siswa' : 'Tambah Siswa'}>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Siswa' : 'Tambah Siswa'} footer={
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={onSave} disabled={isSaving}>{isSaving ? 'Menyimpan...' : isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    }>
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>NIS</Label>
@@ -100,10 +105,6 @@ function StudentDialog({
             </SelectContent>
           </Select>
         </div>
-      </div>
-      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={onSave} disabled={isSaving}>{isSaving ? 'Menyimpan...' : isEditing ? 'Simpan' : 'Tambah'}</Button>
       </div>
     </Modal>
   );

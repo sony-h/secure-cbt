@@ -15,7 +15,7 @@ export function ClassesStep({ form, setForm, classes }: Props) {
     <div className="space-y-4">
       <Label>Pilih Kelas Peserta</Label>
       <p className="text-sm text-muted-foreground">Pilih kelas yang akan mengikuti ujian ini.</p>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {classes.map((c) => (
           <label key={c.id} className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer transition hover:bg-muted ${form.class_ids.includes(c.id) ? 'border-primary bg-primary/5' : ''}`}>
             <Checkbox
