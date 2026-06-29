@@ -4,7 +4,6 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
-import { RedisModule } from './common/redis/redis.module';
 import { QueueModule } from './common/queue/queue.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
@@ -37,7 +36,6 @@ import { HealthModule } from './modules/health/health.module';
 
     // ── Infrastructure ─────────────────────────────────────────
     PrismaModule,
-    RedisModule,
     QueueModule,
 
     // ── Business Modules ───────────────────────────────────────

@@ -8,6 +8,4 @@ export { LoggingInterceptor } from './interceptors/logging.interceptor';
 // ── Guards ───────────────────────────────────────────────────
 export { RolesGuard, Roles, ROLES_KEY } from './guards/roles.guard';
 
-// ── Redis ────────────────────────────────────────────────────
-export { RedisModule } from './redis/redis.module';
-export { RedisService } from './redis/redis.service';
+

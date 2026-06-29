@@ -57,13 +57,6 @@ export class ExamController {
     return { success: true, message: 'Exam deleted', data };
   }
 
-  @Post(':id/publish')
-  @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  async publish(@Param('id') id: string) {
-    const data = await this.examService.publish(id);
-    return { success: true, message: 'Exam published', data };
-  }
-
   @Post(':id/token')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   async generateToken(@Param('id') id: string) {

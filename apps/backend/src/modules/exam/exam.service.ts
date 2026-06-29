@@ -191,16 +191,6 @@ export class ExamService {
     return { deleted: true };
   }
 
-  async publish(id: string) {
-    const exam = await this.findById(id);
-    if (exam.status !== ExamStatus.DRAFT) throw new BadRequestException('Only draft exams can be published');
-    const updated = await this.prisma.exam.update({ where: { id }, data: { status: ExamStatus.PUBLISHED } });
-    if (this.eventEmitter) {
-      this.eventEmitter.emit(EventNames.EXAM_PUBLISHED, { examId: id });
-    }
-    return updated;
-  }
-
   async generateToken(id: string) {
     const exam = await this.findById(id);
     if (exam.status !== ExamStatus.PUBLISHED && exam.status !== ExamStatus.ONGOING) {
