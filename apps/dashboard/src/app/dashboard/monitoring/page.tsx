@@ -8,7 +8,8 @@ import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge, Spinner } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Spinner } from '@/components/ui/spinner';
 import { Wifi, WifiOff, AlertTriangle, Users, CheckCircle, Eye, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 

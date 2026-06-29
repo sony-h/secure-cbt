@@ -7,7 +7,7 @@ import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';

@@ -1,7 +1,7 @@
 'use client';
 
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import type { ExamFormData } from '../create-exam-modal';
 
 interface Props {

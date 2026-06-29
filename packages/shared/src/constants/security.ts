@@ -33,6 +33,9 @@ export const SecurityDefaults = {
 
   /** Rate limit: max requests per minute per IP */
   RATE_LIMIT_PER_MINUTE: 60,
+
+  /** Rate limit: TTL window in seconds */
+  RATE_LIMIT_TTL: 60,
 } as const;
 
 /** Cache TTL values in seconds */

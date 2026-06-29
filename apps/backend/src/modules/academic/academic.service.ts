@@ -14,7 +14,7 @@ export class AcademicService {
 
   // Academic Years
   async getAcademicYears() {
-    return this.prisma.academicYear.findMany({ orderBy: { created_at: 'desc' } });
+    return this.prisma.academicYear.findMany({ where: { deleted_at: null }, orderBy: { created_at: 'desc' } });
   }
 
   async createAcademicYear(dto: CreateAcademicYearInput) {
@@ -37,12 +37,12 @@ export class AcademicService {
 
   async deleteAcademicYear(id: string) {
     await this.prisma.academicYear.findUniqueOrThrow({ where: { id } });
-    return this.prisma.academicYear.delete({ where: { id } });
+    return this.prisma.academicYear.update({ where: { id }, data: { deleted_at: new Date() } });
   }
 
   // Majors
   async getMajors() {
-    return this.prisma.major.findMany({ orderBy: { name: 'asc' } });
+    return this.prisma.major.findMany({ where: { deleted_at: null }, orderBy: { name: 'asc' } });
   }
 
   async createMajor(dto: CreateMajorInput) {
@@ -52,7 +52,7 @@ export class AcademicService {
 
   async deleteMajor(id: string) {
     await this.prisma.major.findUniqueOrThrow({ where: { id } });
-    return this.prisma.major.delete({ where: { id } });
+    return this.prisma.major.update({ where: { id }, data: { deleted_at: new Date() } });
   }
 
   async updateMajor(id: string, dto: UpdateMajorInput) {
@@ -68,7 +68,7 @@ export class AcademicService {
     if (query.major_id) where.major_id = query.major_id;
     if (query.academic_year_id) where.academic_year_id = query.academic_year_id;
     return this.prisma.class.findMany({
-      where,
+      where: { ...where, deleted_at: null },
       include: { major: true, academic_year: true },
       orderBy: { name: 'asc' },
     });
@@ -81,7 +81,7 @@ export class AcademicService {
 
   async deleteClass(id: string) {
     await this.prisma.class.findUniqueOrThrow({ where: { id } });
-    return this.prisma.class.delete({ where: { id } });
+    return this.prisma.class.update({ where: { id }, data: { deleted_at: new Date() } });
   }
 
   async updateClass(id: string, dto: UpdateClassInput) {
@@ -98,7 +98,7 @@ export class AcademicService {
     const where: any = {};
     if (query.major_id) where.major_id = query.major_id;
     return this.prisma.subject.findMany({
-      where,
+      where: { ...where, deleted_at: null },
       include: { major: true },
       orderBy: { name: 'asc' },
     });
@@ -111,7 +111,7 @@ export class AcademicService {
 
   async deleteSubject(id: string) {
     await this.prisma.subject.findUniqueOrThrow({ where: { id } });
-    return this.prisma.subject.delete({ where: { id } });
+    return this.prisma.subject.update({ where: { id }, data: { deleted_at: new Date() } });
   }
 
   async updateSubject(id: string, dto: UpdateSubjectInput) {

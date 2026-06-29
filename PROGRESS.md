@@ -1,9 +1,9 @@
 # Progress Note: Secure CBT Platform
 
-**Current Phase:** Phase 3 - Core Business Logic Integration & Hardening - IN PROGRESS
+**Current Phase:** Phase 7 & 8 - Testing & Polish - COMPLETE
 **Target Platform:** Indonesian High Schools (SMA/SMK)
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)
-**Last Updated:** 2026-06-25
+**Last Updated:** 2026-06-29
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -181,10 +181,10 @@ users, students, teachers, teacher_subjects, academic_years, majors, classes, su
 
 ## Immediate Next Steps
 1. **Start Dashboard:** `pnpm dev` from `apps/dashboard` (port 3001) — login with `admin/admin123`
-2. **Fix seed SQL export:** Investigate multi-line INSERT truncation issue in pg_dump export pipeline
-3. **Build mobile APK / run on emulator:** `flutter build apk --debug` from `apps/mobile`
-4. **Mobile Session Wiring:** Parse `/sessions/start` response → pass questions/timer to ExamScreen
-5. **Real-time Monitoring:** Socket.io warning events from mobile → teacher dashboard
+2. **Build mobile APK / run on emulator:** `flutter build apk --debug` from `apps/mobile`
+3. **Mobile Socket.io Events Wire-up:** Connect exam warning/progress events from mobile → teacher monitoring dashboard
+4. **Dashboard Enhancement:** Polish monitoring page real-time status indicators
+5. **Future Features:** Image questions, exam templates, analytics dashboard (V2)
 
 ### 13. Question Bank getBanks — User ID vs Teacher ID Mismatch (2026-06-25)
 - **🔴 CRITICAL:** `QuestionBankController.getBanks` passed `req.user.sub` (User ID) to `getBanks()`, which treated it as `teacher_id` filter. Since User ID ≠ Teacher record ID, the `WHERE teacher_id = <user_id>` query returned 0 results for all users (Teacher & Admin).
@@ -245,3 +245,81 @@ users, students, teachers, teacher_subjects, academic_years, majors, classes, su
 - **🟠 HIGH:** Warning violations triggered during immersive-mode transition — system UI mode change (`immersiveSticky`) sends lifecycle events. Observer registration now delayed 1.5s after session load to let transitions settle.
 - **🟡 MEDIUM:** `warningLimit` hardcoded to 3 — now parsed from `session['exam']['warning_limit']` in `_loadSessionData()` so backend exam settings are respected.
 - **🟡 MEDIUM:** `ExamNotifier.loadSession` not resetting state between sessions — now explicitly resets `currentIndex: 0`, `warningCount: 0`, `violations: []`, `answers: {}`, and cancels old timers.
+
+---
+
+## Phase 3 Progress Continuation (2026-06-28)
+
+### 19. Backend Core Fixes & Enhancements
+- **Computed exam status:** `ExamService.getExamsForStudent()` and `findAll()` now derive status from time window (`start_at`/`end_at` vs `now`) instead of relying on the static DB field. PUBLISHED exams within time window → ONGOING for display. Ended exams → FINISHED.
+- **Retake prevention:** `SessionService.start()` now checks for existing `SUBMITTED`/`AUTO_SUBMITTED`/`EXPIRED` sessions and throws `BadRequestException` to block retakes. Same guard added to `submit()` and `resume()`.
+- **Token-exam validation:** `POST /sessions/start` now accepts optional `exam_id`. If provided, validates token belongs to the expected exam → generic "Token tidak valid" error instead of misleading "Anda sudah menyelesaikan ujian ini" if token is for a different exam.
+- **Question & answer randomization:** `SessionService.start()` and `resume()` now shuffle question order and option order when `randomize_questions`/`randomize_answers` flags are true. Each student gets a unique order per session.
+- **Auth display name:** `AuthService.getProfile()` now flattens `full_name`, `nis`, and `class_name` from Teacher/Student relations, matching the login response format. Admin/Operator get role-based labels ("Administrator", "Operator").
+- **Auto-publish on create:** `ExamService.create()` now sets `status: ExamStatus.PUBLISHED` — newly created exams appear immediately on mobile (no separate publish step needed).
+- **Exam schedule filter:** Removed `start_at: { lte: now }` from `getExamsForStudent()` so upcoming exams appear in the "Akan Datang" section. Added `id: { notIn: completedIds }` to hide already-completed exams.
+- **E2E test updated:** Removed `/exams/:id/publish` test (exams auto-publish). 4 tests passing.
+
+### 20. Comprehensive Database Seed
+- **Expanded to 5 exams, 4 teachers, 30 questions across 4 banks:**
+  - UTS Matematika (PUBLISHED — IPA, active time window)
+  - Ulangan Fisika (PUBLISHED — IPA, upcoming, 2 days ahead)
+  - UTS Ekonomi (FINISHED — IPS, 20 students completed)
+  - Latihan Bahasa Jepang (ONGOING — BAH, 2 active sessions)
+  - Tryout PKN (PUBLISHED — ALL classes, upcoming, 7 days ahead)
+- **4th teacher:** Siti Rahmawati (IPS subjects: Ekonomi, Geografi, Sosiologi)
+- **30 questions:** 10 Math, 8 Physics, 7 Indonesian, 5 Economics
+- **5 demo IPA sessions + 20 IPS completed sessions + 2 BAH active sessions** for monitoring/reports testing.
+
+### 21. Dashboard Redesign — Layout & Navigation
+- **Sidebar + top nav hybrid:** Dark sidebar restored with nav items + user info at bottom. Sticky top header with dynamic page title, search bar, notification bell with badge, profile avatar circle with dropdown (name, role, logout).
+- **Role labels:** Raw `ADMIN`/`OPERATOR`/`TEACHER` replaced with Indonesian labels ("Administrator", "Operator", "Guru").
+- **User display name:** Sidebar and header now show `full_name` correctly on page refresh (fixed `getProfile()` flattening nis/class_name).
+- **Active state fix:** Dashboard link only highlights on exact `/dashboard` path, not sub-pages.
+- **Logout flow:** All logout buttons properly redirect to `/login` via router.
+
+### 22. Dashboard Home — Charts & Stats
+- **Recharts donut chart:** Status distribution of all exams (Draft/Terbit/Aktif/Selesai) with color-coded legend.
+- **Gradient stat cards:** Each card uses a color gradient (indigo, emerald, violet, amber) with white text and glass-morphism icon container.
+- **Exam list:** Scrollable list of up to 8 exams with status badges, sorted by creation date.
+
+### 23. Dashboard Exams Page — Dates, WIB, Modal Fixes
+- **Date columns:** Added "Mulai" and "Selesai" columns with calendar icons and `formatDate()` to the exams table.
+- **WIB timezone:** `formatDate()` in `utils.ts` now uses `timeZone: 'Asia/Jakarta'` forcing WIB display. Edit form converts UTC ↔ WIB for datetime-local inputs. Save correctly parses `+07:00` to UTC.
+- **Modal step reset:** Added `useEffect` in `CreateExamModal` that resets step to 0 when modal opens.
+- **Publish button:** Exams created via dashboard now auto-publish (status defaults to `PUBLISHED` in the backend).
+- **Computed exam badges:** Status column shows time-derived status (FINISHED for past exams, ONGOING for current).
+
+### 24. Dashboard Monitoring, Reports, Settings — Timezone Fixes
+- **Monitoring page:** Session log timestamps use `Intl.DateTimeFormat` with `timeZone: Asia/Jakarta`.
+- **Settings page:** Updated timestamp uses `formatDate()` with WIB timezone.
+- **Academic edit modals:** PATCH routes added for classes/subjects, major edit with code field, year edit with `is_active` toggle.
+
+### 25. Mobile — Exam Detail Screen & New Flow
+- **New screen:** `ExamDetailScreen` — displays exam title, subject badge, duration, question count, schedule in WIB, description. "LANJUTKAN" button navigates to token screen.
+- **Flow change:** Exams/Home → tap exam → Exam Detail → LANJUTKAN → Token (enter token + rules) → Exam.
+- **Token-exam binding:** Token screen now sends `exam_id` in POST body. Backend validates token belongs to the expected exam, returning generic error if mismatch.
+- **Question palette:** Replaced subtle 3px dot indicators with `"3/10 📋 ▼"` counter button that opens the palette modal.
+- **Flagged questions:** Added `Set<String> flagged` to `ExamState` with `toggleFlag()`. Flag icon on question card. Flagged state shown in palette grid (orange tint + flag icon) and legend.
+- **Difficulty badges removed:** Question difficulty ("Mudah", "Sedang", "Sulit") removed from student-facing screens (teacher-only data).
+- **Submit text changed to English:** All "Kumpulkan"/"KUMPULKAN" → "Submit"/"SUBMIT". Confirmation dialogs use English throughout.
+- **Auth guard added:** `router.dart` now has `redirect` logic preventing unauthenticated access. Protected routes redirect to `/login`.
+- **`tryAutoLogin()` fixed:** Now populates `nis` and `className` from `/auth/me` response.
+- **Token screen back button:** Now navigates back to exams tab instead of home.
+
+### 26. Mobile — WIB Timezone & Auth Listener Fixes
+- **All date displays:** `_formatDateTime` and `_formatDate` now call `_toWIB()` (adds 7 hours) before formatting. Appends " WIB" suffix. Uses full Indonesian month names.
+- **Auth listener on all screens:** `ref.listen(authProvider, ...)` added to `HomeScreen`, `ExamsScreen`, `HistoryScreen` — reloads data when user transitions from unauthenticated → authenticated (login switch).
+- **Dead widgets removed:** `question_card.dart`, `navigation_panel.dart`, `timer_widget.dart` deleted (unused — exam screen has inline implementations).
+
+### 27. Mobile — Theme & Shadow Improvements
+- **AppBar shadow:** `elevation: 0` → `elevation: 1` with soft `shadowColor` on both light and dark themes.
+- **Card elevation:** Global `CardThemeData` elevation changed from `0` to `1`, border removed for cleaner Material shadow separation.
+- **Bottom nav shadow:** Reduced from `elevation: 8` to `elevation: 3` with softer shadow color.
+- **Background colors:** Bottom nav now uses `theme.colorScheme.surface` instead of hardcoded `Colors.white`.
+- **Theme token migration:** `exam_screen.dart` and `question_palette.dart` now use `theme.colorScheme` (`.primary`, `.error`, `.tertiary`, `.surface`, `.outline`, `.outlineVariant`, `.errorContainer`, `.surfaceContainerHighest`) instead of hardcoded `Colors.grey/red/green/orange` and raw `Color(0xFF...)` values.
+
+### 28. Docker & Config
+- **Timezone:** Added `TZ: Asia/Jakarta` to PostgreSQL and backend services in `docker-compose.yml`.
+- **Gitignore:** Updated with additional patterns.
+- **Prisma migrations:** 3 new migrations added for `passing_grade`, `feedback`, `total_questions` fields.

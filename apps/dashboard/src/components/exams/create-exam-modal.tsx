@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { BasicInfoStep } from './exam-steps/basic-info-step';
 import { ClassesStep } from './exam-steps/classes-step';

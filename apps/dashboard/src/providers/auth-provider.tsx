@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth.store';
-import { Spinner } from '@/components/ui/table';
+import { Spinner } from '@/components/ui/spinner';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { checkAuth, isLoading } = useAuthStore();
