@@ -90,7 +90,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: docker/Dockerfile.prisma
+      dockerfile: docker/Dockerfile.backend
     container_name: secure-cbt-backend
     depends_on:
       postgres:

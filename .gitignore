@@ -37,7 +37,6 @@ coverage/
 logs/
 
 # Package manager
-pnpm-lock.yaml
 
 # Docker (optional - uncomment if needed)
 # docker-compose.override.yml
@@ -57,3 +56,4 @@ ios/build/
 docs/
 seed-csv/
 apps/backend/test/
+.ai/
