@@ -1,5 +1,6 @@
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:secure_cbt_mobile/features/auth/presentation/screens/token_screen.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/screens/exam_screen.dart';
@@ -10,60 +11,64 @@ import 'package:secure_cbt_mobile/features/exams/presentation/screens/exam_detai
 import 'package:secure_cbt_mobile/features/history/presentation/screens/history_screen.dart';
 import 'package:secure_cbt_mobile/features/profile/presentation/screens/profile_screen.dart';
 import 'package:secure_cbt_mobile/app/widgets/scaffold_with_nav_bar.dart';
+import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/login',
+    redirect: (context, state) {
+      final authState = ref.read(authProvider);
+      final isLoggedIn = authState.isAuthenticated;
+      final isLoginRoute = state.matchedLocation == '/login';
+
+      if (!isLoggedIn && !isLoginRoute) return '/login';
+      if (isLoggedIn && isLoginRoute) return '/home';
+      return null;
+    },
     routes: [
-      // ── Auth (no bottom nav) ────────────────────────────────
       GoRoute(
         path: '/login',
-        name: 'login',
+        name: RouteNames.login,
         builder: (context, state) => const LoginScreen(),
       ),
 
-      // ── Main Shell with Bottom Nav ──────────────────────────
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return ScaffoldWithNavBar(navigationShell: navigationShell);
         },
         branches: [
-          // Tab 0: Home
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/home',
-                name: 'home',
+                name: RouteNames.home,
                 builder: (context, state) => const HomeScreen(),
               ),
             ],
           ),
-          // Tab 1: Exams
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/exams',
-                name: 'exams',
+                name: RouteNames.exams,
                 builder: (context, state) => const ExamsScreen(),
               ),
             ],
           ),
-          // Tab 2: History
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/history',
-                name: 'history',
+                name: RouteNames.history,
                 builder: (context, state) => const HistoryScreen(),
               ),
             ],
           ),
-          // Tab 3: Profile
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/profile',
-                name: 'profile',
+                name: RouteNames.profile,
                 builder: (context, state) => const ProfileScreen(),
               ),
             ],
@@ -71,10 +76,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // ── Exam Flow (full screen, no bottom nav) ─────────────
       GoRoute(
         path: '/exam-detail',
-        name: 'exam-detail',
+        name: RouteNames.examDetail,
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>? ?? {};
           return ExamDetailScreen(exam: extra);
@@ -82,7 +86,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/token',
-        name: 'token',
+        name: RouteNames.token,
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>? ?? {};
           return TokenScreen(
@@ -93,7 +97,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/exam',
-        name: 'exam',
+        name: RouteNames.exam,
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>? ?? {};
           return ExamScreen(
@@ -104,7 +108,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/result',
-        name: 'result',
+        name: RouteNames.result,
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>? ?? {};
           return ResultScreen(

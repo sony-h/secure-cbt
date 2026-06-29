@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
+import 'package:secure_cbt_mobile/core/utils/date_utils.dart';
+import 'package:secure_cbt_mobile/core/widgets/app_icon_box.dart';
+import 'package:secure_cbt_mobile/core/widgets/empty_state.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 
 class ExamsScreen extends ConsumerStatefulWidget {
@@ -59,27 +63,6 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
         return s != null && s.isAfter(DateTime.now()) && e['status'] == 'PUBLISHED';
       }).toList();
 
-  String _formatDuration(int minutes) {
-    if (minutes >= 60) {
-      final h = minutes ~/ 60;
-      final m = minutes % 60;
-      return m > 0 ? '$h jam $m mnt' : '$h jam';
-    }
-    return '$minutes mnt';
-  }
-
-  DateTime _toWIB(DateTime utc) => utc.add(const Duration(hours: 7));
-
-  String _formatDate(String iso) {
-    try {
-      final dt = _toWIB(DateTime.parse(iso));
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-      return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
-    } catch (_) {
-      return iso;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.listen(authProvider, (prev, next) {
@@ -104,7 +87,6 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Subject Filter Chips (dynamic from API)
                   SizedBox(
                     height: 48,
                     child: ListView(
@@ -117,22 +99,14 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
                     ),
                   ),
                   const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                  // Exam List
                   Expanded(
                     child: _exams.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(32),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.assignment_outlined, size: 64, color: Colors.grey.shade400),
-                                  const SizedBox(height: 16),
-                                  const Text('Tidak ada ujian tersedia', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  const SizedBox(height: 8),
-                                  Text('Ujian yang diterbitkan guru akan muncul di sini.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-                                ],
-                              ),
+                        ? const Padding(
+                            padding: EdgeInsets.all(32),
+                            child: EmptyState(
+                              icon: Icons.assignment_outlined,
+                              title: 'Tidak ada ujian tersedia',
+                              subtitle: 'Ujian yang diterbitkan guru akan muncul di sini.',
                             ),
                           )
                         : ListView(
@@ -141,7 +115,7 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
                               if (ongoing.isNotEmpty) ...[
                                 _SectionHeader(title: 'Aktif', count: ongoing.length, color: Colors.green.shade600),
                                 ...ongoing.map((e) => _ExamCard(
-                                  exam: e, theme: theme, isOngoing: true, duration: _formatDuration, date: _formatDate,
+                                  exam: e, theme: theme, isOngoing: true,
                                   onTap: () => _startOrResume(context, e),
                                 )),
                                 const SizedBox(height: 12),
@@ -149,7 +123,7 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
                               if (available.isNotEmpty) ...[
                                 _SectionHeader(title: 'Tersedia', count: available.length, color: theme.colorScheme.primary),
                                 ...available.map((e) => _ExamCard(
-                                  exam: e, theme: theme, isOngoing: false, duration: _formatDuration, date: _formatDate,
+                                  exam: e, theme: theme, isOngoing: false,
                                   onTap: () => _startOrResume(context, e),
                                 )),
                                 const SizedBox(height: 12),
@@ -157,8 +131,7 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
                               if (upcoming.isNotEmpty) ...[
                                 _SectionHeader(title: 'Akan Datang', count: upcoming.length, color: Colors.orange.shade600),
                                 ...upcoming.map((e) => _ExamCard(
-                                  exam: e, theme: theme, isOngoing: false, duration: _formatDuration, date: _formatDate,
-                                  isUpcoming: true, onTap: () {},
+                                  exam: e, theme: theme, isOngoing: false, isUpcoming: true, onTap: () {},
                                 )),
                               ],
                               if (ongoing.isEmpty && available.isEmpty && upcoming.isEmpty && _filteredExams.isNotEmpty)
@@ -191,7 +164,7 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
   }
 
   void _startOrResume(BuildContext context, Map<String, dynamic> exam) {
-    context.goNamed('exam-detail', extra: exam);
+    context.goNamed(RouteNames.examDetail, extra: exam);
   }
 }
 
@@ -227,8 +200,6 @@ class _ExamCard extends StatelessWidget {
   final ThemeData theme;
   final bool isOngoing;
   final bool isUpcoming;
-  final String Function(int) duration;
-  final String Function(String) date;
   final VoidCallback onTap;
 
   const _ExamCard({
@@ -236,8 +207,6 @@ class _ExamCard extends StatelessWidget {
     required this.theme,
     required this.isOngoing,
     this.isUpcoming = false,
-    required this.duration,
-    required this.date,
     required this.onTap,
   });
 
@@ -245,14 +214,10 @@ class _ExamCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color accentColor = isOngoing
         ? Colors.green
-        : isUpcoming
-            ? Colors.orange
-            : theme.colorScheme.primary;
+        : isUpcoming ? Colors.orange : theme.colorScheme.primary;
     final Color accentLight = isOngoing
         ? Colors.green.shade50
-        : isUpcoming
-            ? Colors.orange.shade50
-            : theme.colorScheme.primary.withValues(alpha: 0.08);
+        : isUpcoming ? Colors.orange.shade50 : theme.colorScheme.primary.withValues(alpha: 0.08);
     final Color borderColor = isOngoing ? Colors.green.shade200 : const Color(0xFFE2E8F0);
     final Color titleColor = isUpcoming ? const Color(0xFF94A3B8) : const Color(0xFF0F172A);
     final IconData cardIcon = isUpcoming ? Icons.calendar_month_outlined : Icons.description_outlined;
@@ -266,22 +231,14 @@ class _ExamCard extends StatelessWidget {
         child: IntrinsicHeight(
           child: Row(
             children: [
-              // Left accent bar
               Container(width: 5, color: accentColor),
-              // Main content
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                   child: Row(
                     children: [
-                      // Icon
-                      Container(
-                        width: 44, height: 44,
-                        decoration: BoxDecoration(color: accentLight, borderRadius: BorderRadius.circular(12)),
-                        child: Icon(cardIcon, color: accentColor, size: 22),
-                      ),
+                      AppIconBox(icon: cardIcon, color: accentColor, backgroundColor: accentLight),
                       const SizedBox(width: 14),
-                      // Text content
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,12 +252,12 @@ class _ExamCard extends StatelessWidget {
                               children: [
                                 Icon(Icons.timer_outlined, size: 13, color: isUpcoming ? Colors.orange.shade300 : Colors.grey.shade500),
                                 const SizedBox(width: 4),
-                                Text(duration(exam['duration_minutes'] ?? 0), style: TextStyle(fontSize: 12, color: isUpcoming ? Colors.orange.shade300 : Colors.grey.shade600)),
+                                Text(formatDuration(exam['duration_minutes'] ?? 0), style: TextStyle(fontSize: 12, color: isUpcoming ? Colors.orange.shade300 : Colors.grey.shade600)),
                                 if (isUpcoming) ...[
                                   const SizedBox(width: 14),
                                   Icon(Icons.calendar_today_outlined, size: 13, color: Colors.orange.shade300),
                                   const SizedBox(width: 4),
-                                  Text(date(exam['start_at'] ?? ''), style: TextStyle(fontSize: 12, color: Colors.orange.shade300)),
+                                  Text(formatDateShortWIB(DateTime.parse(exam['start_at'] ?? '')), style: TextStyle(fontSize: 12, color: Colors.orange.shade300)),
                                 ],
                               ],
                             ),
@@ -308,7 +265,6 @@ class _ExamCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Right side action
                       if (isOngoing)
                         ElevatedButton(
                           onPressed: onTap,
@@ -325,7 +281,7 @@ class _ExamCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(6)),
-                          child: Text(date(exam['start_at'] ?? ''), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange.shade700)),
+                          child: Text(formatDateShortWIB(DateTime.parse(exam['start_at'] ?? '')), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange.shade700)),
                         )
                       else
                         Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 
@@ -90,7 +91,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                             ),
                             const SizedBox(height: 32),
                             ElevatedButton.icon(
-                              onPressed: () => context.goNamed('home'),
+                              onPressed: () => context.goNamed(RouteNames.home),
                               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
                               label: const Text('KEMBALI KE BERANDA'),
                             ),
@@ -138,8 +139,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                             ),
                           ),
                           const SizedBox(height: 32),
-
-                          // Circular Donut/Progress Score indicator (Pattern 17)
                           Center(
                             child: SizedBox(
                               width: 160,
@@ -179,8 +178,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                             ),
                           ),
                           const SizedBox(height: 40),
-
-                          // Exam Metrics Breakdown Card (Pattern 17)
                           Text(
                             'Ringkasan Penilaian',
                             style: theme.textTheme.titleSmall?.copyWith(
@@ -217,7 +214,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                       icon: Icons.edit_note_rounded,
                                       iconColor: theme.colorScheme.primary,
                                       label: 'Nilai Esai',
-                                      value: '${((_resultData?['essay_score'] ?? 0.0) as num).toStringAsFixed(1)}',
+                                      value: ((_resultData?['essay_score'] ?? 0.0) as num).toStringAsFixed(1),
                                     ),
                                   ],
                                 ],
@@ -225,10 +222,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                             ),
                           ),
                           const SizedBox(height: 36),
-
-                          // Back button
                           ElevatedButton.icon(
-                            onPressed: () => context.goNamed('home'),
+                            onPressed: () => context.goNamed(RouteNames.home),
                             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
                             label: const Text('KEMBALI KE BERANDA'),
                           ),

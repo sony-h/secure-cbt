@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
+import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 
 const _quotes = [
@@ -42,10 +42,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     final hour = DateTime.now().hour;
-    if (hour < 12) _greeting = 'Selamat Pagi';
-    else if (hour < 15) _greeting = 'Selamat Siang';
-    else if (hour < 18) _greeting = 'Selamat Sore';
-    else _greeting = 'Selamat Malam';
+    if (hour < 12) {
+      _greeting = 'Selamat Pagi';
+    } else if (hour < 15) {
+      _greeting = 'Selamat Siang';
+    } else if (hour < 18) {
+      _greeting = 'Selamat Sore';
+    } else {
+      _greeting = 'Selamat Malam';
+    }
 
     _quote = _quotes[Random().nextInt(_quotes.length)];
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
@@ -102,7 +107,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Greeting Card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -140,27 +144,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Quote Card
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE2E8F0))),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.format_quote, color: theme.colorScheme.primary.withValues(alpha: 0.3), size: 36),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text('"$_quote"', style: const TextStyle(fontSize: 13, height: 1.5, fontStyle: FontStyle.italic, color: Color(0xFF475569))),
-                      ),
-                    ],
-                  ),
+              AppCard(
+                padding: const EdgeInsets.all(16),
+                borderRadius: 12,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.format_quote, color: theme.colorScheme.primary.withValues(alpha: 0.3), size: 36),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('"$_quote"', style: const TextStyle(fontSize: 13, height: 1.5, fontStyle: FontStyle.italic, color: Color(0xFF475569))),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Stats Row
               if (!_isLoading)
                 Row(
                   children: [
@@ -174,42 +172,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               if (_isLoading)
                 const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
               const SizedBox(height: 24),
-
-              // Upcoming Spoilers
               if (_upcomingExams.isNotEmpty) ...[
                 Text('🔔 Ujian Mendatang', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: const Color(0xFF334155))),
                 const SizedBox(height: 10),
-                ..._upcomingExams.map((exam) => Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFFE2E8F0))),
+                ..._upcomingExams.map((exam) => AppCard(
                   margin: const EdgeInsets.only(bottom: 10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40, height: 40,
-                          decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(10)),
-                          child: Icon(Icons.calendar_month_outlined, color: Colors.orange, size: 20),
+                  borderRadius: 12,
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(10)),
+                        child: Icon(Icons.calendar_month_outlined, color: Colors.orange, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(exam['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF94A3B8))),
+                            const SizedBox(height: 2),
+                            Text(exam['subject']?['name'] ?? '', style: TextStyle(fontSize: 12, color: Colors.orange.shade300)),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(exam['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF94A3B8))),
-                              const SizedBox(height: 2),
-                              Text(exam['subject']?['name'] ?? '', style: TextStyle(fontSize: 12, color: Colors.orange.shade300)),
-                            ],
-                          ),
-                        ),
-                        Icon(Icons.lock_outline_rounded, color: Colors.orange.shade200, size: 18),
-                      ],
-                    ),
+                      ),
+                      Icon(Icons.lock_outline_rounded, color: Colors.orange.shade200, size: 18),
+                    ],
                   ),
                 )),
               ],
-
-              // Study Tip
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(

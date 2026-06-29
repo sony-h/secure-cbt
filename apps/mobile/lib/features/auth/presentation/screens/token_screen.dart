@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 
@@ -18,16 +19,15 @@ class TokenScreen extends ConsumerStatefulWidget {
 class _TokenScreenState extends ConsumerState<TokenScreen> {
   final _tokenController = TextEditingController();
   bool _isLoading = false;
-  bool _rulesAgreed = false; // Checkbox state (Pattern 14)
+  bool _rulesAgreed = false;
 
   @override
   void initState() {
     super.initState();
-    // Check if already authenticated
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = ref.read(authProvider);
       if (!auth.isAuthenticated) {
-        context.goNamed('login');
+        context.goNamed(RouteNames.login);
       }
     });
   }
@@ -62,7 +62,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
       final examTitle = session['exam']?['title'] ?? 'Ujian';
 
       if (mounted) {
-        context.goNamed('exam', extra: {
+        context.goNamed(RouteNames.exam, extra: {
           'sessionId': session['id'],
           'examTitle': examTitle,
         });
@@ -95,7 +95,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
         title: const Text('Persiapan Ujian', style: TextStyle(fontWeight: FontWeight.bold)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.goNamed('home'),
+          onPressed: () => context.goNamed(RouteNames.exams),
         ),
       ),
       body: SafeArea(
@@ -104,7 +104,6 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Subject Icon & Title Card
               Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -132,8 +131,6 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Exam Rules List (Pattern 14)
               Text(
                 'Peraturan & Petunjuk Ujian',
                 style: theme.textTheme.titleSmall?.copyWith(
@@ -163,8 +160,6 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Token input field
               Text(
                 'Masukkan Token Ujian',
                 style: theme.textTheme.titleSmall?.copyWith(
@@ -178,21 +173,15 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                 textAlign: TextAlign.center,
                 textCapitalization: TextCapitalization.characters,
                 style: const TextStyle(fontSize: 22, letterSpacing: 6, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'XXXXXXXX',
-                  hintStyle: TextStyle(
-                    fontSize: 22,
-                    letterSpacing: 6,
-                    color: Colors.grey[400],
-                  ),
+                  hintStyle: TextStyle(fontSize: 22, letterSpacing: 6, color: Color(0xFF9E9E9E)),
                   counterText: '',
                 ),
                 maxLength: 8,
                 onFieldSubmitted: (_) => _startExam(),
               ),
               const SizedBox(height: 20),
-
-              // Aggrement Checkbox
               CheckboxListTile(
                 value: _rulesAgreed,
                 onChanged: (val) => setState(() => _rulesAgreed = val ?? false),
@@ -206,7 +195,6 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                 activeColor: theme.colorScheme.primary,
               ),
               const SizedBox(height: 16),
-
               ElevatedButton(
                 onPressed: (_isLoading || !_rulesAgreed) ? null : _startExam,
                 style: ElevatedButton.styleFrom(

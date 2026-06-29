@@ -17,10 +17,10 @@ class ScaffoldWithNavBar extends StatelessWidget {
         onDestinationSelected: (index) {
           navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex);
         },
-        backgroundColor: Colors.white,
+        backgroundColor: theme.colorScheme.surface,
         indicatorColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-        elevation: 8,
-        shadowColor: Colors.black26,
+        elevation: 3,
+        shadowColor: const Color(0x1A000000),
         height: 64,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Beranda'),

@@ -2,9 +2,10 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:secure_cbt_mobile/core/database/database_provider.dart';
+import 'package:secure_cbt_mobile/core/database/local_database.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 
-// ── Exam State ───────────────────────────────────────────────
 class ExamState {
   final bool isLoading;
   final String? sessionId;
@@ -19,6 +20,7 @@ class ExamState {
   final List<String> violations;
   final bool showSaveIndicator;
   final DateTime? lastSavedAt;
+  final Set<String> flagged;
 
   const ExamState({
     this.isLoading = false,
@@ -34,6 +36,7 @@ class ExamState {
     this.violations = const [],
     this.showSaveIndicator = false,
     this.lastSavedAt,
+    this.flagged = const {},
   });
 
   ExamState copyWith({
@@ -50,6 +53,7 @@ class ExamState {
     List<String>? violations,
     bool? showSaveIndicator,
     DateTime? lastSavedAt,
+    Set<String>? flagged,
   }) {
     return ExamState(
       isLoading: isLoading ?? this.isLoading,
@@ -65,11 +69,11 @@ class ExamState {
       violations: violations ?? this.violations,
       showSaveIndicator: showSaveIndicator ?? this.showSaveIndicator,
       lastSavedAt: lastSavedAt ?? this.lastSavedAt,
+      flagged: flagged ?? this.flagged,
     );
   }
 }
 
-// ── Exam Notifier ────────────────────────────────────────────
 class ExamNotifier extends StateNotifier<ExamState> {
   Timer? _autosaveTimer;
   Timer? _timer;
@@ -77,10 +81,17 @@ class ExamNotifier extends StateNotifier<ExamState> {
   void Function(String questionId)? _onAnswerSaved;
   void Function(String event, int count, String? sessionId)? _onViolation;
   void Function()? _onExamSubmitted;
+  final LocalDatabase _db;
+  bool _timerPaused = false;
 
-  ExamNotifier() : super(const ExamState());
+  ExamNotifier(this._db) : super(const ExamState());
 
-  Future<void> loadSession(String sessionId, List<Map<String, dynamic>> questions, int remainingSeconds) async {
+  Future<void> loadSession(
+    String sessionId,
+    List<Map<String, dynamic>> questions,
+    int remainingSeconds,
+    Dio dio,
+  ) async {
     _timer?.cancel();
     _autosaveTimer?.cancel();
     state = state.copyWith(
@@ -97,8 +108,36 @@ class ExamNotifier extends StateNotifier<ExamState> {
       isFullscreen: true,
     );
     state = state.copyWith(isLoading: false);
+
+    // Sync pending offline answers
+    try {
+      final pending = await _db.getPendingAnswers(sessionId);
+      for (final ans in pending) {
+        try {
+          await dio.post('/answers/save', data: {
+            'session_id': sessionId,
+            'question_id': ans.questionId,
+            'answer_text': ans.answerText ?? '',
+            'timestamp': ans.answeredAt.toUtc().toIso8601String(),
+          });
+          await _db.markSynced(ans.id);
+        } catch (_) {}
+      }
+    } catch (_) {}
+
     _startTimer();
     _startAutosave();
+  }
+
+  void pauseTimer() {
+    _timerPaused = true;
+    _timer?.cancel();
+  }
+
+  void resumeTimer() {
+    if (!_timerPaused) return;
+    _timerPaused = false;
+    _startTimer();
   }
 
   void setWarningLimit(int limit) {
@@ -119,6 +158,15 @@ class ExamNotifier extends StateNotifier<ExamState> {
     newAnswers[questionId] = answer;
     state = state.copyWith(answers: newAnswers);
 
+    // Write to local DB first (offline-first)
+    try {
+      await _db.saveAnswer(
+        sessionId: state.sessionId!,
+        questionId: questionId,
+        answerText: answer,
+      );
+    } catch (_) {}
+
     try {
       await dio.post('/answers/save', data: {
         'session_id': state.sessionId,
@@ -126,16 +174,26 @@ class ExamNotifier extends StateNotifier<ExamState> {
         'answer_text': answer,
         'timestamp': DateTime.now().toUtc().toIso8601String(),
       });
+      await _db.markSynced('${state.sessionId}_$questionId');
       state = state.copyWith(showSaveIndicator: true, lastSavedAt: DateTime.now());
       _onAnswerSaved?.call(questionId);
       onSaved();
-      // Hide indicator after 2 seconds
       Future.delayed(const Duration(seconds: 2), () {
         state = state.copyWith(showSaveIndicator: false);
       });
     } catch (e) {
       AppLogger.debug('Answer saved locally (offline): $questionId');
     }
+  }
+
+  void toggleFlag(String questionId) {
+    final newFlagged = Set<String>.from(state.flagged);
+    if (newFlagged.contains(questionId)) {
+      newFlagged.remove(questionId);
+    } else {
+      newFlagged.add(questionId);
+    }
+    state = state.copyWith(flagged: newFlagged);
   }
 
   void logViolation(String event) {
@@ -147,34 +205,28 @@ class ExamNotifier extends StateNotifier<ExamState> {
     AppLogger.warn('Violation: $event (warning $newCount / ${state.warningLimit})');
     _onViolation?.call(event, newCount, state.sessionId);
 
-    // Auto-submit if warning limit exceeded
     if (newCount >= state.warningLimit) {
       AppLogger.error('Warning limit exceeded! Auto-submitting exam.');
       _onForceSubmit?.call();
     }
   }
 
-  /// Register callback for when warning limit is hit (force-submit)
   void setOnForceSubmit(void Function() callback) {
     _onForceSubmit = callback;
   }
 
-  /// Register callback for when an answer is saved (for socket emit)
   void setOnAnswerSaved(void Function(String questionId) callback) {
     _onAnswerSaved = callback;
   }
 
-  /// Register callback for when a violation is logged (for socket emit)
   void setOnViolation(void Function(String event, int count, String? sessionId) callback) {
     _onViolation = callback;
   }
 
-  /// Register callback for when the exam is submitted (for socket emit)
   void setOnExamSubmitted(void Function() callback) {
     _onExamSubmitted = callback;
   }
 
-  /// Exit fullscreen (e.g., on exam finish)
   void exitFullscreen() {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     state = state.copyWith(isFullscreen: false);
@@ -190,11 +242,11 @@ class ExamNotifier extends StateNotifier<ExamState> {
 
   void _startTimer() {
     _timer?.cancel();
+    _timerPaused = false;
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (state.remainingSeconds > 0) {
         state = state.copyWith(remainingSeconds: state.remainingSeconds - 1);
       } else if (state.remainingSeconds == 0 && !state.isSubmitted) {
-        // Time's up - auto submit
         _onForceSubmit?.call();
       }
     });
@@ -216,7 +268,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
   }
 }
 
-// ── Provider ──────────────────────────────────────────────────
 final examProvider = StateNotifierProvider<ExamNotifier, ExamState>((ref) {
-  return ExamNotifier();
+  final db = ref.watch(localDatabaseProvider);
+  return ExamNotifier(db);
 });

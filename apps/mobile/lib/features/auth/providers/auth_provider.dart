@@ -118,6 +118,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           username: user['username'] as String?,
           fullName: user['full_name'] as String?,
           role: user['role'] as String?,
+          nis: user['nis'] as String?,
+          className: user['class_name'] as String?,
         );
       } catch (_) {
         await _storage.deleteAll();

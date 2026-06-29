@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -33,7 +34,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _usernameController.text.trim(),
         _passwordController.text,
       );
-      if (mounted) context.goNamed('home');
+      if (mounted) context.goNamed(RouteNames.home);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -64,7 +65,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Logo/Illustration (Aligned with Reference 02)
                   Center(
                     child: Container(
                       padding: const EdgeInsets.all(20),
@@ -85,7 +85,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0F172A), // Slate-900
+                      color: const Color(0xFF0F172A),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -93,12 +93,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     'Sign in to continue your exam journey',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF64748B), // Slate-500
+                      color: const Color(0xFF64748B),
                     ),
                   ),
                   const SizedBox(height: 40),
-
-                  // Login Inputs Card (Depth and Clean boundaries)
                   Card(
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -110,12 +108,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Username field
                           Text(
                             'Student ID / Username',
                             style: theme.textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: const Color(0xFF475569), // Slate-600
+                              color: const Color(0xFF475569),
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -130,8 +127,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             textInputAction: TextInputAction.next,
                           ),
                           const SizedBox(height: 18),
-
-                          // Password field
                           Text(
                             'Password',
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -160,8 +155,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Login button
                   ElevatedButton(
                     onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
@@ -183,8 +176,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       : const Text('Login'),
                   ),
                   const SizedBox(height: 24),
-
-                  // Secure Banner Footer
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

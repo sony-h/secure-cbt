@@ -23,18 +23,18 @@ class AppTheme {
       textTheme: GoogleFonts.interTextTheme(),
       appBarTheme: const AppBarTheme(
         centerTitle: true,
-        elevation: 0,
+        elevation: 1,
+        shadowColor: Color(0x1A000000),
         backgroundColor: _surfaceColor,
         foregroundColor: Color(0xFF0F172A), // Slate-900
         iconTheme: IconThemeData(color: Color(0xFF0F172A)),
       ),
       cardTheme: CardThemeData(
         color: _surfaceColor,
-        elevation: 0,
+        elevation: 1,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16), // 16px radius cards (Pattern 08)
-          side: const BorderSide(color: Color(0xFFE2E8F0), width: 1), // Slate-200 border
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -81,17 +81,17 @@ class AppTheme {
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
       appBarTheme: const AppBarTheme(
         centerTitle: true,
-        elevation: 0,
+        elevation: 1,
+        shadowColor: Color(0x4A000000),
         backgroundColor: Color(0xFF0F172A),
         foregroundColor: Color(0xFFF8FAFC),
       ),
       cardTheme: CardThemeData(
         color: const Color(0xFF0F172A),
-        elevation: 0,
+        elevation: 1,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF1E293B), width: 1), // Slate-800 border
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
@@ -49,7 +50,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
     if (confirm == true && mounted) {
       await ref.read(authProvider.notifier).logout();
-      if (mounted) context.goNamed('login');
+      if (mounted) context.goNamed(RouteNames.login);
     }
   }
 
@@ -65,7 +66,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Avatar
             CircleAvatar(
               radius: 44,
               backgroundColor: theme.colorScheme.primary,
@@ -77,9 +77,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Text('NIS: ${auth.nis ?? '—'}', style: const TextStyle(fontSize: 14, color: Color(0xFF64748B))),
             Text('Kelas: ${auth.className ?? '—'}', style: const TextStyle(fontSize: 14, color: Color(0xFF64748B))),
             const SizedBox(height: 28),
-
-            // Personal Info Card
-            _InfoCard(
+            AppCard(
               title: 'Informasi Pribadi',
               children: [
                 _InfoRow(label: 'Nama Lengkap', value: auth.fullName ?? '—'),
@@ -89,9 +87,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
             const SizedBox(height: 14),
-
-            // Device Info Card
-            _InfoCard(
+            AppCard(
               title: 'Perangkat',
               children: [
                 _InfoRow(label: 'Model', value: _deviceModel.isNotEmpty ? _deviceModel : 'Memuat...'),
@@ -99,8 +95,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
             const SizedBox(height: 32),
-
-            // Logout Button
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -123,10 +117,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 }
 
-class _InfoCard extends StatelessWidget {
+class AppCard extends StatelessWidget {
   final String title;
   final List<Widget> children;
-  const _InfoCard({required this.title, required this.children});
+  const AppCard({super.key, required this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {
