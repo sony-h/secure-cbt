@@ -103,6 +103,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
       warningCount: 0,
       violations: [],
       answers: {},
+      flagged: {},
       showSaveIndicator: false,
       isSubmitted: false,
       isFullscreen: true,
