@@ -125,7 +125,7 @@ function DashboardHomeContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1">Selamat datang kembali, {user?.full_name || user?.username}. Berikut ikhtisar sistem hari ini.</p>
       </div>
 
@@ -139,7 +139,7 @@ function DashboardHomeContent() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-xl border bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-bold text-slate-900">Status Ujian</h3>
+            <h3 className="text-base font-bold text-foreground">Status Ujian</h3>
             <span className="text-xs text-muted-foreground">Total: {totalExams} ujian</span>
           </div>
           {pieData.length > 0 ? (
@@ -156,8 +156,8 @@ function DashboardHomeContent() {
                 {pieData.map((entry) => (
                   <div key={entry.name} className="flex items-center gap-2">
                     <div className="h-3 w-3 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span className="text-slate-600">{entry.name}</span>
-                    <span className="font-semibold text-slate-900 ml-auto">{entry.value}</span>
+                    <span className="text-muted-foreground">{entry.name}</span>
+                    <span className="font-semibold text-foreground ml-auto">{entry.value}</span>
                   </div>
                 ))}
               </div>
@@ -169,7 +169,7 @@ function DashboardHomeContent() {
 
         <div className="lg:col-span-2 rounded-xl border bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-bold text-slate-900">Daftar Ujian</h3>
+            <h3 className="text-base font-bold text-foreground">Daftar Ujian</h3>
             {(user?.role === 'ADMIN' || user?.role === 'TEACHER') && (
               <Link href="/dashboard/exams" className="text-xs font-semibold text-indigo-600 hover:underline flex items-center gap-1">
                 Kelola Ujian <ArrowRight className="h-3 w-3" />
@@ -181,9 +181,9 @@ function DashboardHomeContent() {
               <EmptyState title="Belum ada ujian" description="Buat ujian baru untuk memulai." className="py-8" />
             ) : (
               allExams.slice(0, 8).map((exam) => (
-                <div key={exam.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50/50 transition">
+                <div key={exam.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition">
                   <div className="space-y-0.5 min-w-0">
-                    <p className="font-semibold text-slate-900 text-sm truncate">{exam.title}</p>
+                    <p className="font-semibold text-foreground text-sm truncate">{exam.title}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="font-medium text-indigo-600">{exam.subject?.name}</span>
                       <span>&middot;</span>
@@ -204,9 +204,9 @@ function DashboardHomeContent() {
         <div className="grid gap-6 md:grid-cols-3">
           {steps.map((step, i) => (
             <div key={i} className="flex gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-sm font-bold text-indigo-600">{i + 1}</div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-indigo-600">{i + 1}</div>
               <div>
-                <p className="font-semibold text-slate-900 text-sm">{step.title}</p>
+                <p className="font-semibold text-foreground text-sm">{step.title}</p>
                 <p className="text-xs text-muted-foreground mt-1">{step.desc}</p>
               </div>
             </div>

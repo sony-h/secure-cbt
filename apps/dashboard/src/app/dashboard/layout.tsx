@@ -99,7 +99,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pageTitle = visibleItems.find((item) => isActive(item.href))?.title || 'Dashboard';
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-background">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -169,7 +169,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main area */}
       <div className="flex flex-1 flex-col lg:ml-64">
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-white px-4 lg:px-6 shadow-sm">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background px-4 lg:px-6 shadow-sm">
           {/* Mobile hamburger */}
           <Button
             variant="ghost"
@@ -181,14 +181,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Button>
 
           {/* Page Title */}
-          <h1 className="text-base font-bold text-slate-900 min-w-0 truncate">{pageTitle}</h1>
+          <h1 className="text-base font-bold text-foreground min-w-0 truncate">{pageTitle}</h1>
 
           {/* Search */}
           <div className="hidden sm:relative sm:flex sm:flex-1 sm:max-w-xs ml-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Cari ujian, siswa..."
-              className="h-9 pl-9 text-sm bg-slate-50 border-slate-200"
+              className="h-9 pl-9 text-sm bg-muted border-input"
               /* TODO: wire real search */
               onChange={() => {}}
             />
@@ -201,7 +201,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <ThemeToggle />
 
           {/* Notification */}
-          <Button variant="ghost" size="icon" className="relative text-slate-500 hover:text-slate-700">
+          <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
             <Bell className="h-5 w-5" />
             {/* TODO: wire real notification count */}
             <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
