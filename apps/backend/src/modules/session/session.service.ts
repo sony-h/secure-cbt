@@ -217,13 +217,22 @@ export class SessionService {
       throw new BadRequestException('Ujian sudah dikumpulkan');
     }
 
-    const updated = await this.prisma.examSession.update({
-      where: { id: session_id },
-      data: { status: SessionStatus.SUBMITTED, submitted_at: new Date() },
-    });
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedSession = await tx.examSession.update({
+        where: { id: session_id },
+        data: { status: SessionStatus.SUBMITTED, submitted_at: new Date() },
+      });
 
-    // Auto-grade all objective answers and create score record
-    await this.gradingService.calculateTotalScore(session_id);
+      const scoreData = await this.gradingService.calculateTotalScore(tx, session_id);
+
+      await tx.score.upsert({
+        where: { exam_session_id: session_id },
+        create: { exam_session_id: session_id, ...scoreData, graded_at: new Date() },
+        update: { ...scoreData, graded_at: new Date() },
+      });
+
+      return updatedSession;
+    });
 
     this.eventEmitter.emit(EventNames.SESSION_FINISHED, {
       sessionId: session_id,
@@ -269,13 +278,22 @@ export class SessionService {
     });
     if (!session || session.status !== SessionStatus.ACTIVE) return;
 
-    const updated = await this.prisma.examSession.update({
-      where: { id: sessionId },
-      data: { status: SessionStatus.AUTO_SUBMITTED, submitted_at: new Date() },
-    });
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedSession = await tx.examSession.update({
+        where: { id: sessionId },
+        data: { status: SessionStatus.AUTO_SUBMITTED, submitted_at: new Date() },
+      });
 
-    // Auto-grade all objective answers and create score record
-    await this.gradingService.calculateTotalScore(sessionId);
+      const scoreData = await this.gradingService.calculateTotalScore(tx, sessionId);
+
+      await tx.score.upsert({
+        where: { exam_session_id: sessionId },
+        create: { exam_session_id: sessionId, ...scoreData, graded_at: new Date() },
+        update: { ...scoreData, graded_at: new Date() },
+      });
+
+      return updatedSession;
+    });
 
     this.eventEmitter.emit(EventNames.SESSION_EXPIRED, {
       sessionId,

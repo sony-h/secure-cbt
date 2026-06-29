@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GradeEssayDto, gradeEssaySchema, QuestionType, SessionStatus, EventNames } from '@secure-cbt/shared';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class GradingService {
@@ -13,31 +14,48 @@ export class GradingService {
   async gradeEssay(dto: GradeEssayDto, graderId: string) {
     const { session_id, question_id, score, feedback } = gradeEssaySchema.parse(dto);
 
-    const answer = await this.prisma.answer.findUnique({
-      where: { exam_session_id_question_id: { exam_session_id: session_id, question_id } },
-      include: { question: true },
+    return await this.prisma.$transaction(async (tx) => {
+      const answer = await tx.answer.findUnique({
+        where: { exam_session_id_question_id: { exam_session_id: session_id, question_id } },
+        include: { question: true },
+      });
+      if (!answer) throw new NotFoundException('Answer not found');
+      if (answer.question.type !== QuestionType.ESSAY) throw new NotFoundException('Question is not an essay type');
+
+      await tx.answer.update({
+        where: { id: answer.id },
+        data: { score, is_correct: score >= 50, feedback },
+      });
+
+      const scoreData = await this.calculateTotalScore(tx, session_id);
+
+      await tx.score.upsert({
+        where: { exam_session_id: session_id },
+        create: {
+          exam_session_id: session_id,
+          ...scoreData,
+          graded_by: graderId,
+          graded_at: new Date(),
+        },
+        update: {
+          ...scoreData,
+          graded_by: graderId,
+          graded_at: new Date(),
+        },
+      });
+
+      this.eventEmitter.emit(EventNames.ESSAY_GRADED, {
+        sessionId: session_id,
+        questionId: question_id,
+        graderId,
+      });
+
+      return { graded: true };
     });
-    if (!answer) throw new NotFoundException('Answer not found');
-    if (answer.question.type !== QuestionType.ESSAY) throw new NotFoundException('Question is not an essay type');
-
-    await this.prisma.answer.update({
-      where: { id: answer.id },
-      data: { score, is_correct: score >= 50, feedback },
-    });
-
-    await this.calculateTotalScore(session_id, graderId);
-
-    this.eventEmitter.emit(EventNames.ESSAY_GRADED, {
-      sessionId: session_id,
-      questionId: question_id,
-      graderId,
-    });
-
-    return { graded: true };
   }
 
-  async calculateTotalScore(sessionId: string, graderId?: string) {
-    const session = await this.prisma.examSession.findUnique({
+  async calculateTotalScore(tx: Prisma.TransactionClient, sessionId: string) {
+    const session = await tx.examSession.findUnique({
       where: { id: sessionId },
       include: {
         answers: { include: { question: true } },
@@ -62,8 +80,7 @@ export class GradingService {
           else wrongCount++;
         }
       } else if (answer.score === null) {
-        // Auto-grade objective questions (only if not already graded)
-        const options = await this.prisma.questionOption.findMany({
+        const options = await tx.questionOption.findMany({
           where: { question_id: answer.question_id, is_correct: true },
         });
         const correctOptionIds = options.map((o) => o.id);
@@ -78,7 +95,7 @@ export class GradingService {
         } else {
           wrongCount++;
         }
-        await this.prisma.answer.update({
+        await tx.answer.update({
           where: { id: answer.id },
           data: { is_correct: isCorrect, score: isCorrect ? 100 : 0 },
         });
@@ -98,30 +115,13 @@ export class GradingService {
     const totalQuestions = studentQuestionCount || answers.length || 1;
     const finalScore = totalQuestions > 0 ? (totalScore / totalQuestions) : 0;
 
-    await this.prisma.score.upsert({
-      where: { exam_session_id: sessionId },
-      create: {
-        exam_session_id: sessionId,
-        total_score: finalScore,
-        correct_count: correctCount,
-        wrong_count: wrongCount,
-        essay_score: essayScore,
-        total_questions: totalQuestions,
-        graded_by: graderId,
-        graded_at: new Date(),
-      },
-      update: {
-        total_score: finalScore,
-        correct_count: correctCount,
-        wrong_count: wrongCount,
-        essay_score: essayScore,
-        total_questions: totalQuestions,
-        graded_by: graderId,
-        graded_at: new Date(),
-      },
-    });
-
-    return { total_score: finalScore, correct_count: correctCount, wrong_count: wrongCount, essay_score: essayScore };
+    return {
+      total_score: finalScore,
+      correct_count: correctCount,
+      wrong_count: wrongCount,
+      essay_score: essayScore,
+      total_questions: totalQuestions,
+    };
   }
 
   async getResult(sessionId: string) {

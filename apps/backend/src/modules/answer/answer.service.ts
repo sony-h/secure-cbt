@@ -57,29 +57,29 @@ export class AnswerService {
     if (session.student_id !== student.id) throw new ForbiddenException('Not your session');
     if (session.status !== SessionStatus.ACTIVE) throw new BadRequestException('Session is not active');
 
-    const results = [];
-    for (const ans of answers) {
-      const saved = await this.prisma.answer.upsert({
-        where: {
-          exam_session_id_question_id: { exam_session_id: session_id, question_id: ans.question_id },
-        },
-        create: {
-          exam_session_id: session_id,
-          question_id: ans.question_id,
-          answer_text: ans.answer_text,
-          answered_at: new Date(ans.timestamp),
-          synced_at: new Date(),
-        },
-        update: {
-          answer_text: ans.answer_text,
-          answered_at: new Date(ans.timestamp),
-          synced_at: new Date(),
-        },
-      });
-      results.push(saved);
-    }
+    await this.prisma.$transaction(async (tx) => {
+      for (const ans of answers) {
+        await tx.answer.upsert({
+          where: {
+            exam_session_id_question_id: { exam_session_id: session_id, question_id: ans.question_id },
+          },
+          create: {
+            exam_session_id: session_id,
+            question_id: ans.question_id,
+            answer_text: ans.answer_text,
+            answered_at: new Date(ans.timestamp),
+            synced_at: new Date(),
+          },
+          update: {
+            answer_text: ans.answer_text,
+            answered_at: new Date(ans.timestamp),
+            synced_at: new Date(),
+          },
+        });
+      }
+    });
 
-    return { synced: results.length };
+    return { synced: answers.length };
   }
 
   async getSyncStatus(sessionId: string, userId: string) {
