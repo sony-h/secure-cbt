@@ -89,9 +89,9 @@ class ExamDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Deskripsi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
+                    Text('Deskripsi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.onSurface)),
                     const SizedBox(height: 8),
-                    Text(description, style: const TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF475569))),
+                    Text(description, style: TextStyle(fontSize: 13, height: 1.5, color: theme.colorScheme.onSurfaceVariant)),
                   ],
                 ),
               ),

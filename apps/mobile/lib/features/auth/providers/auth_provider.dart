@@ -3,7 +3,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
-import 'package:secure_cbt_mobile/features/shared/providers/refresh_trigger.dart';
+import 'package:secure_cbt_mobile/features/home/providers/home_provider.dart';
+import 'package:secure_cbt_mobile/features/exams/providers/exams_provider.dart';
+import 'package:secure_cbt_mobile/features/history/providers/history_provider.dart';
 
 // ── Auth State ────────────────────────────────────────────────
 class AuthState {
@@ -84,7 +86,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         className: user['class_name'],
       );
 
-      _ref.read(refreshTriggerProvider.notifier).state++;
+      _ref.invalidate(homeDataProvider);
+      _ref.invalidate(examsDataProvider);
+      _ref.invalidate(historyDataProvider);
       AppLogger.info('Login successful', username);
     } on DioException catch (e) {
       final message = e.response?.data?['message'] ?? 'Login gagal';
@@ -104,7 +108,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } finally {
       await _storage.deleteAll();
       state = const AuthState();
-      _ref.read(refreshTriggerProvider.notifier).state++;
+      _ref.invalidate(homeDataProvider);
+      _ref.invalidate(examsDataProvider);
+      _ref.invalidate(historyDataProvider);
       AppLogger.info('Logged out');
     }
   }

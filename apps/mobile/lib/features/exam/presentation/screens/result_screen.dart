@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/result_provider.dart';
-import 'package:secure_cbt_mobile/features/shared/providers/refresh_trigger.dart';
+import 'package:secure_cbt_mobile/features/home/providers/home_provider.dart';
+import 'package:secure_cbt_mobile/features/exams/providers/exams_provider.dart';
+import 'package:secure_cbt_mobile/features/history/providers/history_provider.dart';
 
 class ResultScreen extends ConsumerStatefulWidget {
   final String sessionId;
@@ -59,7 +61,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                             const SizedBox(height: 32),
                             ElevatedButton.icon(
                               onPressed: () {
-                                ref.read(refreshTriggerProvider.notifier).state++;
+                                ref.invalidate(homeDataProvider);
+                                ref.invalidate(examsDataProvider);
+                                ref.invalidate(historyDataProvider);
                                 context.goNamed(RouteNames.home);
                               },
                               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
@@ -216,7 +220,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                           const SizedBox(height: 36),
                           ElevatedButton.icon(
                             onPressed: () {
-                              ref.read(refreshTriggerProvider.notifier).state++;
+                              ref.invalidate(homeDataProvider);
+                              ref.invalidate(examsDataProvider);
+                              ref.invalidate(historyDataProvider);
                               context.goNamed(RouteNames.home);
                             },
                             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),

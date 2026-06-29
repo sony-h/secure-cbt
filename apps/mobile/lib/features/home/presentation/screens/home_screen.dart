@@ -5,7 +5,6 @@ import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
 import 'package:secure_cbt_mobile/core/widgets/shimmer.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 import 'package:secure_cbt_mobile/features/home/providers/home_provider.dart';
-import 'package:secure_cbt_mobile/features/shared/providers/refresh_trigger.dart';
 
 const _quotes = [
   'Belajar adalah investasi paling menguntungkan.',
@@ -59,9 +58,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final theme = Theme.of(context);
     final homeDataAsync = ref.watch(homeDataProvider);
 
-    ref.listen(refreshTriggerProvider, (prev, next) {
-      if (prev != next) ref.invalidate(homeDataProvider);
-    });
+
 
     final isLoading = homeDataAsync.isLoading;
     final history = homeDataAsync.valueOrNull?['history'] as List? ?? [];
