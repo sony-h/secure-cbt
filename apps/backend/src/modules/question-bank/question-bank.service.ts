@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
-  CreateQuestionDto, UpdateQuestionDto, createQuestionSchema, updateQuestionSchema,
+  CreateQuestionInput, UpdateQuestionInput, createQuestionSchema, updateQuestionSchema,
   createQuestionBankSchema, PaginationQuery, QuestionType,
 } from '@secure-cbt/shared';
 import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
@@ -80,7 +80,7 @@ export class QuestionBankService {
     return question;
   }
 
-  async create(dto: CreateQuestionDto) {
+  async create(dto: CreateQuestionInput) {
     const data = createQuestionSchema.parse(dto);
     const bank = await this.prisma.questionBank.findUnique({ where: { id: data.question_bank_id } });
     if (!bank) throw new NotFoundException('Question bank not found');
@@ -118,7 +118,7 @@ export class QuestionBankService {
     });
   }
 
-  async update(id: string, dto: UpdateQuestionDto) {
+  async update(id: string, dto: UpdateQuestionInput) {
     const data = updateQuestionSchema.parse(dto);
     await this.findById(id);
 

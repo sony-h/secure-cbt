@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateStudentDto, UpdateStudentDto, StudentImportRow, createStudentSchema, updateStudentSchema, PaginationQuery } from '@secure-cbt/shared';
+import { CreateStudentInput, UpdateStudentInput, ImportStudentRowInput, createStudentSchema, updateStudentSchema, PaginationQuery } from '@secure-cbt/shared';
 import * as argon2 from 'argon2';
 import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
 
@@ -44,7 +44,7 @@ export class StudentService {
     return student;
   }
 
-  async create(dto: CreateStudentDto) {
+  async create(dto: CreateStudentInput) {
     const data = createStudentSchema.parse(dto);
     const existing = await this.prisma.student.findFirst({ where: { OR: [{ nis: data.nis }] } });
     if (existing) throw new BadRequestException('NIS already exists');
@@ -71,7 +71,7 @@ export class StudentService {
     return result;
   }
 
-  async update(id: string, dto: UpdateStudentDto) {
+  async update(id: string, dto: UpdateStudentInput) {
     const data = updateStudentSchema.parse(dto);
     await this.findById(id);
     return this.prisma.student.update({
@@ -92,7 +92,7 @@ export class StudentService {
     return { deleted: true };
   }
 
-  async importStudents(rows: StudentImportRow[]) {
+  async importStudents(rows: ImportStudentRowInput[]) {
     const results = { total: rows.length, success: 0, failed: 0, errors: [] as string[] };
 
     for (const row of rows) {

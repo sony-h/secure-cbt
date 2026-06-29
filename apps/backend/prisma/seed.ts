@@ -441,7 +441,7 @@ async function seed() {
         subject_id: fisika!.id,
         teacher_id: teachers[1].id,
         duration_minutes: 60,
-        status: 'DRAFT',
+        status: 'PUBLISHED',
         start_at: new Date(now.getTime() + 2 * 24 * 3600 * 1000),   // 2 days from now
         end_at: new Date(now.getTime() + 32 * 24 * 3600 * 1000),       // 32 days from now
         randomize_questions: true,
@@ -459,7 +459,7 @@ async function seed() {
     for (let i = 0; i < physicsQuestions.length; i++) {
       await prisma.examQuestion.create({ data: { exam_id: exam2.id, question_id: physicsQuestions[i].id, position: i + 1, package_id: pkg2.id } });
     }
-    logger.log('  Ulangan Harian Fisika (DRAFT)');
+    logger.log('  Ulangan Harian Fisika (PUBLISHED — upcoming, IPA)');
 
     // ── Exam 3: UTS Ekonomi — PASSED (IPS) ────────────────────
     const ekonomiQuestions = allQuestions.slice(25, 30);
@@ -704,7 +704,7 @@ async function seed() {
     logger.log('  📝 Questions: 30 across 4 banks (Math, Physics, Indonesian, Economics)');
     logger.log('  📋 Exams:');
     logger.log('     • UTS Matematika (PUBLISHED — IPA) — Token: ' + token1);
-    logger.log('     • Ulangan Fisika (DRAFT — IPA)');
+    logger.log('     • Ulangan Fisika (PUBLISHED — upcoming, IPA)');
     logger.log('     • UTS Ekonomi (FINISHED — IPS, ' + ipsStudents.length + ' sessions completed) — Token: ' + token3);
     logger.log('     • Latihan Bahasa Jepang (ONGOING — BAH) — Token: ' + token4);
     logger.log('     • Tryout PKN (PUBLISHED — upcoming, ALL classes)');

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { EventNames } from '@secure-cbt/shared';
+import { SocketEvent } from '@secure-cbt/shared';
 import { MonitoringGateway } from './monitoring.gateway';
 import { MonitoringService } from './monitoring.service';
 
@@ -13,7 +13,7 @@ export class MonitoringListener {
     private readonly monitoringService: MonitoringService,
   ) {}
 
-  @OnEvent(EventNames.SESSION_STARTED)
+  @OnEvent(SocketEvent.SESSION_STARTED)
   async handleSessionStarted(payload: { sessionId: string; examId: string; studentId: string }) {
     this.logger.log(`Session started: ${payload.sessionId}`);
     try {
@@ -23,7 +23,7 @@ export class MonitoringListener {
     }
   }
 
-  @OnEvent(EventNames.SESSION_FINISHED)
+  @OnEvent(SocketEvent.SESSION_FINISHED)
   async handleSessionFinished(payload: { sessionId: string; examId: string; studentId: string; studentName: string }) {
     this.logger.log(`Session finished: ${payload.sessionId}`);
     this.gateway.notifySessionFinished(payload.examId, {
@@ -39,7 +39,7 @@ export class MonitoringListener {
     }
   }
 
-  @OnEvent(EventNames.SESSION_EXPIRED)
+  @OnEvent(SocketEvent.SESSION_EXPIRED)
   async handleSessionExpired(payload: { sessionId: string; examId: string; studentId: string; studentName: string }) {
     this.logger.log(`Session expired: ${payload.sessionId}`);
     this.gateway.notifySessionFinished(payload.examId, {

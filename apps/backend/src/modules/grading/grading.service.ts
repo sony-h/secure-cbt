@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
-import { GradeEssayDto, gradeEssaySchema, QuestionType, SessionStatus, EventNames } from '@secure-cbt/shared';
+import { GradeEssayInput, gradeEssaySchema, QuestionType, SessionStatus, SocketEvent } from '@secure-cbt/shared';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -11,7 +11,7 @@ export class GradingService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async gradeEssay(dto: GradeEssayDto, graderId: string) {
+  async gradeEssay(dto: GradeEssayInput, graderId: string) {
     const { session_id, question_id, score, feedback } = gradeEssaySchema.parse(dto);
 
     return await this.prisma.$transaction(async (tx) => {
@@ -44,7 +44,7 @@ export class GradingService {
         },
       });
 
-      this.eventEmitter.emit(EventNames.ESSAY_GRADED, {
+      this.eventEmitter.emit(SocketEvent.ESSAY_GRADED, {
         sessionId: session_id,
         questionId: question_id,
         graderId,

@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { SaveAnswerDto, BatchSyncAnswerDto, saveAnswerSchema, batchSyncAnswerSchema, SessionStatus } from '@secure-cbt/shared';
+import { SaveAnswerInput, BatchSyncAnswerInput, saveAnswerSchema, batchSyncAnswerSchema, SessionStatus } from '@secure-cbt/shared';
 import { resolveStudentId } from '../../common/helpers/user-resolver.helper';
 
 @Injectable()
 export class AnswerService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async save(dto: SaveAnswerDto, userId: string) {
+  async save(dto: SaveAnswerInput, userId: string) {
     const { session_id, question_id, answer_text, timestamp } = saveAnswerSchema.parse(dto);
 
     const studentId = await resolveStudentId(this.prisma, userId);
@@ -46,7 +46,7 @@ export class AnswerService {
     return answer;
   }
 
-  async batchSync(dto: BatchSyncAnswerDto, userId: string) {
+  async batchSync(dto: BatchSyncAnswerInput, userId: string) {
     const { session_id, answers } = batchSyncAnswerSchema.parse(dto);
 
     const studentId = await resolveStudentId(this.prisma, userId);

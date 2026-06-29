@@ -1,8 +1,8 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
-  CreateUserDto,
-  UpdateUserDto,
+  CreateUserInput,
+  UpdateUserInput,
   createUserSchema,
   updateUserSchema,
   UserRole,
@@ -49,7 +49,7 @@ export class UserService {
     return user;
   }
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserInput) {
     const data = createUserSchema.parse(dto);
     const existing = await this.prisma.user.findFirst({
       where: { OR: [{ username: data.username }, { email: data.email }] },
@@ -64,7 +64,7 @@ export class UserService {
     return { id: user.id, username: user.username, email: user.email, role: user.role, is_active: user.is_active };
   }
 
-  async update(id: string, dto: UpdateUserDto) {
+  async update(id: string, dto: UpdateUserInput) {
     const data = updateUserSchema.parse(dto);
     await this.findById(id); // Ensure exists
 

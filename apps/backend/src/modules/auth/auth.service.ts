@@ -3,10 +3,9 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
-  LoginRequestDto,
-  LoginResponseDto,
-  RefreshTokenRequestDto,
-  ChangePasswordRequestDto,
+  LoginInput,
+  RefreshTokenInput,
+  ChangePasswordInput,
   loginSchema,
   refreshTokenSchema,
   changePasswordSchema,
@@ -23,7 +22,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async login(dto: LoginRequestDto): Promise<LoginResponseDto> {
+  async login(dto: LoginInput) {
     const { username, password, device_id } = loginSchema.parse(dto);
 
     const user = await this.prisma.user.findFirst({
@@ -88,7 +87,7 @@ export class AuthService {
     });
   }
 
-  async refresh(dto: RefreshTokenRequestDto): Promise<LoginResponseDto> {
+  async refresh(dto: RefreshTokenInput) {
     const { refresh_token } = refreshTokenSchema.parse(dto);
 
     const stored = await this.prisma.refreshToken.findUnique({
@@ -148,7 +147,7 @@ export class AuthService {
     }
   }
 
-  async changePassword(userId: string, dto: ChangePasswordRequestDto): Promise<void> {
+  async changePassword(userId: string, dto: ChangePasswordInput): Promise<void> {
     const { old_password, new_password } = changePasswordSchema.parse(dto);
     passwordSchema.parse(new_password);
 

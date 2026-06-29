@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateTeacherDto, UpdateTeacherDto, createTeacherSchema, updateTeacherSchema, PaginationQuery } from '@secure-cbt/shared';
+import { CreateTeacherInput, UpdateTeacherInput, createTeacherSchema, updateTeacherSchema, PaginationQuery } from '@secure-cbt/shared';
 import * as argon2 from 'argon2';
 import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
 
@@ -41,7 +41,7 @@ export class TeacherService {
     return teacher;
   }
 
-  async create(dto: CreateTeacherDto) {
+  async create(dto: CreateTeacherInput) {
     const data = createTeacherSchema.parse(dto);
     const existingNip = await this.prisma.teacher.findFirst({ where: { nip: data.nip } });
     if (existingNip) throw new BadRequestException('NIP already exists');
@@ -70,7 +70,7 @@ export class TeacherService {
     return result;
   }
 
-  async update(id: string, dto: UpdateTeacherDto) {
+  async update(id: string, dto: UpdateTeacherInput) {
     const data = updateTeacherSchema.parse(dto);
     await this.findById(id);
 

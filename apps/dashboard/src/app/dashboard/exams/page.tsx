@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/table';
 import { DataTable } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
 import { formatDate } from '@/lib/utils';
-import { Plus, Pencil, Trash2, X, Rocket, Key, Clock, Calendar } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Key, Clock, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -432,15 +432,6 @@ export default function ExamsPage() {
     onError: () => toast.error('Gagal menghapus ujian'),
   });
 
-  const publishMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/exams/${id}/publish`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exams'] });
-      toast.success('Ujian dipublikasi');
-    },
-    onError: () => toast.error('Gagal mempublikasi ujian'),
-  });
-
   const tokenMutation = useMutation({
     mutationFn: (id: string) => api.post(`/exams/${id}/token`),
     onSuccess: (res) => {
@@ -582,11 +573,6 @@ export default function ExamsPage() {
           <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}>
             <Pencil className="h-4 w-4" />
           </Button>
-          {row.original.status === 'DRAFT' && (
-            <Button variant="ghost" size="icon" onClick={() => publishMutation.mutate(row.original.id)} title="Publish">
-              <Rocket className="h-4 w-4 text-green-600" />
-            </Button>
-          )}
           {(row.original.status === 'PUBLISHED' || row.original.status === 'ONGOING') && (
             <Button variant="ghost" size="icon" onClick={() => tokenMutation.mutate(row.original.id)} title="Generate Token">
               <Key className="h-4 w-4" />

@@ -1,18 +1,18 @@
 import { z } from 'zod';
 
 export const loginSchema = z.object({
-  username: z.string().min(3).max(50),
-  password: z.string().min(6).max(100),
-  device_id: z.string().uuid().optional(),
+  username: z.string().min(3, { message: 'Username minimal 3 karakter' }).max(50, { message: 'Username maksimal 50 karakter' }),
+  password: z.string().min(6, { message: 'Kata sandi minimal 6 karakter' }).max(100, { message: 'Kata sandi maksimal 100 karakter' }),
+  device_id: z.string().uuid({ message: 'ID perangkat tidak valid' }).optional(),
 });
 
 export const refreshTokenSchema = z.object({
-  refresh_token: z.string().min(1),
+  refresh_token: z.string().min(1, { message: 'Token wajib diisi' }),
 });
 
 export const changePasswordSchema = z.object({
-  old_password: z.string().min(1),
-  new_password: z.string().min(8).max(100),
+  old_password: z.string().min(1, { message: 'Kata sandi lama wajib diisi' }),
+  new_password: z.string().min(8, { message: 'Kata sandi baru minimal 8 karakter' }).max(100, { message: 'Kata sandi baru maksimal 100 karakter' }),
 });
 
 export const passwordSchema = z

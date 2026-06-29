@@ -2,8 +2,8 @@ import { Injectable, NotFoundException, BadRequestException, Inject } from '@nes
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
-  CreateExamDto, UpdateExamDto, createExamSchema, updateExamSchema,
-  PaginationQuery, ExamStatus, SessionStatus, EventNames,
+  CreateExamInput, UpdateExamInput, createExamSchema, updateExamSchema,
+  PaginationQuery, ExamStatus, SessionStatus, SocketEvent,
 } from '@secure-cbt/shared';
 import { randomBytes } from 'crypto';
 import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
@@ -58,7 +58,7 @@ export class ExamService {
     return exam;
   }
 
-  async create(dto: CreateExamDto, userId: string) {
+  async create(dto: CreateExamInput, userId: string) {
     const data = createExamSchema.parse(dto);
 
     if (new Date(data.end_at) <= new Date(data.start_at)) {
@@ -119,7 +119,7 @@ export class ExamService {
       }
 
       if (this.eventEmitter) {
-        this.eventEmitter.emit(EventNames.EXAM_CREATED, { examId: exam.id, teacherId });
+        this.eventEmitter.emit(SocketEvent.EXAM_CREATED, { examId: exam.id, teacherId });
       }
       return tx.exam.findUnique({
         where: { id: exam.id },
@@ -128,7 +128,7 @@ export class ExamService {
     });
   }
 
-  async update(id: string, dto: UpdateExamDto) {
+  async update(id: string, dto: UpdateExamInput) {
     const data = updateExamSchema.parse(dto);
     const existing = await this.findById(id);
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { UpdateSettingsDto, updateSettingsSchema, EventNames } from '@secure-cbt/shared';
+import { UpdateSettingsInput, updateSettingsSchema, SocketEvent } from '@secure-cbt/shared';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
@@ -18,7 +18,7 @@ export class SettingsService {
     return settings;
   }
 
-  async update(dto: UpdateSettingsDto) {
+  async update(dto: UpdateSettingsInput) {
     const data = updateSettingsSchema.parse(dto);
     let settings = await this.prisma.setting.findFirst();
 
@@ -31,7 +31,7 @@ export class SettingsService {
       });
     }
 
-    this.eventEmitter.emit(EventNames.SETTINGS_UPDATED, { settings });
+    this.eventEmitter.emit(SocketEvent.SETTINGS_UPDATED, { settings });
     return settings;
   }
 }

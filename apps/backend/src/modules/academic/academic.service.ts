@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
-  CreateAcademicYearDto, UpdateAcademicYearDto, CreateMajorDto, UpdateMajorDto, CreateClassDto, CreateSubjectDto,
+  CreateAcademicYearInput, UpdateAcademicYearInput, CreateMajorInput, UpdateMajorInput, CreateClassInput, CreateSubjectInput,
+  UpdateClassInput, UpdateSubjectInput,
   createAcademicYearSchema, updateAcademicYearSchema, createMajorSchema, updateMajorSchema, createClassSchema, createSubjectSchema,
+  updateClassSchema, updateSubjectSchema,
   PaginationQuery,
 } from '@secure-cbt/shared';
 
@@ -15,7 +17,7 @@ export class AcademicService {
     return this.prisma.academicYear.findMany({ orderBy: { created_at: 'desc' } });
   }
 
-  async createAcademicYear(dto: CreateAcademicYearDto) {
+  async createAcademicYear(dto: CreateAcademicYearInput) {
     const data = createAcademicYearSchema.parse(dto);
     if (data.is_active) {
       await this.prisma.academicYear.updateMany({ where: { is_active: true }, data: { is_active: false } });
@@ -23,7 +25,7 @@ export class AcademicService {
     return this.prisma.academicYear.create({ data });
   }
 
-  async updateAcademicYear(id: string, dto: UpdateAcademicYearDto) {
+  async updateAcademicYear(id: string, dto: UpdateAcademicYearInput) {
     const data = updateAcademicYearSchema.parse(dto);
     const year = await this.prisma.academicYear.findUnique({ where: { id } });
     if (!year) throw new NotFoundException('Academic year not found');
@@ -43,7 +45,7 @@ export class AcademicService {
     return this.prisma.major.findMany({ orderBy: { name: 'asc' } });
   }
 
-  async createMajor(dto: CreateMajorDto) {
+  async createMajor(dto: CreateMajorInput) {
     const data = createMajorSchema.parse(dto);
     return this.prisma.major.create({ data });
   }
@@ -53,7 +55,7 @@ export class AcademicService {
     return this.prisma.major.delete({ where: { id } });
   }
 
-  async updateMajor(id: string, dto: UpdateMajorDto) {
+  async updateMajor(id: string, dto: UpdateMajorInput) {
     const data = updateMajorSchema.parse(dto);
     const major = await this.prisma.major.findUnique({ where: { id } });
     if (!major) throw new NotFoundException('Major not found');
@@ -72,7 +74,7 @@ export class AcademicService {
     });
   }
 
-  async createClass(dto: CreateClassDto) {
+  async createClass(dto: CreateClassInput) {
     const data = createClassSchema.parse(dto);
     return this.prisma.class.create({ data, include: { major: true, academic_year: true } });
   }
@@ -82,10 +84,13 @@ export class AcademicService {
     return this.prisma.class.delete({ where: { id } });
   }
 
-  async updateClass(id: string, dto: Partial<CreateClassDto>) {
+  async updateClass(id: string, dto: UpdateClassInput) {
+    const data = updateClassSchema.parse(dto);
+    // Filter out null values to avoid Prisma type issues with nullable fields
+    const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
     const cls = await this.prisma.class.findUnique({ where: { id } });
     if (!cls) throw new NotFoundException('Class not found');
-    return this.prisma.class.update({ where: { id }, data: dto, include: { major: true, academic_year: true } });
+    return this.prisma.class.update({ where: { id }, data: cleanData, include: { major: true, academic_year: true } });
   }
 
   // Subjects
@@ -99,7 +104,7 @@ export class AcademicService {
     });
   }
 
-  async createSubject(dto: CreateSubjectDto) {
+  async createSubject(dto: CreateSubjectInput) {
     const data = createSubjectSchema.parse(dto);
     return this.prisma.subject.create({ data, include: { major: true } });
   }
@@ -109,9 +114,10 @@ export class AcademicService {
     return this.prisma.subject.delete({ where: { id } });
   }
 
-  async updateSubject(id: string, dto: Partial<CreateSubjectDto>) {
+  async updateSubject(id: string, dto: UpdateSubjectInput) {
+    const data = updateSubjectSchema.parse(dto);
     const subj = await this.prisma.subject.findUnique({ where: { id } });
     if (!subj) throw new NotFoundException('Subject not found');
-    return this.prisma.subject.update({ where: { id }, data: dto, include: { major: true } });
+    return this.prisma.subject.update({ where: { id }, data, include: { major: true } });
   }
 }

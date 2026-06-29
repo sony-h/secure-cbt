@@ -3,8 +3,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GradingService } from '../grading/grading.service';
 import {
-  StartSessionDto, SubmitSessionDto, startSessionSchema, submitSessionSchema,
-  SessionStatus, ExamStatus, EventNames,
+  StartSessionInput, SubmitSessionInput, startSessionSchema, submitSessionSchema,
+  SessionStatus, ExamStatus, SocketEvent,
 } from '@secure-cbt/shared';
 import { resolveStudentId } from '../../common/helpers/user-resolver.helper';
 
@@ -16,7 +16,7 @@ export class SessionService {
     private readonly gradingService: GradingService,
   ) {}
 
-  async start(dto: StartSessionDto, userId: string) {
+  async start(dto: StartSessionInput, userId: string) {
     const { token, device_id } = startSessionSchema.parse(dto);
 
     // Validate token
@@ -103,7 +103,7 @@ export class SessionService {
       },
     });
 
-    this.eventEmitter.emit(EventNames.SESSION_STARTED, { sessionId: session.id, examId: exam.id, studentId: student.id });
+    this.eventEmitter.emit(SocketEvent.SESSION_STARTED, { sessionId: session.id, examId: exam.id, studentId: student.id });
 
     // Return session with questions (without correct answer flags)
     const filtered = session.exam.exam_questions
@@ -165,7 +165,7 @@ export class SessionService {
       data: { status: SessionStatus.ACTIVE },
     });
 
-    this.eventEmitter.emit(EventNames.SESSION_RECOVERED, { sessionId: session.id });
+    this.eventEmitter.emit(SocketEvent.SESSION_RECOVERED, { sessionId: session.id });
 
     // Return session with questions (without correct answer flags)
     const filtered = session.exam.exam_questions
@@ -204,7 +204,7 @@ export class SessionService {
     return { ...session, questions };
   }
 
-  async submit(dto: SubmitSessionDto, userId: string) {
+  async submit(dto: SubmitSessionInput, userId: string) {
     const { session_id } = submitSessionSchema.parse(dto);
     // Resolve student from user ID
     const studentId = await resolveStudentId(this.prisma, userId);
@@ -236,7 +236,7 @@ export class SessionService {
       return updatedSession;
     });
 
-    this.eventEmitter.emit(EventNames.SESSION_FINISHED, {
+    this.eventEmitter.emit(SocketEvent.SESSION_FINISHED, {
       sessionId: session_id,
       examId: session.exam_id,
       studentId: session.student_id,
@@ -296,7 +296,7 @@ export class SessionService {
       return updatedSession;
     });
 
-    this.eventEmitter.emit(EventNames.SESSION_EXPIRED, {
+    this.eventEmitter.emit(SocketEvent.SESSION_EXPIRED, {
       sessionId,
       examId: session.exam_id,
       studentId: session.student_id,

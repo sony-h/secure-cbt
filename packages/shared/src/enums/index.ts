@@ -50,14 +50,6 @@ export enum DifficultyLevel {
   HARD = 'HARD',
 }
 
-/** Connectivity states for mobile app */
-export enum ConnectivityState {
-  ONLINE = 'ONLINE',
-  OFFLINE = 'OFFLINE',
-  SYNCING = 'SYNCING',
-  ERROR = 'ERROR',
-}
-
 /** Violation event types stored in session_logs */
 export enum ViolationEvent {
   APP_BACKGROUND = 'APP_BACKGROUND',
@@ -68,8 +60,9 @@ export enum ViolationEvent {
   SESSION_EXPIRED = 'SESSION_EXPIRED',
 }
 
-/** Socket.io realtime event names */
+/** Socket.io + internal event names */
 export enum SocketEvent {
+  // Socket.io events
   STUDENT_CONNECTED = 'student.connected',
   STUDENT_DISCONNECTED = 'student.disconnected',
   WARNING_TRIGGERED = 'warning.triggered',
@@ -77,4 +70,34 @@ export enum SocketEvent {
   EXAM_SUBMITTED = 'exam.submitted',
   SESSION_FINISHED = 'session.finished',
   PROGRESS_UPDATED = 'progress.updated',
+  // Internal EventEmitter events
+  USER_LOGGED_IN = 'user.logged_in',
+  USER_LOGGED_OUT = 'user.logged_out',
+  USER_CREATED = 'user.created',
+  USER_UPDATED = 'user.updated',
+  USER_DELETED = 'user.deleted',
+  CLASS_CREATED = 'class.created',
+  SUBJECT_CREATED = 'subject.created',
+  ACADEMIC_YEAR_CHANGED = 'academic_year.changed',
+  STUDENT_CREATED = 'student.created',
+  STUDENT_IMPORTED = 'student.imported',
+  STUDENT_UPDATED = 'student.updated',
+  TEACHER_CREATED = 'teacher.created',
+  TEACHER_UPDATED = 'teacher.updated',
+  QUESTION_CREATED = 'question.created',
+  QUESTION_UPDATED = 'question.updated',
+  QUESTION_DELETED = 'question.deleted',
+  EXAM_CREATED = 'exam.created',
+  EXAM_PUBLISHED = 'exam.published',
+  EXAM_STARTED = 'exam.started',
+  EXAM_FINISHED = 'exam.finished',
+  SESSION_STARTED = 'session.started',
+  SESSION_RECOVERED = 'session.recovered',
+  SESSION_EXPIRED = 'session.expired',
+  ANSWER_UPDATED = 'answer.updated',
+  ANSWER_SYNCED = 'answer.synced',
+  SCORE_GENERATED = 'score.generated',
+  ESSAY_GRADED = 'essay.graded',
+  REPORT_GENERATED = 'report.generated',
+  SETTINGS_UPDATED = 'settings.updated',
 }
