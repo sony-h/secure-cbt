@@ -2,14 +2,14 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateStudentDto, UpdateStudentDto, StudentImportRow, createStudentSchema, updateStudentSchema, PaginationQuery } from '@secure-cbt/shared';
 import * as argon2 from 'argon2';
+import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
 
 @Injectable()
 export class StudentService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: PaginationQuery & { class_id?: string; major_id?: string }) {
-    const page = Number(query.page) || 1;
-    const per_page = Number(query.per_page) || 20;
+    const { skip, page, perPage } = parsePagination(query);
     const { search, class_id, major_id, sort_by = 'created_at', sort_order = 'desc' } = query;
     const where: any = { deleted_at: null };
     if (search) {
@@ -24,15 +24,15 @@ export class StudentService {
     const [data, total] = await Promise.all([
       this.prisma.student.findMany({
         where,
-        skip: (page - 1) * per_page,
-        take: per_page,
+        skip,
+        take: perPage,
         orderBy: { [sort_by]: sort_order },
         include: { class: { include: { major: true } } },
       }),
       this.prisma.student.count({ where }),
     ]);
 
-    return { data, meta: { page, per_page, total, total_pages: Math.ceil(total / per_page) } };
+    return { data, meta: buildMeta(total, { page, perPage, skip }) };
   }
 
   async findById(id: string) {

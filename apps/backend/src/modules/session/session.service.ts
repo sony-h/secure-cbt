@@ -6,6 +6,7 @@ import {
   StartSessionDto, SubmitSessionDto, startSessionSchema, submitSessionSchema,
   SessionStatus, ExamStatus, EventNames,
 } from '@secure-cbt/shared';
+import { resolveStudentId } from '../../common/helpers/user-resolver.helper';
 
 @Injectable()
 export class SessionService {
@@ -142,8 +143,7 @@ export class SessionService {
 
   async resume(dto: { session_id: string }, userId: string) {
     // Resolve student from user ID
-    const student = await this.prisma.student.findUnique({ where: { user_id: userId } });
-    if (!student) throw new NotFoundException('Student not found');
+    const studentId = await resolveStudentId(this.prisma, userId);
 
     const session = await this.prisma.examSession.findUnique({
       where: { id: dto.session_id },
@@ -154,7 +154,7 @@ export class SessionService {
     });
 
     if (!session) throw new NotFoundException('Session not found');
-    if (session.student_id !== student.id) throw new ForbiddenException('Not your session');
+    if (session.student_id !== studentId) throw new ForbiddenException('Not your session');
     if (session.status === SessionStatus.SUBMITTED || session.status === SessionStatus.AUTO_SUBMITTED || session.status === SessionStatus.EXPIRED) {
       throw new BadRequestException('Session is already completed');
     }
@@ -207,12 +207,14 @@ export class SessionService {
   async submit(dto: SubmitSessionDto, userId: string) {
     const { session_id } = submitSessionSchema.parse(dto);
     // Resolve student from user ID
-    const student = await this.prisma.student.findUnique({ where: { user_id: userId } });
-    if (!student) throw new NotFoundException('Student not found');
+    const studentId = await resolveStudentId(this.prisma, userId);
 
-    const session = await this.prisma.examSession.findUnique({ where: { id: session_id } });
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: session_id },
+      include: { student: { select: { full_name: true } } },
+    });
     if (!session) throw new NotFoundException('Session not found');
-    if (session.student_id !== student.id) throw new ForbiddenException('Not your session');
+    if (session.student_id !== studentId) throw new ForbiddenException('Not your session');
     if (session.status === SessionStatus.SUBMITTED || session.status === SessionStatus.AUTO_SUBMITTED || session.status === SessionStatus.EXPIRED) {
       throw new BadRequestException('Ujian sudah dikumpulkan');
     }
@@ -238,18 +240,17 @@ export class SessionService {
       sessionId: session_id,
       examId: session.exam_id,
       studentId: session.student_id,
-      studentName: student.full_name,
+      studentName: session.student.full_name,
     });
     return updated;
   }
 
   async getHistory(userId: string) {
-    const student = await this.prisma.student.findUnique({ where: { user_id: userId } });
-    if (!student) throw new NotFoundException('Student not found');
+    const studentId = await resolveStudentId(this.prisma, userId);
 
     const sessions = await this.prisma.examSession.findMany({
       where: {
-        student_id: student.id,
+        student_id: studentId,
         status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED] },
         score: { isNot: null },
       },

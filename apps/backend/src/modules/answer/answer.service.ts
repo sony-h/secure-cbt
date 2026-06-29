@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SaveAnswerDto, BatchSyncAnswerDto, saveAnswerSchema, batchSyncAnswerSchema, SessionStatus } from '@secure-cbt/shared';
+import { resolveStudentId } from '../../common/helpers/user-resolver.helper';
 
 @Injectable()
 export class AnswerService {
@@ -9,12 +10,11 @@ export class AnswerService {
   async save(dto: SaveAnswerDto, userId: string) {
     const { session_id, question_id, answer_text, timestamp } = saveAnswerSchema.parse(dto);
 
-    const student = await this.prisma.student.findUnique({ where: { user_id: userId } });
-    if (!student) throw new NotFoundException('Student not found');
+    const studentId = await resolveStudentId(this.prisma, userId);
 
     const session = await this.prisma.examSession.findUnique({ where: { id: session_id } });
     if (!session) throw new NotFoundException('Session not found');
-    if (session.student_id !== student.id) throw new ForbiddenException('Not your session');
+    if (session.student_id !== studentId) throw new ForbiddenException('Not your session');
     if (session.status !== SessionStatus.ACTIVE) throw new BadRequestException('Session is not active');
 
     // Check if question belongs to this exam
@@ -49,12 +49,11 @@ export class AnswerService {
   async batchSync(dto: BatchSyncAnswerDto, userId: string) {
     const { session_id, answers } = batchSyncAnswerSchema.parse(dto);
 
-    const student = await this.prisma.student.findUnique({ where: { user_id: userId } });
-    if (!student) throw new NotFoundException('Student not found');
+    const studentId = await resolveStudentId(this.prisma, userId);
 
     const session = await this.prisma.examSession.findUnique({ where: { id: session_id } });
     if (!session) throw new NotFoundException('Session not found');
-    if (session.student_id !== student.id) throw new ForbiddenException('Not your session');
+    if (session.student_id !== studentId) throw new ForbiddenException('Not your session');
     if (session.status !== SessionStatus.ACTIVE) throw new BadRequestException('Session is not active');
 
     await this.prisma.$transaction(async (tx) => {
@@ -83,8 +82,7 @@ export class AnswerService {
   }
 
   async getSyncStatus(sessionId: string, userId: string) {
-    const student = await this.prisma.student.findUnique({ where: { user_id: userId } });
-    if (!student) throw new NotFoundException('Student not found');
+    const studentId = await resolveStudentId(this.prisma, userId);
 
     const session = await this.prisma.examSession.findUnique({
       where: { id: sessionId },
@@ -93,7 +91,7 @@ export class AnswerService {
         exam: { include: { exam_questions: true } },
       },
     });
-    if (!session || session.student_id !== student.id) throw new NotFoundException('Session not found');
+    if (!session || session.student_id !== studentId) throw new NotFoundException('Session not found');
 
     const totalQuestions = session.exam.exam_questions.length;
     const syncedAnswers = session.answers.filter((a) => a.synced_at).length;

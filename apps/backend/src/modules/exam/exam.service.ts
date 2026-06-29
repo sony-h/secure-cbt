@@ -6,6 +6,8 @@ import {
   PaginationQuery, ExamStatus, SessionStatus, EventNames,
 } from '@secure-cbt/shared';
 import { randomBytes } from 'crypto';
+import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
+import { resolveTeacherId } from '../../common/helpers/user-resolver.helper';
 
 @Injectable()
 export class ExamService {
@@ -16,8 +18,7 @@ export class ExamService {
   ) {}
 
   async findAll(query: PaginationQuery & { status?: ExamStatus; subject_id?: string }) {
-    const page = Number(query.page) || 1;
-    const per_page = Number(query.per_page) || 20;
+    const { skip, page, perPage } = parsePagination(query);
     const { status, subject_id, search } = query;
     const where: any = { deleted_at: null };
     if (status) where.status = status;
@@ -27,8 +28,8 @@ export class ExamService {
     const [data, total] = await Promise.all([
       this.prisma.exam.findMany({
         where,
-        skip: (page - 1) * per_page,
-        take: per_page,
+        skip,
+        take: perPage,
         include: { subject: true, _count: { select: { exam_questions: true, exam_sessions: true } } },
         orderBy: { created_at: 'desc' },
       }),
@@ -39,7 +40,7 @@ export class ExamService {
       ...exam,
       status: now > exam.end_at ? ExamStatus.FINISHED : now >= exam.start_at ? ExamStatus.ONGOING : ExamStatus.PUBLISHED,
     }));
-    return { data: computed, meta: { page, per_page, total, total_pages: Math.ceil(total / per_page) } };
+    return { data: computed, meta: buildMeta(total, { page, perPage, skip }) };
   }
 
   async findById(id: string) {
@@ -65,8 +66,7 @@ export class ExamService {
     }
 
     // Resolve teacher ID from user ID
-    const teacher = await this.prisma.teacher.findUnique({ where: { user_id: userId } });
-    if (!teacher) throw new BadRequestException('Teacher profile not found for this user');
+    const teacherId = await resolveTeacherId(this.prisma, userId);
 
     return this.prisma.$transaction(async (tx) => {
       const exam = await tx.exam.create({
@@ -77,7 +77,7 @@ export class ExamService {
           duration_minutes: data.duration_minutes,
           start_at: new Date(data.start_at),
           end_at: new Date(data.end_at),
-          teacher_id: teacher.id,
+          teacher_id: teacherId,
           randomize_questions: data.randomize_questions ?? true,
           randomize_answers: data.randomize_answers ?? true,
           warning_limit: data.warning_limit ?? 3,
@@ -119,7 +119,7 @@ export class ExamService {
       }
 
       if (this.eventEmitter) {
-        this.eventEmitter.emit(EventNames.EXAM_CREATED, { examId: exam.id, teacherId: teacher.id });
+        this.eventEmitter.emit(EventNames.EXAM_CREATED, { examId: exam.id, teacherId });
       }
       return tx.exam.findUnique({
         where: { id: exam.id },

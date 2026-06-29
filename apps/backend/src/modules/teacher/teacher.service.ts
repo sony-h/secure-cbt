@@ -2,14 +2,14 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTeacherDto, UpdateTeacherDto, createTeacherSchema, updateTeacherSchema, PaginationQuery } from '@secure-cbt/shared';
 import * as argon2 from 'argon2';
+import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
 
 @Injectable()
 export class TeacherService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: PaginationQuery) {
-    const page = Number(query.page) || 1;
-    const per_page = Number(query.per_page) || 20;
+    const { skip, page, perPage } = parsePagination(query);
     const { search, sort_by = 'created_at', sort_order = 'desc' } = query;
     const where: any = { deleted_at: null };
     if (search) {
@@ -22,14 +22,14 @@ export class TeacherService {
     const [data, total] = await Promise.all([
       this.prisma.teacher.findMany({
         where,
-        skip: (page - 1) * per_page,
-        take: per_page,
+        skip,
+        take: perPage,
         orderBy: { [sort_by]: sort_order },
         include: { teacher_subjects: { include: { subject: true } } },
       }),
       this.prisma.teacher.count({ where }),
     ]);
-    return { data, meta: { page, per_page, total, total_pages: Math.ceil(total / per_page) } };
+    return { data, meta: buildMeta(total, { page, perPage, skip }) };
   }
 
   async findById(id: string) {

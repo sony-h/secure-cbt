@@ -4,6 +4,7 @@ import {
   CreateQuestionDto, UpdateQuestionDto, createQuestionSchema, updateQuestionSchema,
   createQuestionBankSchema, PaginationQuery, QuestionType,
 } from '@secure-cbt/shared';
+import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
 
 @Injectable()
 export class QuestionBankService {
@@ -49,8 +50,7 @@ export class QuestionBankService {
 
   // Questions
   async findAll(query: PaginationQuery & { bank_id?: string; type?: QuestionType; subject_id?: string }) {
-    const page = Number(query.page) || 1;
-    const per_page = Number(query.per_page) || 20;
+    const { skip, page, perPage } = parsePagination(query);
     const { bank_id, type, subject_id, search } = query;
     const where: any = { deleted_at: null };
     if (bank_id) where.question_bank_id = bank_id;
@@ -61,14 +61,14 @@ export class QuestionBankService {
     const [data, total] = await Promise.all([
       this.prisma.question.findMany({
         where,
-        skip: (page - 1) * per_page,
-        take: per_page,
+        skip,
+        take: perPage,
         include: { options: true, tags: true, question_bank: { include: { subject: true } } },
         orderBy: { created_at: 'desc' },
       }),
       this.prisma.question.count({ where }),
     ]);
-    return { data, meta: { page, per_page, total, total_pages: Math.ceil(total / per_page) } };
+    return { data, meta: buildMeta(total, { page, perPage, skip }) };
   }
 
   async findById(id: string) {
