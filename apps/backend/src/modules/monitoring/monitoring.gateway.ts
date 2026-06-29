@@ -96,13 +96,13 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { studentId: string; examId: string; studentName?: string; deviceId?: string },
   ): void {
-    if (data.examId) {
-      this.server.to(`exam:${data.examId}`).emit(SocketEvent.STUDENT_CONNECTED, {
-        sessionId: client.handshake.query.examId,
-        studentId: data.studentId,
-        studentName: data.studentName || '',
-        examId: data.examId,
-        deviceId: data.deviceId,
+    const { examId, studentId, studentName, deviceId } = data;
+    if (examId) {
+      this.server.to(`exam:${examId}`).emit(SocketEvent.STUDENT_CONNECTED, {
+        studentId,
+        studentName: studentName || '',
+        examId,
+        deviceId,
         timestamp: new Date().toISOString(),
       });
     }
