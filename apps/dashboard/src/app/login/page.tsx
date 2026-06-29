@@ -40,8 +40,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
+    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100 via-transparent to-transparent dark:from-indigo-950/30" />
+      <Card className="relative overflow-hidden w-full max-w-md transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/10">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <GraduationCap className="h-6 w-6 text-primary" />
@@ -84,6 +85,7 @@ export default function LoginPage() {
           </CardFooter>
         </form>
       </Card>
+      <p className="absolute bottom-6 text-xs text-muted-foreground/60 text-center">© Secure CBT — Platform Ujian Berbasis Komputer</p>
     </div>
   );
 }

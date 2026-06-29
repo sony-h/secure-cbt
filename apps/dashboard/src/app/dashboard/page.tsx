@@ -41,10 +41,10 @@ function StatCard({ icon, title, value, subtitle, gradient }: {
   icon: React.ReactNode; title: string; value: string | number; subtitle: string; gradient: string;
 }) {
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${gradient} p-5 text-white shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-lg`}>
+    <div className={`group relative overflow-hidden rounded-xl bg-gradient-to-br ${gradient} p-5 text-white shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-lg`}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-semibold text-white/80">{title}</p>
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-white">{icon}</span>
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-white transition-transform duration-200 group-hover:scale-110">{icon}</span>
       </div>
       <p className="text-3xl font-extrabold">{value}</p>
       <p className="text-xs text-white/70 mt-1">{subtitle}</p>
@@ -130,10 +130,10 @@ function DashboardHomeContent() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={<Users className="h-5 w-5" />} title="Total Siswa" value={studentCount} subtitle="Terdaftar aktif" gradient="from-indigo-500 to-indigo-600" />
-        <StatCard icon={<GraduationCap className="h-5 w-5" />} title="Total Guru" value={teacherCount} subtitle="Pengajar terdaftar" gradient="from-emerald-500 to-emerald-600" />
-        <StatCard icon={<BookOpen className="h-5 w-5" />} title="Mata Pelajaran" value={subjectCount} subtitle="Tersedia di kurikulum" gradient="from-violet-500 to-violet-600" />
-        <StatCard icon={<FileText className="h-5 w-5" />} title="Ujian Aktif" value={activeCount} subtitle="Sedang berlangsung" gradient="from-amber-500 to-amber-600" />
+        <StatCard icon={<Users className="h-5 w-5" />} title="Total Siswa" value={studentCount} subtitle="Terdaftar aktif" gradient="from-indigo-500/90 to-indigo-600/80" />
+        <StatCard icon={<GraduationCap className="h-5 w-5" />} title="Total Guru" value={teacherCount} subtitle="Pengajar terdaftar" gradient="from-emerald-500/90 to-emerald-600/80" />
+        <StatCard icon={<BookOpen className="h-5 w-5" />} title="Mata Pelajaran" value={subjectCount} subtitle="Tersedia di kurikulum" gradient="from-violet-500/90 to-violet-600/80" />
+        <StatCard icon={<FileText className="h-5 w-5" />} title="Ujian Aktif" value={activeCount} subtitle="Sedang berlangsung" gradient="from-amber-500/90 to-amber-600/80" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -149,7 +149,7 @@ function DashboardHomeContent() {
                   <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
                     {pieData.map((entry, idx) => (<Cell key={idx} fill={entry.color} />))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value: number, name: string) => [`${value} ujian`, name]} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-2 text-sm">
@@ -181,7 +181,7 @@ function DashboardHomeContent() {
               <EmptyState title="Belum ada ujian" description="Buat ujian baru untuk memulai." className="py-8" />
             ) : (
               allExams.slice(0, 8).map((exam) => (
-                <div key={exam.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition">
+                <div key={exam.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition hover:shadow-sm border-l-4 border-l-indigo-500">
                   <div className="space-y-0.5 min-w-0">
                     <p className="font-semibold text-foreground text-sm truncate">{exam.title}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">

@@ -273,15 +273,28 @@ function MonitoringPageContent() {
                         <div className="mt-3 pt-3 border-t">
                           <p className="text-xs font-medium mb-2">Log Aktivitas</p>
                           {logs && logs.length > 0 ? (
-                            <div className="space-y-1 max-h-32 overflow-y-auto">
-                              {logs.map((log) => (
-                                <div key={log.id} className="flex items-center gap-2 text-xs">
-                                  <span className="text-muted-foreground w-20 shrink-0">
-                                    {new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }).format(new Date(log.created_at))}
-                                  </span>
-                                  <span>{log.description || log.event}</span>
-                                </div>
-                              ))}
+                            <div className="space-y-0 max-h-32 overflow-y-auto">
+                              {logs.map((log, i) => {
+                                const dotColor = log.event === 'WARNING'
+                                  ? 'bg-red-500'
+                                  : log.event === 'SUBMITTED' || log.event === 'CONNECTED'
+                                    ? 'bg-green-500'
+                                    : 'bg-blue-500';
+                                return (
+                                  <div key={log.id} className="flex gap-3">
+                                    <div className="flex flex-col items-center">
+                                      <div className={`h-2 w-2 rounded-full ${dotColor}`} />
+                                      {i < logs.length - 1 && <div className="flex-1 w-px bg-border" />}
+                                    </div>
+                                    <div className="pb-3">
+                                      <p className="text-sm">{log.description || log.event}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }).format(new Date(log.created_at))}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           ) : (
                             <p className="text-xs text-muted-foreground">Belum ada aktivitas</p>

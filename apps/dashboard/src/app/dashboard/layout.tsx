@@ -130,22 +130,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
-          {visibleItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setSidebarOpen(false)}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                isActive(item.href)
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100',
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.title}
-            </Link>
-          ))}
+          <>
+            <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Utama</p>
+            {visibleItems.slice(0, 2).map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                  isActive(item.href)
+                    ? 'border-l-2 border-indigo-400 bg-indigo-600/10 text-indigo-200'
+                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100 hover:translate-x-0.5',
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.title}
+              </Link>
+            ))}
+            <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 mt-4">Manajemen</p>
+            {visibleItems.slice(2).map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                  isActive(item.href)
+                    ? 'border-l-2 border-indigo-400 bg-indigo-600/10 text-indigo-200'
+                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100 hover:translate-x-0.5',
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.title}
+              </Link>
+            ))}
+          </>
         </nav>
 
         {/* User info & logout */}
@@ -233,7 +253,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page Content */}
-        <main className="animate-fade-in p-4 lg:p-6">{children}</main>
+        <main className="animate-fade-in p-4 lg:p-6">
+          <div className="mx-auto max-w-7xl">{children}</div>
+        </main>
       </div>
     </div>
   );
