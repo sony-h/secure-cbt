@@ -1,21 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth.store';
+import { teacherApi, academicApi } from '@/lib/api-service';
+import { useRoleGuard } from '@/hooks/use-role-guard';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/table';
 import { DataTable } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
+import { Modal } from '@/components/ui/modal';
 
 interface Teacher {
   id: string;
@@ -58,59 +59,44 @@ function TeacherDialog({
   isEditing: boolean;
   isSaving: boolean;
 }) {
-  if (!open) return null;
   const toggleSubject = (id: string) => {
     const ids = form.subject_ids.includes(id) ? form.subject_ids.filter((i) => i !== id) : [...form.subject_ids, id];
     setForm({ ...form, subject_ids: ids });
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-lg border bg-background p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">{isEditing ? 'Edit Guru' : 'Tambah Guru'}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Guru' : 'Tambah Guru'}>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>NIP</Label>
+          <Input value={form.nip} onChange={(e) => setForm({ ...form, nip: e.target.value })} placeholder="Nomor Induk Pegawai" disabled={isEditing} />
         </div>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>NIP</Label>
-            <Input value={form.nip} onChange={(e) => setForm({ ...form, nip: e.target.value })} placeholder="Nomor Induk Pegawai" disabled={isEditing} />
-          </div>
-          <div className="space-y-2">
-            <Label>Nama Lengkap</Label>
-            <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Nama lengkap guru" />
-          </div>
-          <div className="space-y-2">
-            <Label>Mata Pelajaran yang Diampu</Label>
-            <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-1">
-              {subjects.map((s) => (
-                <label key={s.id} className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted text-sm ${form.subject_ids.includes(s.id) ? 'bg-primary/5 border border-primary/30' : ''}`}>
-                  <input type="checkbox" checked={form.subject_ids.includes(s.id)} onChange={() => toggleSubject(s.id)} />
-                  <span>{s.name} <span className="text-muted-foreground text-xs">({s.code})</span></span>
-                </label>
-              ))}
-              {subjects.length === 0 && <p className="text-sm text-muted-foreground p-2">Belum ada mata pelajaran</p>}
-            </div>
-          </div>
+        <div className="space-y-2">
+          <Label>Nama Lengkap</Label>
+          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Nama lengkap guru" />
         </div>
-        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={onSave} disabled={isSaving}>{isSaving ? 'Menyimpan...' : isEditing ? 'Simpan' : 'Tambah'}</Button>
+        <div className="space-y-2">
+          <Label>Mata Pelajaran yang Diampu</Label>
+          <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-1">
+            {subjects.map((s) => (
+              <label key={s.id} className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted text-sm ${form.subject_ids.includes(s.id) ? 'bg-primary/5 border border-primary/30' : ''}`}>
+                <input type="checkbox" checked={form.subject_ids.includes(s.id)} onChange={() => toggleSubject(s.id)} />
+                <span>{s.name} <span className="text-muted-foreground text-xs">({s.code})</span></span>
+              </label>
+            ))}
+            {subjects.length === 0 && <p className="text-sm text-muted-foreground p-2">Belum ada mata pelajaran</p>}
+          </div>
         </div>
       </div>
-    </div>
+      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={onSave} disabled={isSaving}>{isSaving ? 'Menyimpan...' : isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    </Modal>
   );
 }
 
-export default function TeachersPage() {
-  const router = useRouter();
-  const { user } = useAuthStore();
-
-  useEffect(() => {
-    if (user && ![UserRole.ADMIN, UserRole.OPERATOR].includes(user.role)) {
-      router.replace('/dashboard');
-    }
-  }, [user, router]);
-
+function TeachersPageContent() {
+  useRoleGuard([UserRole.ADMIN, UserRole.OPERATOR]);
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -118,22 +104,16 @@ export default function TeachersPage() {
 
   const { data: teachers, isLoading } = useQuery({
     queryKey: ['teachers'],
-    queryFn: async () => {
-      const res = await api.get('/teachers');
-      return res.data.data;
-    },
+    queryFn: async () => { const res = await teacherApi.getAll(); return res.data.data; },
   });
 
   const { data: subjects } = useQuery({
     queryKey: ['subjects'],
-    queryFn: async () => {
-      const { data } = await api.get('/academic/subjects');
-      return data.data as SubjectOption[];
-    },
+    queryFn: async () => { const { data } = await academicApi.getSubjects(); return data.data as SubjectOption[]; },
   });
 
   const saveMutation = useMutation({
-    mutationFn: (dto: any) => editingId ? api.patch(`/teachers/${editingId}`, dto) : api.post('/teachers', dto),
+    mutationFn: (dto: any) => editingId ? teacherApi.update(editingId, dto) : teacherApi.create(dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teachers'] });
       toast.success(editingId ? 'Guru diperbarui' : 'Guru berhasil ditambahkan');
@@ -143,14 +123,14 @@ export default function TeachersPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/teachers/${id}`),
+    mutationFn: (id: string) => teacherApi.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['teachers'] }); toast.success('Guru berhasil dihapus'); },
     onError: () => toast.error('Gagal menghapus guru'),
   });
 
   const handleSave = () => {
-    if (!form.nip.trim()) return toast.error('NIP harus diisi');
-    if (!form.full_name.trim()) return toast.error('Nama harus diisi');
+    if (!form.nip.trim()) { toast.error('NIP harus diisi'); return; }
+    if (!form.full_name.trim()) { toast.error('Nama harus diisi'); return; }
     saveMutation.mutate({ nip: form.nip, full_name: form.full_name, subject_ids: form.subject_ids });
   };
 
@@ -199,4 +179,8 @@ export default function TeachersPage() {
       <TeacherDialog open={modalOpen} onClose={() => { setModalOpen(false); setEditingId(null); }} form={form} setForm={setForm} subjects={subjects || []} onSave={handleSave} isEditing={!!editingId} isSaving={saveMutation.isPending} />
     </div>
   );
+}
+
+export default function TeachersPage() {
+  return <ErrorBoundary><TeachersPageContent /></ErrorBoundary>;
 }

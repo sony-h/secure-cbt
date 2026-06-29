@@ -2,19 +2,21 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth.store';
+import { studentApi, academicApi } from '@/lib/api-service';
+import { useRoleGuard } from '@/hooks/use-role-guard';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/table';
 import { DataTable, type DataTableFilter } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
+import { Modal } from '@/components/ui/modal';
 
 interface Student {
   id: string;
@@ -59,50 +61,43 @@ function StudentDialog({
   isEditing: boolean;
   isSaving: boolean;
 }) {
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-lg border bg-background p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">{isEditing ? 'Edit Siswa' : 'Tambah Siswa'}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Siswa' : 'Tambah Siswa'}>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>NIS</Label>
+          <Input value={form.nis} onChange={(e) => setForm({ ...form, nis: e.target.value })} placeholder="Nomor Induk Siswa" disabled={isEditing} />
         </div>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>NIS</Label>
-            <Input value={form.nis} onChange={(e) => setForm({ ...form, nis: e.target.value })} placeholder="Nomor Induk Siswa" disabled={isEditing} />
-          </div>
-          <div className="space-y-2">
-            <Label>Nama Lengkap</Label>
-            <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Nama lengkap siswa" />
-          </div>
-          <div className="space-y-2">
-            <Label>Kelas</Label>
-            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })}>
-              <option value="">Pilih Kelas</option>
-              {classes.map((c) => (<option key={c.id} value={c.id}>{c.name}{c.major ? ` (${c.major.name})` : ''}</option>))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="ACTIVE">Aktif</option>
-              <option value="INACTIVE">Nonaktif</option>
-              <option value="GRADUATED">Lulus</option>
-            </select>
-          </div>
+        <div className="space-y-2">
+          <Label>Nama Lengkap</Label>
+          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Nama lengkap siswa" />
         </div>
-        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={onSave} disabled={isSaving}>{isSaving ? 'Menyimpan...' : isEditing ? 'Simpan' : 'Tambah'}</Button>
+        <div className="space-y-2">
+          <Label>Kelas</Label>
+          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })}>
+            <option value="">Pilih Kelas</option>
+            {classes.map((c) => (<option key={c.id} value={c.id}>{c.name}{c.major ? ` (${c.major.name})` : ''}</option>))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label>Status</Label>
+          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+            <option value="ACTIVE">Aktif</option>
+            <option value="INACTIVE">Nonaktif</option>
+            <option value="GRADUATED">Lulus</option>
+          </select>
         </div>
       </div>
-    </div>
+      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={onSave} disabled={isSaving}>{isSaving ? 'Menyimpan...' : isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    </Modal>
   );
 }
 
-export default function StudentsPage() {
-  const { user } = useAuthStore();
+function StudentsPageContent() {
+  const { user } = useRoleGuard([UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER]);
   const canEdit = user?.role === UserRole.ADMIN || user?.role === UserRole.OPERATOR;
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
@@ -111,42 +106,34 @@ export default function StudentsPage() {
 
   const { data: students, isLoading } = useQuery({
     queryKey: ['students'],
-    queryFn: async () => {
-      const res = await api.get('/students');
-      return res.data.data;
-    },
+    queryFn: async () => { const res = await studentApi.getAll(); return res.data.data; },
   });
 
   const { data: classes } = useQuery({
     queryKey: ['classes'],
-    queryFn: async () => {
-      const { data } = await api.get('/academic/classes');
-      return data.data as ClassOption[];
-    },
+    queryFn: async () => { const { data } = await academicApi.getClasses(); return data.data as ClassOption[]; },
   });
 
   const saveMutation = useMutation({
-    mutationFn: (dto: any) => editingId ? api.patch(`/students/${editingId}`, dto) : api.post('/students', dto),
+    mutationFn: (dto: any) => editingId ? studentApi.update(editingId, dto) : studentApi.create(dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] });
       toast.success(editingId ? 'Siswa diperbarui' : 'Siswa berhasil ditambahkan');
-      setModalOpen(false);
-      setEditingId(null);
-      setForm(emptyForm);
+      setModalOpen(false); setEditingId(null); setForm(emptyForm);
     },
     onError: () => toast.error('Gagal menyimpan data siswa'),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/students/${id}`),
+    mutationFn: (id: string) => studentApi.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['students'] }); toast.success('Siswa berhasil dihapus'); },
     onError: () => toast.error('Gagal menghapus siswa'),
   });
 
   const handleSave = () => {
-    if (!form.nis.trim()) return toast.error('NIS harus diisi');
-    if (!form.full_name.trim()) return toast.error('Nama harus diisi');
-    if (!form.class_id) return toast.error('Pilih kelas');
+    if (!form.nis.trim()) { toast.error('NIS harus diisi'); return; }
+    if (!form.full_name.trim()) { toast.error('Nama harus diisi'); return; }
+    if (!form.class_id) { toast.error('Pilih kelas'); return; }
     const dto: any = { nis: form.nis, full_name: form.full_name, class_id: form.class_id };
     if (editingId) dto.status = form.status;
     saveMutation.mutate(dto);
@@ -213,4 +200,8 @@ export default function StudentsPage() {
       <StudentDialog open={modalOpen} onClose={() => { setModalOpen(false); setEditingId(null); }} form={form} setForm={setForm} classes={classes || []} onSave={handleSave} isEditing={!!editingId} isSaving={saveMutation.isPending} />
     </div>
   );
+}
+
+export default function StudentsPage() {
+  return <ErrorBoundary><StudentsPageContent /></ErrorBoundary>;
 }

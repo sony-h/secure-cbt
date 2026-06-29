@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth.store';
+import { academicApi } from '@/lib/api-service';
+import { useRoleGuard } from '@/hooks/use-role-guard';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,15 +13,15 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/table';
 import { DataTable } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Plus, Trash2, School, BookOpen, Users, X, Pencil } from 'lucide-react';
+import { Plus, Trash2, School, BookOpen, Users, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Modal } from '@/components/ui/modal';
 
 interface MajorOption { id: string; name: string; code: string; }
 interface YearOption { id: string; name: string; is_active: boolean; }
 interface ClassOption { id: string; name: string; major?: { name: string }; grade_level: number; }
 
-// ── Year Dialog ────────────────────────────────────────────────
 function YearDialog({ open, onClose, onSave, isEditing, initialName, initialActive }: {
   open: boolean; onClose: () => void; onSave: (name: string, isActive: boolean) => void;
   isEditing: boolean; initialName?: string; initialActive?: boolean;
@@ -30,28 +31,23 @@ function YearDialog({ open, onClose, onSave, isEditing, initialName, initialActi
   useEffect(() => {
     if (open) { setName(initialName || ''); setIsActive(initialActive || false); }
   }, [open, initialName, initialActive]);
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-semibold">{isEditing ? 'Edit Tahun Ajaran' : 'Tambah Tahun Ajaran'}</h2><Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button></div>
-        <div className="space-y-4">
-          <div className="space-y-2"><Label>Nama Tahun Ajaran</Label><Input placeholder="contoh: 2026/2027" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <label className="flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer hover:bg-muted/50">
-            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-4 w-4" />
-            <span className="text-sm">Jadikan tahun ajaran aktif</span>
-          </label>
-        </div>
-        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={() => { if (name.trim()) { onSave(name, isActive); } else toast.error('Nama harus diisi'); }}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
-        </div>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Tahun Ajaran' : 'Tambah Tahun Ajaran'}>
+      <div className="space-y-4">
+        <div className="space-y-2"><Label>Nama Tahun Ajaran</Label><Input placeholder="contoh: 2026/2027" value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <label className="flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer hover:bg-muted/50">
+          <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-4 w-4" />
+          <span className="text-sm">Jadikan tahun ajaran aktif</span>
+        </label>
       </div>
-    </div>
+      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={() => { if (name.trim()) { onSave(name, isActive); } else toast.error('Nama harus diisi'); }}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    </Modal>
   );
 }
 
-// ── Major Dialog ───────────────────────────────────────────────
 function MajorDialog({ open, onClose, onSave, isEditing, initialName, initialCode }: {
   open: boolean; onClose: () => void; onSave: (name: string, code: string) => void;
   isEditing: boolean; initialName?: string; initialCode?: string;
@@ -60,25 +56,20 @@ function MajorDialog({ open, onClose, onSave, isEditing, initialName, initialCod
   useEffect(() => {
     if (open) { setName(initialName || ''); setCode(initialCode || ''); }
   }, [open, initialName, initialCode]);
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-semibold">{isEditing ? 'Edit Jurusan' : 'Tambah Jurusan'}</h2><Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button></div>
-        <div className="space-y-4">
-          <div className="space-y-2"><Label>Nama Jurusan</Label><Input placeholder="contoh: MIPA" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <div className="space-y-2"><Label>Kode Jurusan</Label><Input placeholder="contoh: MIPA" value={code} onChange={(e) => setCode(e.target.value)} /></div>
-        </div>
-        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={() => { if (name.trim() && code.trim()) { onSave(name, code); } else toast.error('Nama dan kode harus diisi'); }}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
-        </div>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Jurusan' : 'Tambah Jurusan'}>
+      <div className="space-y-4">
+        <div className="space-y-2"><Label>Nama Jurusan</Label><Input placeholder="contoh: MIPA" value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div className="space-y-2"><Label>Kode Jurusan</Label><Input placeholder="contoh: MIPA" value={code} onChange={(e) => setCode(e.target.value)} /></div>
       </div>
-    </div>
+      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={() => { if (name.trim() && code.trim()) { onSave(name, code); } else toast.error('Nama dan kode harus diisi'); }}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    </Modal>
   );
 }
 
-// ── Class Dialog ───────────────────────────────────────────────
 function ClassDialog({ open, onClose, form, setForm, majors, years, onSave, isEditing }: {
   open: boolean; onClose: () => void;
   form: { name: string; major_id: string; academic_year_id: string; grade_level: number };
@@ -86,41 +77,36 @@ function ClassDialog({ open, onClose, form, setForm, majors, years, onSave, isEd
   majors: MajorOption[]; years: YearOption[];
   onSave: () => void; isEditing: boolean;
 }) {
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-semibold">{isEditing ? 'Edit Kelas' : 'Tambah Kelas'}</h2><Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button></div>
-        <div className="space-y-4">
-          <div className="space-y-2"><Label>Nama Kelas</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="contoh: XII MIPA 1" /></div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2"><Label>Jurusan</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.major_id} onChange={(e) => setForm({ ...form, major_id: e.target.value })}>
-                <option value="">Pilih</option>{majors.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
-              </select>
-            </div>
-            <div className="space-y-2"><Label>Tingkat</Label>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.grade_level} onChange={(e) => setForm({ ...form, grade_level: Number(e.target.value) })}>
-                <option value={10}>10</option><option value={11}>11</option><option value={12}>12</option>
-              </select>
-            </div>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Kelas' : 'Tambah Kelas'}>
+      <div className="space-y-4">
+        <div className="space-y-2"><Label>Nama Kelas</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="contoh: XII MIPA 1" /></div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2"><Label>Jurusan</Label>
+            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.major_id} onChange={(e) => setForm({ ...form, major_id: e.target.value })}>
+              <option value="">Pilih</option>{majors.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
+            </select>
           </div>
-          <div className="space-y-2"><Label>Tahun Ajaran</Label>
-            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.academic_year_id} onChange={(e) => setForm({ ...form, academic_year_id: e.target.value })}>
-              <option value="">Pilih</option>{years.map((y) => (<option key={y.id} value={y.id}>{y.name} {y.is_active ? '(Aktif)' : ''}</option>))}
+          <div className="space-y-2"><Label>Tingkat</Label>
+            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.grade_level} onChange={(e) => setForm({ ...form, grade_level: Number(e.target.value) })}>
+              <option value={10}>10</option><option value={11}>11</option><option value={12}>12</option>
             </select>
           </div>
         </div>
-        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
+        <div className="space-y-2"><Label>Tahun Ajaran</Label>
+          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.academic_year_id} onChange={(e) => setForm({ ...form, academic_year_id: e.target.value })}>
+            <option value="">Pilih</option>{years.map((y) => (<option key={y.id} value={y.id}>{y.name} {y.is_active ? '(Aktif)' : ''}</option>))}
+          </select>
         </div>
       </div>
-    </div>
+      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    </Modal>
   );
 }
 
-// ── Subject Dialog ─────────────────────────────────────────────
 function SubjectDialog({ open, onClose, form, setForm, majors, onSave, isEditing }: {
   open: boolean; onClose: () => void;
   form: { name: string; code: string; major_id: string };
@@ -128,26 +114,22 @@ function SubjectDialog({ open, onClose, form, setForm, majors, onSave, isEditing
   majors: MajorOption[];
   onSave: () => void; isEditing: boolean;
 }) {
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-semibold">{isEditing ? 'Edit Mapel' : 'Tambah Mata Pelajaran'}</h2><Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button></div>
-        <div className="space-y-4">
-          <div className="space-y-2"><Label>Nama Mapel</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="contoh: Matematika" /></div>
-          <div className="space-y-2"><Label>Kode Mapel</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="contoh: MTK" /></div>
-          <div className="space-y-2"><Label>Jurusan (opsional)</Label>
-            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.major_id} onChange={(e) => setForm({ ...form, major_id: e.target.value })}>
-              <option value="">Umum (semua jurusan)</option>{majors.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
-            </select>
-          </div>
-        </div>
-        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>Batal</Button>
-          <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Mapel' : 'Tambah Mata Pelajaran'}>
+      <div className="space-y-4">
+        <div className="space-y-2"><Label>Nama Mapel</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="contoh: Matematika" /></div>
+        <div className="space-y-2"><Label>Kode Mapel</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="contoh: MTK" /></div>
+        <div className="space-y-2"><Label>Jurusan (opsional)</Label>
+          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.major_id} onChange={(e) => setForm({ ...form, major_id: e.target.value })}>
+            <option value="">Umum (semua jurusan)</option>{majors.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
+          </select>
         </div>
       </div>
-    </div>
+      <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+        <Button variant="outline" onClick={onClose}>Batal</Button>
+        <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
+      </div>
+    </Modal>
   );
 }
 
@@ -236,11 +218,11 @@ function getSubjectColumns(canEdit: boolean, setEditingId: any, setForm: any, se
   ];
 }
 
-export default function AcademicPage() {
-  const { user } = useAuthStore();
+function AcademicPageContent() {
+  const { user } = useRoleGuard([UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER]);
   const isAdmin = user?.role === UserRole.ADMIN;
   const isOperator = user?.role === UserRole.OPERATOR;
-  const canEditAcademic = isAdmin || isOperator; // Classes & subjects
+  const canEditAcademic = isAdmin || isOperator;
 
   const queryClient = useQueryClient();
   const [yearOpen, setYearOpen] = useState(false);
@@ -254,61 +236,61 @@ export default function AcademicPage() {
   const [editingYear, setEditingYear] = useState<any>(null);
   const [editingMajor, setEditingMajor] = useState<any>(null);
 
-  const { data: years } = useQuery({ queryKey: ['academic-years'], queryFn: async () => { const { data } = await api.get('/academic/years'); return data.data as YearOption[]; } });
-  const { data: majors } = useQuery({ queryKey: ['majors'], queryFn: async () => { const { data } = await api.get('/academic/majors'); return data.data as MajorOption[]; } });
-  const { data: classes } = useQuery({ queryKey: ['classes'], queryFn: async () => { const { data } = await api.get('/academic/classes'); return data.data as ClassOption[]; } });
-  const { data: subjects } = useQuery({ queryKey: ['subjects'], queryFn: async () => { const { data } = await api.get('/academic/subjects'); return data.data; } });
+  const { data: years } = useQuery({ queryKey: ['academic-years'], queryFn: async () => { const { data } = await academicApi.getYears(); return data.data as YearOption[]; } });
+  const { data: majors } = useQuery({ queryKey: ['majors'], queryFn: async () => { const { data } = await academicApi.getMajors(); return data.data as MajorOption[]; } });
+  const { data: classes } = useQuery({ queryKey: ['classes'], queryFn: async () => { const { data } = await academicApi.getClasses(); return data.data as ClassOption[]; } });
+  const { data: subjects } = useQuery({ queryKey: ['subjects'], queryFn: async () => { const { data } = await academicApi.getSubjects(); return data.data; } });
 
   const createYearMutation = useMutation({
-    mutationFn: (data: { name: string; is_active: boolean }) => api.post('/academic/years', data),
+    mutationFn: (data: { name: string; is_active: boolean }) => academicApi.createYear(data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['academic-years'] }); toast.success('Tahun ajaran ditambahkan'); setYearOpen(false); },
   });
   const deleteYearMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/academic/years/${id}`),
+    mutationFn: (id: string) => academicApi.deleteYear(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['academic-years'] }); toast.success('Tahun ajaran dihapus'); },
   });
   const updateYearMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name: string; is_active: boolean }) => api.patch(`/academic/years/${id}`, data),
+    mutationFn: ({ id, ...data }: { id: string; name: string; is_active: boolean }) => academicApi.updateYear(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['academic-years'] }); toast.success('Tahun ajaran diperbarui'); setYearOpen(false); setEditingYear(null); },
   });
   const createMajorMutation = useMutation({
-    mutationFn: (dto: { name: string; code: string }) => api.post('/academic/majors', dto),
+    mutationFn: (dto: { name: string; code: string }) => academicApi.createMajor(dto),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['majors'] }); toast.success('Jurusan ditambahkan'); setMajorOpen(false); },
   });
   const deleteMajorMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/academic/majors/${id}`),
+    mutationFn: (id: string) => academicApi.deleteMajor(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['majors'] }); toast.success('Jurusan dihapus'); },
   });
   const updateMajorMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name: string; code: string }) => api.patch(`/academic/majors/${id}`, data),
+    mutationFn: ({ id, ...data }: { id: string; name: string; code: string }) => academicApi.updateMajor(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['majors'] }); toast.success('Jurusan diperbarui'); setMajorOpen(false); setEditingMajor(null); },
   });
   const saveClassMutation = useMutation({
-    mutationFn: (dto: any) => editingClassId ? api.patch(`/academic/classes/${editingClassId}`, dto) : api.post('/academic/classes', dto),
+    mutationFn: (dto: any) => editingClassId ? academicApi.updateClass(editingClassId, dto) : academicApi.createClass(dto),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['classes'] }); toast.success(editingClassId ? 'Kelas diperbarui' : 'Kelas ditambahkan'); setClassOpen(false); setEditingClassId(null); setClassForm(emptyClassForm); },
   });
   const deleteClassMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/academic/classes/${id}`),
+    mutationFn: (id: string) => academicApi.deleteClass(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['classes'] }); toast.success('Kelas dihapus'); },
   });
   const saveSubjectMutation = useMutation({
-    mutationFn: (dto: any) => editingSubjectId ? api.patch(`/academic/subjects/${editingSubjectId}`, dto) : api.post('/academic/subjects', dto),
+    mutationFn: (dto: any) => editingSubjectId ? academicApi.updateSubject(editingSubjectId, dto) : academicApi.createSubject(dto),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['subjects'] }); toast.success(editingSubjectId ? 'Mapel diperbarui' : 'Mapel ditambahkan'); setSubjectOpen(false); setEditingSubjectId(null); setSubjectForm(emptySubjectForm); },
   });
   const deleteSubjectMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/academic/subjects/${id}`),
+    mutationFn: (id: string) => academicApi.deleteSubject(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['subjects'] }); toast.success('Mapel dihapus'); },
   });
 
   const handleSaveClass = () => {
-    if (!classForm.name.trim()) return toast.error('Nama kelas harus diisi');
-    if (!classForm.major_id) return toast.error('Pilih jurusan');
-    if (!classForm.academic_year_id) return toast.error('Pilih tahun ajaran');
+    if (!classForm.name.trim()) { toast.error('Nama kelas harus diisi'); return; }
+    if (!classForm.major_id) { toast.error('Pilih jurusan'); return; }
+    if (!classForm.academic_year_id) { toast.error('Pilih tahun ajaran'); return; }
     saveClassMutation.mutate(classForm);
   };
   const handleSaveSubject = () => {
-    if (!subjectForm.name.trim()) return toast.error('Nama mapel harus diisi');
-    if (!subjectForm.code.trim()) return toast.error('Kode mapel harus diisi');
+    if (!subjectForm.name.trim()) { toast.error('Nama mapel harus diisi'); return; }
+    if (!subjectForm.code.trim()) { toast.error('Kode mapel harus diisi'); return; }
     const dto: any = { name: subjectForm.name, code: subjectForm.code };
     if (subjectForm.major_id) dto.major_id = subjectForm.major_id;
     saveSubjectMutation.mutate(dto);
@@ -387,4 +369,8 @@ export default function AcademicPage() {
       <SubjectDialog open={subjectOpen} onClose={() => { setSubjectOpen(false); setEditingSubjectId(null); }} form={subjectForm} setForm={setSubjectForm} majors={majors || []} onSave={handleSaveSubject} isEditing={!!editingSubjectId} />
     </div>
   );
+}
+
+export default function AcademicPage() {
+  return <ErrorBoundary><AcademicPageContent /></ErrorBoundary>;
 }

@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
-import { api } from '@/lib/api';
-import { useAuthStore } from '@/stores/auth.store';
+import { examApi, monitoringApi } from '@/lib/api-service';
+import { useRoleGuard } from '@/hooks/use-role-guard';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge, Spinner } from '@/components/ui/table';
@@ -38,30 +38,20 @@ interface SessionLog {
   created_at: string;
 }
 
-export default function MonitoringPage() {
-  const router = useRouter();
-  const { user } = useAuthStore();
-
-  useEffect(() => {
-    if (user && ![UserRole.ADMIN, UserRole.TEACHER].includes(user.role)) {
-      router.replace('/dashboard');
-    }
-  }, [user, router]);
+function MonitoringPageContent() {
+  useRoleGuard([UserRole.ADMIN, UserRole.TEACHER]);
 
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [connectedStudents, setConnectedStudents] = useState<Set<string>>(new Set());
   const [sessionData, setSessionData] = useState<StudentSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
-
-  // Build a lookup map for studentUserId → studentName / sessionId
   const studentNameMap = useRef<Map<string, { name: string; sessionId: string }>>(new Map());
 
-  // ── Fetch published/ongoing exams ─────────────────────────────
   const { data: exams, isLoading: examsLoading } = useQuery({
     queryKey: ['monitoring-exams'],
     queryFn: async () => {
-      const { data } = await api.get('/exams', { params: { per_page: 50 } });
+      const { data } = await examApi.getAll({ per_page: 50 });
       return (data.data as Exam[]).filter((e) =>
         ['PUBLISHED', 'ONGOING'].includes(e.status)
       );
@@ -69,12 +59,11 @@ export default function MonitoringPage() {
     refetchInterval: 10000,
   });
 
-  // ── Fetch exam monitoring data ──────────────────────────────
   const { data: monitoringData, isLoading: monitoringLoading } = useQuery({
     queryKey: ['monitoring', selectedExamId],
     queryFn: async () => {
       if (!selectedExamId) return null;
-      const { data } = await api.get(`/monitoring/exams/${selectedExamId}`);
+      const { data } = await monitoringApi.getExamSessions(selectedExamId);
       const raw = data.data;
       return {
         ...raw,
@@ -94,38 +83,31 @@ export default function MonitoringPage() {
     refetchInterval: 5000,
   });
 
-  // ── Build name/session lookup map when session data changes ──
   useEffect(() => {
     const map = new Map<string, { name: string; sessionId: string }>();
     for (const s of sessionData) {
       const userId = (s as any).student_user_id;
-      if (userId) {
-        map.set(userId, { name: s.student.full_name, sessionId: s.id });
-      }
+      if (userId) map.set(userId, { name: s.student.full_name, sessionId: s.id });
       map.set(s.id, { name: s.student.full_name, sessionId: s.id });
     }
     studentNameMap.current = map;
   }, [sessionData]);
 
-  // ── Fetch session logs ────────────────────────────────────────
   const { data: logs } = useQuery({
     queryKey: ['session-logs', selectedSession],
     queryFn: async () => {
       if (!selectedSession) return [];
-      const { data } = await api.get(`/monitoring/sessions/${selectedSession}`);
+      const { data } = await monitoringApi.getSessionLogs(selectedSession);
       return data.data as SessionLog[];
     },
     enabled: !!selectedSession,
     refetchInterval: 3000,
   });
 
-  // Helper: resolve student name from socket event data
   function resolveName(data: any): string {
     if (data.studentName) return data.studentName;
-    // Fallback: lookup by studentId (user UUID) from sessionData
     const entry = studentNameMap.current.get(data.studentId);
     if (entry) return entry.name;
-    // Last resort: lookup by sessionId
     if (data.sessionId) {
       const sess = sessionData.find((s) => s.id === data.sessionId);
       if (sess) return sess.student.full_name;
@@ -133,7 +115,6 @@ export default function MonitoringPage() {
     return data.studentId || 'Unknown';
   }
 
-  // ── Socket.io connection ──────────────────────────────────────
   useEffect(() => {
     if (!selectedExamId) return;
 
@@ -145,10 +126,6 @@ export default function MonitoringPage() {
       transports: ['websocket'],
     });
 
-    socket.on('connect', () => {
-      console.log('Monitoring socket connected');
-    });
-
     socket.on('student.connected', (data: { studentId: string; studentName?: string; sessionId?: string }) => {
       const name = resolveName(data);
       setConnectedStudents((prev) => new Set(prev).add(data.studentId));
@@ -158,52 +135,29 @@ export default function MonitoringPage() {
     socket.on('student.disconnected', (data: { studentId: string }) => {
       const name = resolveName(data);
       setConnectedStudents((prev) => {
-        const next = new Set(prev);
-        next.delete(data.studentId);
-        return next;
+        const next = new Set(prev); next.delete(data.studentId); return next;
       });
       toast.warning(`Siswa terputus: ${name}`);
     });
 
-    socket.on('progress.updated', (data: { sessionId: string }) => {
-      setSessionData((prev) =>
-        prev.map((s) =>
-          s.id === data.sessionId ? { ...s } : s
-        )
-      );
-    });
-
     socket.on('exam.submitted', (data: { sessionId: string; studentId: string; studentName?: string }) => {
       const name = resolveName(data);
-      setSessionData((prev) =>
-        prev.map((s) =>
-          s.id === data.sessionId ? { ...s, status: 'SUBMITTED' } : s
-        )
-      );
+      setSessionData((prev) => prev.map((s) => s.id === data.sessionId ? { ...s, status: 'SUBMITTED' } : s));
       toast.success(`Siswa selesai: ${name}`);
     });
 
     socket.on('warning.triggered', (data: { sessionId: string; studentId: string; studentName?: string; count: number }) => {
       const name = resolveName(data);
-      setSessionData((prev) =>
-        prev.map((s) =>
-          s.id === data.sessionId ? { ...s, warning_count: data.count } : s
-        )
-      );
+      setSessionData((prev) => prev.map((s) => s.id === data.sessionId ? { ...s, warning_count: data.count } : s));
       toast.error(`Peringatan #${data.count}: ${name}`);
     });
 
-    socket.on('disconnect', () => console.log('Monitoring socket disconnected'));
     socketRef.current = socket;
-
     return () => { socket.disconnect(); };
   }, [selectedExamId]);
 
-  // ── Update session data from REST ─────────────────────────────
   useEffect(() => {
-    if (monitoringData?.sessions) {
-      setSessionData(monitoringData.sessions);
-    }
+    if (monitoringData?.sessions) setSessionData(monitoringData.sessions);
   }, [monitoringData]);
 
   const totalStudents = sessionData.length;
@@ -221,58 +175,15 @@ export default function MonitoringPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Users className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Total Peserta</p>
-                <p className="text-2xl font-bold">{totalStudents}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Wifi className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="text-xs text-muted-foreground">Aktif</p>
-                <p className="text-2xl font-bold">{activeCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Selesai</p>
-                <p className="text-2xl font-bold">{submittedCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              <div>
-                <p className="text-xs text-muted-foreground">Peringatan</p>
-                <p className="text-2xl font-bold">{warnings}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Users className="h-5 w-5 text-muted-foreground" /><div><p className="text-xs text-muted-foreground">Total Peserta</p><p className="text-2xl font-bold">{totalStudents}</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Wifi className="h-5 w-5 text-green-600" /><div><p className="text-xs text-muted-foreground">Aktif</p><p className="text-2xl font-bold">{activeCount}</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><CheckCircle className="h-5 w-5 text-primary" /><div><p className="text-xs text-muted-foreground">Selesai</p><p className="text-2xl font-bold">{submittedCount}</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><AlertTriangle className="h-5 w-5 text-destructive" /><div><p className="text-xs text-muted-foreground">Peringatan</p><p className="text-2xl font-bold">{warnings}</p></div></div></CardContent></Card>
       </div>
 
       <div className="flex gap-4">
-        {/* Exam list sidebar */}
         <Card className="w-72 shrink-0">
-          <CardHeader>
-            <CardTitle className="text-base">Ujian Aktif</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-base">Ujian Aktif</CardTitle></CardHeader>
           <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
             {examsLoading ? (
               <Spinner className="mx-auto h-6 w-6" />
@@ -283,9 +194,7 @@ export default function MonitoringPage() {
                 <button
                   key={exam.id}
                   onClick={() => setSelectedExamId(exam.id === selectedExamId ? null : exam.id)}
-                  className={`w-full text-left p-3 rounded-md border transition hover:bg-muted ${
-                    exam.id === selectedExamId ? 'border-primary bg-primary/5' : ''
-                  }`}
+                  className={`w-full text-left p-3 rounded-md border transition hover:bg-muted ${exam.id === selectedExamId ? 'border-primary bg-primary/5' : ''}`}
                 >
                   <p className="text-sm font-medium line-clamp-1">{exam.title}</p>
                   <div className="flex items-center gap-2 mt-1">
@@ -300,13 +209,10 @@ export default function MonitoringPage() {
           </CardContent>
         </Card>
 
-        {/* Main monitoring area */}
         <Card className="flex-1">
           <CardHeader>
             <CardTitle>
-              {selectedExamId
-                ? `Peserta: ${exams?.find((e) => e.id === selectedExamId)?.title || '...'}`
-                : 'Pilih ujian untuk memantau'}
+              {selectedExamId ? `Peserta: ${exams?.find((e) => e.id === selectedExamId)?.title || '...'}` : 'Pilih ujian untuk memantau'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -316,73 +222,41 @@ export default function MonitoringPage() {
                 <p>Pilih ujian di panel sebelah kiri untuk mulai memantau</p>
               </div>
             ) : monitoringLoading ? (
-              <div className="flex h-48 items-center justify-center">
-                <Spinner className="h-8 w-8" />
-              </div>
+              <div className="flex h-48 items-center justify-center"><Spinner className="h-8 w-8" /></div>
             ) : (
               <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {sessionData.map((session) => {
-                    const isConnected = connectedStudents.has(session.id);
-                    const isExpanded = session.id === selectedSession;
+                {sessionData.map((session) => {
+                  const isConnected = connectedStudents.has(session.id);
+                  const isExpanded = session.id === selectedSession;
                   return (
                     <div
                       key={session.id}
                       onClick={() => setSelectedSession(session.id === selectedSession ? null : session.id)}
-                      className={`p-3 border rounded-md cursor-pointer transition hover:bg-muted ${
-                        isExpanded ? 'border-primary bg-primary/5' : ''
-                      }`}
+                      className={`p-3 border rounded-md cursor-pointer transition hover:bg-muted ${isExpanded ? 'border-primary bg-primary/5' : ''}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          {isConnected ? (
-                            <Wifi className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <WifiOff className="h-4 w-4 text-destructive" />
-                          )}
+                          {isConnected ? <Wifi className="h-4 w-4 text-green-600" /> : <WifiOff className="h-4 w-4 text-destructive" />}
                           <div>
-                            <p className="text-sm font-medium">
-                              {session.student?.full_name || 'Unknown'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {session.student?.nis} &middot; {session.student?.class?.name}
-                            </p>
+                            <p className="text-sm font-medium">{session.student?.full_name || 'Unknown'}</p>
+                            <p className="text-xs text-muted-foreground">{session.student?.nis} &middot; {session.student?.class?.name}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-2 mr-1">
-                            {session.status === 'ACTIVE' ? (
-                              <Badge variant="success">Aktif</Badge>
-                            ) : session.status === 'SUBMITTED' ? (
-                              <Badge variant="default">Selesai</Badge>
-                            ) : (
-                              <Badge variant="warning">{session.status}</Badge>
-                            )}
+                            {session.status === 'ACTIVE' ? <Badge variant="success">Aktif</Badge> : session.status === 'SUBMITTED' ? <Badge variant="default">Selesai</Badge> : <Badge variant="warning">{session.status}</Badge>}
                             {session.warning_count > 0 && (
-                              <Badge variant="destructive" className="gap-1">
-                                <AlertTriangle className="h-3 w-3" />
-                                {session.warning_count}
-                              </Badge>
+                              <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />{session.warning_count}</Badge>
                             )}
                           </div>
-                          {isExpanded ? (
-                            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                          )}
+                          {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
                         </div>
                       </div>
-
-                      {/* Progress bar */}
                       {session.progress !== undefined && (
                         <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary transition-all"
-                            style={{ width: `${Math.min((session.progress ?? 0) * 100, 100)}%` }}
-                          />
+                          <div className="h-full bg-primary transition-all" style={{ width: `${Math.min((session.progress ?? 0) * 100, 100)}%` }} />
                         </div>
                       )}
-
-                      {/* Session logs */}
                       {isExpanded && (
                         <div className="mt-3 pt-3 border-t">
                           <p className="text-xs font-medium mb-2">Log Aktivitas</p>
@@ -405,10 +279,7 @@ export default function MonitoringPage() {
                     </div>
                   );
                 })}
-
-                {sessionData.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">Belum ada peserta yang memulai ujian</p>
-                )}
+                {sessionData.length === 0 && <p className="text-center text-muted-foreground py-8">Belum ada peserta yang memulai ujian</p>}
               </div>
             )}
           </CardContent>
@@ -416,4 +287,8 @@ export default function MonitoringPage() {
       </div>
     </div>
   );
+}
+
+export default function MonitoringPage() {
+  return <ErrorBoundary><MonitoringPageContent /></ErrorBoundary>;
 }

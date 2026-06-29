@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { api } from '@/lib/api';
 import { UserRole } from '@secure-cbt/shared';
 
-interface User {
+export interface User {
   id: string;
   username: string;
   role: UserRole;
