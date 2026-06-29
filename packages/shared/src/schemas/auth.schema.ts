@@ -15,6 +15,14 @@ export const changePasswordSchema = z.object({
   new_password: z.string().min(8).max(100),
 });
 
+export const passwordSchema = z
+  .string()
+  .min(8, { message: 'Kata sandi minimal 8 karakter' })
+  .max(100, { message: 'Kata sandi maksimal 100 karakter' })
+  .regex(/[A-Z]/, { message: 'Kata sandi harus mengandung huruf kapital' })
+  .regex(/[a-z]/, { message: 'Kata sandi harus mengandung huruf kecil' })
+  .regex(/[0-9]/, { message: 'Kata sandi harus mengandung angka' });
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

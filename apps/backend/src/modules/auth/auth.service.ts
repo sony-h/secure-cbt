@@ -10,6 +10,7 @@ import {
   loginSchema,
   refreshTokenSchema,
   changePasswordSchema,
+  passwordSchema,
   UserRole,
 } from '@secure-cbt/shared';
 
@@ -149,6 +150,7 @@ export class AuthService {
 
   async changePassword(userId: string, dto: ChangePasswordRequestDto): Promise<void> {
     const { old_password, new_password } = changePasswordSchema.parse(dto);
+    passwordSchema.parse(new_password);
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('User not found');
