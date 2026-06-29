@@ -5,8 +5,8 @@ import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/utils/date_utils.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_icon_box.dart';
 import 'package:secure_cbt_mobile/core/widgets/empty_state.dart';
-import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 import 'package:secure_cbt_mobile/features/exams/providers/exams_provider.dart';
+import 'package:secure_cbt_mobile/features/shared/providers/refresh_trigger.dart';
 
 class ExamsScreen extends ConsumerStatefulWidget {
   const ExamsScreen({super.key});
@@ -23,10 +23,8 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
     final theme = Theme.of(context);
     final examsAsync = ref.watch(examsDataProvider);
 
-    ref.listen(authProvider, (prev, next) {
-      if (prev != null && !prev.isAuthenticated && next.isAuthenticated) {
-        ref.invalidate(examsDataProvider);
-      }
+    ref.listen(refreshTriggerProvider, (prev, next) {
+      if (prev != next) ref.invalidate(examsDataProvider);
     });
 
     final isLoading = examsAsync.isLoading;

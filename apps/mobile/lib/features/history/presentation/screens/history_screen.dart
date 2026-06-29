@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
 import 'package:secure_cbt_mobile/core/widgets/empty_state.dart';
-import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 import 'package:secure_cbt_mobile/features/history/providers/history_provider.dart';
+import 'package:secure_cbt_mobile/features/shared/providers/refresh_trigger.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -18,10 +18,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final theme = Theme.of(context);
     final historyAsync = ref.watch(historyDataProvider);
 
-    ref.listen(authProvider, (prev, next) {
-      if (prev != null && !prev.isAuthenticated && next.isAuthenticated) {
-        ref.invalidate(historyDataProvider);
-      }
+    ref.listen(refreshTriggerProvider, (prev, next) {
+      if (prev != next) ref.invalidate(historyDataProvider);
     });
 
     final history = historyAsync.valueOrNull ?? [];

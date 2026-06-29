@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/result_provider.dart';
+import 'package:secure_cbt_mobile/features/shared/providers/refresh_trigger.dart';
 
 class ResultScreen extends ConsumerStatefulWidget {
   final String sessionId;
@@ -57,7 +58,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                             ),
                             const SizedBox(height: 32),
                             ElevatedButton.icon(
-                              onPressed: () => context.goNamed(RouteNames.home),
+                              onPressed: () {
+                                ref.read(refreshTriggerProvider.notifier).state++;
+                                context.goNamed(RouteNames.home);
+                              },
                               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
                               label: const Text('KEMBALI KE BERANDA'),
                             ),
@@ -211,7 +215,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                           ),
                           const SizedBox(height: 36),
                           ElevatedButton.icon(
-                            onPressed: () => context.goNamed(RouteNames.home),
+                            onPressed: () {
+                              ref.read(refreshTriggerProvider.notifier).state++;
+                              context.goNamed(RouteNames.home);
+                            },
                             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
                             label: const Text('KEMBALI KE BERANDA'),
                           ),

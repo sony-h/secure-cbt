@@ -22,6 +22,8 @@ class ExamDetailScreen extends StatelessWidget {
     final description = exam['description'] as String? ?? '';
     final count = exam['_count'] as Map<String, dynamic>?;
     final questionCount = count?['exam_questions'] as int? ?? 0;
+    final packageCount = exam['package_count'] as int? ?? 1;
+    final questionDisplay = packageCount > 1 ? (questionCount / packageCount).round() : questionCount;
 
     final startLabel = (() {
       try { return formatDateTimeWIB(DateTime.parse(startAt)); } catch (_) { return '-'; }
@@ -31,7 +33,7 @@ class ExamDetailScreen extends StatelessWidget {
     })();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Detail Ujian', style: TextStyle(fontWeight: FontWeight.bold)),
         leading: IconButton(
@@ -55,7 +57,7 @@ class ExamDetailScreen extends StatelessWidget {
                     iconSize: 32,
                   ),
                   const SizedBox(height: 16),
-                  Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)), maxLines: 3, overflow: TextOverflow.ellipsis),
+                  Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface), maxLines: 3, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -72,29 +74,11 @@ class ExamDetailScreen extends StatelessWidget {
                   children: [
                     _InfoRow(icon: Icons.timer_outlined, label: 'Durasi', value: formatDetailDuration(duration)),
                     const SizedBox(height: 24),
-                    _InfoRow(icon: Icons.help_outline_rounded, label: 'Jumlah Soal', value: '$questionCount soal'),
+                    _InfoRow(icon: Icons.help_outline_rounded, label: 'Jumlah Soal', value: '$questionDisplay soal'),
                     const SizedBox(height: 24),
-                    Row(
-                    children: [
-                      const Icon(Icons.calendar_today_rounded, size: 20, color: Color(0xFF64748B)),
-                      const SizedBox(width: 12),
-                      const Text('Waktu Pelaksanaan', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 32),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(startLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-                        const SizedBox(height: 2),
-                        const Text('sampai', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
-                        const SizedBox(height: 2),
-                        Text(endLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-                      ],
-                    ),
-                  ),
+                    _InfoRow(icon: Icons.play_circle_outline_rounded, label: 'Mulai', value: startLabel),
+                    const SizedBox(height: 12),
+                    _InfoRow(icon: Icons.stop_circle_outlined, label: 'Selesai', value: endLabel),
                 ],
               ),
             ),
@@ -142,18 +126,19 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icon, size: 20, color: const Color(0xFF64748B)),
+        Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(width: 12),
-        Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+        Text(label, style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant)),
         const Spacer(),
         Flexible(
           child: Text(
             value,
             textAlign: TextAlign.end,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
           ),
         ),
       ],

@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
+import 'package:secure_cbt_mobile/features/shared/providers/refresh_trigger.dart';
 
 // ── Auth State ────────────────────────────────────────────────
 class AuthState {
@@ -53,8 +54,9 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final Dio _dio;
   final FlutterSecureStorage _storage;
+  final Ref _ref;
 
-  AuthNotifier(this._dio, this._storage) : super(const AuthState());
+  AuthNotifier(this._ref, this._dio, this._storage) : super(const AuthState());
 
   Future<void> login(String username, String password) async {
     try {
@@ -82,6 +84,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         className: user['class_name'],
       );
 
+      _ref.read(refreshTriggerProvider.notifier).state++;
       AppLogger.info('Login successful', username);
     } on DioException catch (e) {
       final message = e.response?.data?['message'] ?? 'Login gagal';
@@ -101,6 +104,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } finally {
       await _storage.deleteAll();
       state = const AuthState();
+      _ref.read(refreshTriggerProvider.notifier).state++;
       AppLogger.info('Logged out');
     }
   }
@@ -133,5 +137,5 @@ class AuthNotifier extends StateNotifier<AuthState> {
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final dio = ref.watch(dioProvider);
   final storage = ref.watch(secureStorageProvider);
-  return AuthNotifier(dio, storage);
+  return AuthNotifier(ref, dio, storage);
 });
