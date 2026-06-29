@@ -6,27 +6,43 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   const ScaffoldWithNavBar({super.key, required this.navigationShell});
 
+  static const _navIcons = [
+    Icons.home_rounded,
+    Icons.assignment_rounded,
+    Icons.history_rounded,
+    Icons.person_rounded,
+  ];
+
+  static const _navLabels = ['Beranda', 'Ujian', 'Riwayat', 'Profil'];
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final currentIndex = navigationShell.currentIndex;
 
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
+        selectedIndex: currentIndex,
         onDestinationSelected: (index) {
-          navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex);
+          navigationShell.goBranch(index, initialLocation: index == currentIndex);
         },
         backgroundColor: theme.colorScheme.surface,
         indicatorColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-        elevation: 3,
-        shadowColor: const Color(0x1A000000),
+        elevation: 6,
+        surfaceTintColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+        shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.15),
         height: 64,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Beranda'),
-          NavigationDestination(icon: Icon(Icons.assignment_rounded), label: 'Ujian'),
-          NavigationDestination(icon: Icon(Icons.history_rounded), label: 'Riwayat'),
-          NavigationDestination(icon: Icon(Icons.person_rounded), label: 'Profil'),
+        destinations: [
+          for (var i = 0; i < _navIcons.length; i++)
+            NavigationDestination(
+              icon: AnimatedScale(
+                scale: i == currentIndex ? 1.1 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(_navIcons[i]),
+              ),
+              label: _navLabels[i],
+            ),
         ],
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       ),

@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
+import 'package:secure_cbt_mobile/core/widgets/shimmer.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 import 'package:secure_cbt_mobile/features/home/providers/home_provider.dart';
 
@@ -129,6 +130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               AppCard(
                 padding: const EdgeInsets.all(16),
                 borderRadius: 12,
+                borderColor: theme.colorScheme.primary.withValues(alpha: 0.1),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -141,22 +143,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+              if (isLoading)
+                Row(
+                  children: [
+                    for (var i = 0; i < 3; i++) ...[
+                      if (i > 0) const SizedBox(width: 12),
+                      const Expanded(child: ShimmerBox(height: 80)),
+                    ],
+                  ],
+                ),
               if (!isLoading)
                 Row(
                   children: [
-                    Expanded(child: _StatCard(label: 'Total Ujian', value: '$totalExams', icon: Icons.assignment_rounded, color: theme.colorScheme.primary)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _StatCard(label: 'Rata-rata Nilai', value: averageScore.toStringAsFixed(1), icon: Icons.trending_up_rounded, color: Colors.green.shade600)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _StatCard(label: 'Ujian Tersedia', value: '${upcomingExams.length}', icon: Icons.calendar_month_rounded, color: Colors.orange.shade600)),
+                    for (var i = 0; i < 3; i++) ...[
+                      if (i > 0) const SizedBox(width: 12),
+                      Expanded(
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: 1),
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                          builder: (context, value, child) =>
+                              Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 20 * (1 - value)), child: child)),
+                          child: _StatCard(
+                            label: i == 0 ? 'Total Ujian' : i == 1 ? 'Rata-rata Nilai' : 'Ujian Tersedia',
+                            value: i == 0 ? '$totalExams' : i == 1 ? averageScore.toStringAsFixed(1) : '${upcomingExams.length}',
+                            icon: i == 0 ? Icons.assignment_rounded : i == 1 ? Icons.trending_up_rounded : Icons.calendar_month_rounded,
+                            color: i == 0 ? theme.colorScheme.primary : i == 1 ? Colors.green.shade600 : Colors.orange.shade600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-              if (isLoading)
-                const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
               const SizedBox(height: 24),
               if (upcomingExams.isNotEmpty) ...[
                 Row(children: [
-                  Icon(Icons.notifications_outlined, size: 20, color: Colors.orange),
+                  const Icon(Icons.notifications_outlined, size: 20, color: Colors.orange),
                   const SizedBox(width: 8),
                   Text('Ujian Mendatang', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
                 ]),
@@ -170,14 +192,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       Container(
                         width: 40, height: 40,
                         decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(10)),
-                        child: Icon(Icons.calendar_month_outlined, color: Colors.orange, size: 20),
+                        child: const Icon(Icons.calendar_month_outlined, color: Colors.orange, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(exam['title'] ?? '', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.outline)),
+                            Text(exam['title'] ?? '', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.onSurface)),
                             const SizedBox(height: 2),
                             Text(exam['subject']?['name'] ?? '', style: TextStyle(fontSize: 12, color: Colors.orange.shade300)),
                           ],
@@ -197,9 +219,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.lightbulb_outline_rounded, color: Colors.amber, size: 20),
+                    Icon(Icons.lightbulb_outline_rounded, color: Colors.amber.shade700, size: 20),
                     const SizedBox(width: 10),
-                    const Expanded(child: Text('Tips: Belajar secara konsisten 30 menit setiap hari lebih efektif daripada belajar berjam-jam dalam sehari.', style: TextStyle(fontSize: 12, color: Color(0xFF92400E)))),
+                    Expanded(child: Text('Tips: Belajar secara konsisten 30 menit setiap hari lebih efektif daripada belajar berjam-jam dalam sehari.', style: TextStyle(fontSize: 12, color: Colors.amber.shade900))),
                   ],
                 ),
               ),
@@ -223,21 +245,21 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 6),
-          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color)),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant)),
-        ],
+    return Card(
+      elevation: 0,
+      surfaceTintColor: color.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 6),
+            Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color)),
+            const SizedBox(height: 2),
+            Text(label, style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant)),
+          ],
+        ),
       ),
     );
   }

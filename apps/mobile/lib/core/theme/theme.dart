@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -21,13 +22,14 @@ class AppTheme {
         surface: _surfaceColor,
       ),
       textTheme: GoogleFonts.interTextTheme(),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         centerTitle: true,
-        elevation: 1,
-        shadowColor: Color(0x1A000000),
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        surfaceTintColor: _primaryColor.withValues(alpha: 0.08),
         backgroundColor: _surfaceColor,
-        foregroundColor: Color(0xFF0F172A), // Slate-900
-        iconTheme: IconThemeData(color: Color(0xFF0F172A)),
+        foregroundColor: const Color(0xFF0F172A),
+        iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
       ),
       cardTheme: CardThemeData(
         color: _surfaceColor,
@@ -58,10 +60,16 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: _primaryColor,
           foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 52), // Height > 48px (Pattern 11)
+          minimumSize: const Size(double.infinity, 52),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
         ),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
       ),
     );
   }
@@ -79,12 +87,13 @@ class AppTheme {
         surface: const Color(0xFF0F172A), // Slate-900 surface
       ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         centerTitle: true,
-        elevation: 1,
-        shadowColor: Color(0x4A000000),
-        backgroundColor: Color(0xFF0F172A),
-        foregroundColor: Color(0xFFF8FAFC),
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        surfaceTintColor: _primaryColor.withValues(alpha: 0.15),
+        backgroundColor: const Color(0xFF0F172A),
+        foregroundColor: const Color(0xFFF8FAFC),
       ),
       cardTheme: CardThemeData(
         color: const Color(0xFF0F172A),
@@ -119,6 +128,12 @@ class AppTheme {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
         ),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
       ),
     );
   }

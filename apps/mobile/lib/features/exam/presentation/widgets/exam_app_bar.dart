@@ -41,21 +41,35 @@ class ExamAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(3),
-        child: LinearProgressIndicator(
-          value: progress,
-          backgroundColor: theme.colorScheme.surfaceContainerHighest,
-          valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
-          minHeight: 3,
+        child: Container(
+          height: 3,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(1.5),
+            color: theme.colorScheme.surfaceContainerHighest,
+          ),
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: progress,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(1.5),
+                gradient: LinearGradient(
+                  colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
       actions: [
-        Container(
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
           margin: const EdgeInsets.only(right: 8),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: isWarning
                 ? theme.colorScheme.errorContainer
-                : theme.colorScheme.primaryContainer,
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -64,7 +78,7 @@ class ExamAppBar extends StatelessWidget implements PreferredSizeWidget {
               Icon(
                 Icons.timer_outlined,
                 size: 16,
-                color: isWarning ? theme.colorScheme.error : theme.colorScheme.primary,
+                color: isWarning ? theme.colorScheme.onErrorContainer : theme.colorScheme.primary,
               ),
               const SizedBox(width: 5),
               Text(
@@ -73,7 +87,7 @@ class ExamAppBar extends StatelessWidget implements PreferredSizeWidget {
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                   fontFeatures: const [FontFeature.tabularFigures()],
-                  color: isWarning ? theme.colorScheme.error : theme.colorScheme.primary,
+                  color: isWarning ? theme.colorScheme.onErrorContainer : theme.colorScheme.primary,
                 ),
               ),
             ],

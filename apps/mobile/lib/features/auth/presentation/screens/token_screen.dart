@@ -20,6 +20,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
   final _tokenController = TextEditingController();
   bool _isLoading = false;
   bool _rulesAgreed = false;
+  bool _tokenFocused = false;
 
   @override
   void initState() {
@@ -108,7 +109,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                  side: BorderSide(color: theme.colorScheme.outlineVariant),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
@@ -121,7 +122,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                         textAlign: TextAlign.center,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF0F172A),
+                          color: theme.colorScheme.onSurface,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -135,26 +136,42 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                 'Peraturan & Petunjuk Ujian',
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF334155),
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 10),
               Card(
-                color: const Color(0xFFF8FAFC),
+                color: theme.colorScheme.surfaceContainerHighest,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                  side: BorderSide(color: theme.colorScheme.outlineVariant),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      _RuleItem(text: 'Dilarang keluar dari layar penuh / meminimalkan aplikasi.'),
-                      _RuleItem(text: 'Aplikasi akan otomatis mengunci dalam mode kiosk (Lock Task).'),
-                      _RuleItem(text: 'Pelanggaran/membuka aplikasi lain akan dicatat sebagai kecurangan.'),
-                      _RuleItem(text: 'Jawaban disimpan otomatis (auto-save) setiap beberapa detik.'),
-                      _RuleItem(text: 'Jika batas pelanggaran terlampaui, ujian akan otomatis dikumpulkan.'),
+                    children: [
+                      for (var i = 0; i < _rules.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                radius: 10,
+                                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                child: Text('${i + 1}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _rules[i],
+                                  style: TextStyle(fontSize: 13, height: 1.4, color: theme.colorScheme.onSurfaceVariant),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -164,35 +181,77 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                 'Masukkan Token Ujian',
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF334155),
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 8),
-              TextFormField(
-                controller: _tokenController,
-                textAlign: TextAlign.center,
-                textCapitalization: TextCapitalization.characters,
-                style: const TextStyle(fontSize: 22, letterSpacing: 6, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                decoration: const InputDecoration(
-                  hintText: 'XXXXXXXX',
-                  hintStyle: TextStyle(fontSize: 22, letterSpacing: 6, color: Color(0xFF9E9E9E)),
-                  counterText: '',
+              Focus(
+                onFocusChange: (focused) {
+                  setState(() => _tokenFocused = focused);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _tokenFocused
+                          ? theme.colorScheme.primary
+                          : _tokenController.text.isEmpty
+                              ? theme.colorScheme.outlineVariant
+                              : theme.colorScheme.primary.withValues(alpha: 0.5),
+                      width: _tokenFocused ? 2 : 1,
+                    ),
+                  ),
+                  child: TextFormField(
+                    controller: _tokenController,
+                    textAlign: TextAlign.center,
+                    textCapitalization: TextCapitalization.characters,
+                    style: TextStyle(
+                      fontSize: 22,
+                      letterSpacing: 6,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'XXXXXXXX',
+                      hintStyle: TextStyle(
+                        fontSize: 22,
+                        letterSpacing: 6,
+                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                      ),
+                      counterText: '',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                    ),
+                    maxLength: 8,
+                    onFieldSubmitted: (_) => _startExam(),
+                    onChanged: (_) => setState(() {}),
+                  ),
                 ),
-                maxLength: 8,
-                onFieldSubmitted: (_) => _startExam(),
               ),
               const SizedBox(height: 20),
-              CheckboxListTile(
-                value: _rulesAgreed,
-                onChanged: (val) => setState(() => _rulesAgreed = val ?? false),
-                title: Text(
-                  'Saya telah membaca dan memahami seluruh peraturan ujian di atas.',
-                  style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF475569), fontWeight: FontWeight.w500),
-                ),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                activeColor: theme.colorScheme.primary,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Checkbox(
+                    value: _rulesAgreed,
+                    onChanged: (val) => setState(() => _rulesAgreed = val ?? false),
+                    activeColor: theme.colorScheme.primary,
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Saya telah membaca dan memahami seluruh peraturan ujian di atas.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               ElevatedButton(
@@ -219,26 +278,10 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
   }
 }
 
-class _RuleItem extends StatelessWidget {
-  final String text;
-  const _RuleItem({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF475569)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+const _rules = [
+  'Dilarang keluar dari layar penuh / meminimalkan aplikasi.',
+  'Aplikasi akan otomatis mengunci dalam mode kiosk (Lock Task).',
+  'Pelanggaran/membuka aplikasi lain akan dicatat sebagai kecurangan.',
+  'Jawaban disimpan otomatis (auto-save) setiap beberapa detik.',
+  'Jika batas pelanggaran terlampaui, ujian akan otomatis dikumpulkan.',
+];

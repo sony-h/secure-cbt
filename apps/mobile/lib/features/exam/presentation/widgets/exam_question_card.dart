@@ -66,10 +66,13 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
               const Spacer(),
               IconButton(
                 onPressed: () => widget.onToggleFlag(questionId),
-                icon: Icon(
-                  isFlagged ? Icons.flag_rounded : Icons.flag_outlined,
-                  size: 22,
-                  color: isFlagged ? Colors.orange : const Color(0xFF94A3B8),
+                icon: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    isFlagged ? Icons.flag_rounded : Icons.flag_outlined,
+                    size: 22,
+                    color: isFlagged ? Colors.orange : theme.colorScheme.outline,
+                  ),
                 ),
                 visualDensity: VisualDensity.compact,
                 tooltip: isFlagged ? 'Hapus tanda' : 'Tandai soal',
@@ -120,77 +123,81 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
                     }
                   },
                   borderRadius: BorderRadius.circular(12),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? theme.colorScheme.primary.withValues(alpha: 0.06)
-                          : theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
+                  child: AnimatedScale(
+                    scale: isSelected ? 1.02 : 1.0,
+                    duration: const Duration(milliseconds: 150),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
                         color: isSelected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.outline.withValues(alpha: 0.3),
-                        width: isSelected ? 2 : 1,
+                            ? theme.colorScheme.primary.withValues(alpha: 0.06)
+                            : theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outline.withValues(alpha: 0.3),
+                          width: isSelected ? 2 : 1,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : Colors.transparent,
-                            border: Border.all(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
                               color: isSelected
                                   ? theme.colorScheme.primary
-                                  : theme.colorScheme.outline.withValues(alpha: 0.4),
-                              width: isSelected ? 0 : 1.5,
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: isSelected
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.outline.withValues(alpha: 0.4),
+                                width: isSelected ? 0 : 1.5,
+                              ),
+                            ),
+                            child: Center(
+                              child: isSelected
+                                  ? Text(
+                                      label,
+                                      style: TextStyle(
+                                        color: theme.colorScheme.onPrimary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    )
+                                  : Text(
+                                      label,
+                                      style: TextStyle(
+                                        color: theme.colorScheme.onSurface
+                                            .withValues(alpha: 0.6),
+                                        fontSize: 14,
+                                      ),
+                                    ),
                             ),
                           ),
-                          child: Center(
-                            child: isSelected
-                                ? Text(
-                                    label,
-                                    style: TextStyle(
-                                      color: theme.colorScheme.onPrimary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  )
-                                : Text(
-                                    label,
-                                    style: TextStyle(
-                                      color: theme.colorScheme.onSurface
-                                          .withValues(alpha: 0.6),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            optText,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                              color: isSelected
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurface,
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              optText,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                color: isSelected
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                              ),
                             ),
                           ),
-                        ),
-                        if (isSelected)
-                          Icon(
-                            Icons.check_circle,
-                            size: 22,
-                            color: theme.colorScheme.primary,
-                          ),
-                      ],
+                          if (isSelected)
+                            Icon(
+                              Icons.check_circle,
+                              size: 22,
+                              color: theme.colorScheme.primary,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

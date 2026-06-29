@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submit_dialog.dart';
 
-class QuestionPalette extends StatelessWidget {
+class QuestionPalette extends StatefulWidget {
   final List<Map<String, dynamic>> questions;
   final Map<String, String> answers;
   final int currentIndex;
@@ -20,12 +20,32 @@ class QuestionPalette extends StatelessWidget {
   });
 
   @override
+  State<QuestionPalette> createState() => _QuestionPaletteState();
+}
+
+class _QuestionPaletteState extends State<QuestionPalette> {
+  late List<bool> _visibleItems;
+
+  @override
+  void initState() {
+    super.initState();
+    _visibleItems = List.filled(widget.questions.length, false);
+    for (var i = 0; i < widget.questions.length; i++) {
+      Future.delayed(Duration(milliseconds: i * 30), () {
+        if (mounted) {
+          setState(() => _visibleItems[i] = true);
+        }
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final total = questions.length;
-    final answeredCount = answers.length;
+    final total = widget.questions.length;
+    final answeredCount = widget.answers.length;
     final progress = total > 0 ? answeredCount / total : 0.0;
-    final flaggedCount = flagged.length;
+    final flaggedCount = widget.flagged.length;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
@@ -90,7 +110,7 @@ class QuestionPalette extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // Question grid
+          // Question grid with stagger
           ConstrainedBox(
             constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
             child: GridView.builder(
@@ -103,11 +123,11 @@ class QuestionPalette extends StatelessWidget {
               ),
               itemCount: total,
               itemBuilder: (context, index) {
-                final q = questions[index];
+                final q = widget.questions[index];
                 final qId = q['question']?['id'] ?? q['id'] ?? '';
-                final isAnswered = answers.containsKey(qId);
-                final isCurrent = index == currentIndex;
-                final isFlagged = flagged.contains(qId);
+                final isAnswered = widget.answers.containsKey(qId);
+                final isCurrent = index == widget.currentIndex;
+                final isFlagged = widget.flagged.contains(qId);
 
                 Color cardColor = theme.colorScheme.surface;
                 Color textColor = theme.colorScheme.outline;
@@ -126,26 +146,30 @@ class QuestionPalette extends StatelessWidget {
                   border = Border.all(color: theme.colorScheme.tertiary, width: 1.5);
                 }
 
-                return Stack(
-                  children: [
-                    Material(
-                      color: cardColor,
-                      borderRadius: BorderRadius.circular(10),
-                      child: InkWell(
-                        onTap: () => onPageChanged(index),
+                return AnimatedOpacity(
+                  opacity: _visibleItems[index] ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Stack(
+                    children: [
+                      Material(
+                        color: cardColor,
                         borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: border),
-                          child: Center(child: Text('${index + 1}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor))),
+                        child: InkWell(
+                          onTap: () => widget.onPageChanged(index),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: border),
+                            child: Center(child: Text('${index + 1}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textColor))),
+                          ),
                         ),
                       ),
-                    ),
-                    if (isFlagged && !isCurrent)
-                      Positioned(
-                        top: 2, right: 2,
-                        child: Icon(Icons.flag_rounded, size: 12, color: theme.colorScheme.tertiary),
-                      ),
-                  ],
+                      if (isFlagged && !isCurrent)
+                        Positioned(
+                          top: 2, right: 2,
+                          child: Icon(Icons.flag_rounded, size: 12, color: theme.colorScheme.tertiary),
+                        ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -159,7 +183,7 @@ class QuestionPalette extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: () async {
                 final ok = await showSubmitDialog(context, answered: answeredCount, total: total);
-                if (ok == true) onSubmit();
+                if (ok == true) widget.onSubmit();
               },
               icon: const Icon(Icons.assignment_turned_in_rounded, size: 20),
                 label: Text(
