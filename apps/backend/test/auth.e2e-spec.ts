@@ -36,11 +36,10 @@ describe('Authentication (e2e)', () => {
     await app.close();
   });
 
-  beforeEach(async () => {
-    // Clear tokens and users before each test
+  beforeAll(async () => {
+    // Clean up any leftover test users from previous runs
     await prisma.refreshToken.deleteMany({});
     
-    // We only clean the specific test user we created to avoid violating constraints on seeded users
     const users = await prisma.user.findMany({
       where: {
         username: {
@@ -62,44 +61,8 @@ describe('Authentication (e2e)', () => {
         await prisma.student.delete({ where: { id: u.student.id } });
       }
       if (u.teacher) {
-        await prisma.examClass.deleteMany({
-          where: {
-            exam: {
-              teacher_id: u.teacher.id,
-            },
-          },
-        });
-        await prisma.examQuestion.deleteMany({
-          where: {
-            exam: {
-              teacher_id: u.teacher.id,
-            },
-          },
-        });
-        await prisma.examPackage.deleteMany({
-          where: {
-            exam: {
-              teacher_id: u.teacher.id,
-            },
-          },
-        });
-        await prisma.examToken.deleteMany({
-          where: {
-            exam: {
-              teacher_id: u.teacher.id,
-            },
-          },
-        });
         await prisma.exam.deleteMany({ where: { teacher_id: u.teacher.id } });
-
         for (const qb of u.teacher.question_banks) {
-          await prisma.questionOption.deleteMany({
-            where: {
-              question: {
-                question_bank_id: qb.id,
-              },
-            },
-          });
           await prisma.question.deleteMany({ where: { question_bank_id: qb.id } });
           await prisma.questionBank.delete({ where: { id: qb.id } });
         }

@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { SecurityDefaults } from '@secure-cbt/shared';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './common/queue/queue.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -27,8 +28,8 @@ import { HealthModule } from './modules/health/health.module';
 
     // ── Rate Limiting ──────────────────────────────────────────
     ThrottlerModule.forRoot([{
-      ttl: parseInt(process.env.THROTTLE_TTL || '60', 10) * 1000,
-      limit: parseInt(process.env.THROTTLE_LIMIT || '60', 10),
+      ttl: (Number(process.env.THROTTLE_TTL) || SecurityDefaults.RATE_LIMIT_TTL) * 1000,
+      limit: Number(process.env.THROTTLE_LIMIT) || SecurityDefaults.RATE_LIMIT_PER_MINUTE,
     }]),
 
     // ── Event System ───────────────────────────────────────────

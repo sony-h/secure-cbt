@@ -100,7 +100,6 @@ describe('Exam Flow (e2e)', () => {
     const passwordHash = await argon2.hash('teacher123');
     const user = await prisma.user.create({
       data: {
-        id: '2a49b29e-64bf-4221-bc01-a90a42b17a02',
         username: 'test_teacher',
         email: 'test_teacher@securecbt.id',
         password_hash: passwordHash,
@@ -237,7 +236,6 @@ describe('Exam Flow (e2e)', () => {
         fullscreen_required: true,
       });
 
-    console.log('Exam Create Response Body:', response.body);
     expect(response.status).toBe(201);
     expect(response.body.success).toBe(true);
     expect(response.body.data.id).toBeDefined();

@@ -138,6 +138,8 @@ model AcademicYear {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
+  deleted_at DateTime?
+
   classes  Class[]
 
   @@map("academic_years")
@@ -151,6 +153,8 @@ model Major {
   code       String   @unique
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+
+  deleted_at DateTime?
 
   classes   Class[]
   subjects  Subject[]
@@ -169,6 +173,8 @@ model Class {
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
+  deleted_at DateTime?
+
   major          Major         @relation(fields: [major_id], references: [id], onDelete: Restrict)
   academic_year  AcademicYear  @relation(fields: [academic_year_id], references: [id], onDelete: Restrict)
   students       Student[]
@@ -186,6 +192,8 @@ model Subject {
   major_id   String?   @db.Uuid
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
+
+  deleted_at DateTime?
 
   major            Major?            @relation(fields: [major_id], references: [id], onDelete: SetNull)
   teacher_subjects TeacherSubject[]
@@ -232,6 +240,7 @@ model Question {
   exam_questions  ExamQuestion[]
   answers         Answer[]
 
+  @@index([question_bank_id])
   @@map("questions")
 }
 
@@ -247,6 +256,7 @@ model QuestionOption {
 
   question  Question  @relation(fields: [question_id], references: [id], onDelete: Cascade)
 
+  @@index([question_id])
   @@map("question_options")
 }
 
@@ -383,6 +393,7 @@ model ExamSession {
   @@index([exam_id])
   @@index([student_id])
   @@index([exam_id, student_id])
+  @@index([status])
   @@map("exam_sessions")
 }
 
@@ -397,6 +408,7 @@ model SessionLog {
 
   exam_session  ExamSession  @relation(fields: [exam_session_id], references: [id], onDelete: Cascade)
 
+  @@index([exam_session_id])
   @@map("session_logs")
 }
 
@@ -442,6 +454,7 @@ model Score {
   exam_session  ExamSession  @relation(fields: [exam_session_id], references: [id], onDelete: Restrict)
   grader        User?        @relation("GradedBy", fields: [graded_by], references: [id], onDelete: SetNull)
 
+  @@index([exam_session_id])
   @@map("scores")
 }
 
