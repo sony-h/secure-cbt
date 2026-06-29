@@ -61,7 +61,7 @@ export function CreateExamModal({
       open={open}
       onClose={onClose}
       title={isEditing ? 'Edit Ujian' : 'Buat Ujian Baru'}
-      maxWidth="sm:max-w-lg"
+      maxWidth="sm:max-w-xl lg:max-w-2xl"
       footer={
         <div className="flex justify-between w-full">
           <div>
