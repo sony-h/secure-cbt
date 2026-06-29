@@ -21,38 +21,42 @@ export class MonitoringService {
       where: { exam_id: examId },
       include: {
         student: { include: { class: true } },
+        _count: { select: { answers: true } },
       },
     });
 
-    const students = sessions.map((s) => ({
-      session_id: s.id,
-      student_id: s.student_id,
-      student_user_id: s.student.user_id,
-      nis: s.student.nis,
-      student_name: s.student.full_name,
-      class_name: s.student.class.name,
-      status: s.status === SessionStatus.ACTIVE ? 'active' : s.status === SessionStatus.SUBMITTED ? 'finished' : 'disconnected',
-      progress: { answered: 0, total: 0 }, // Will be populated below
-      remaining_time_seconds: s.remaining_time_seconds ?? 0,
-      warning_count: s.warning_count,
-      last_activity_at: s.updated_at.toISOString(),
-    }));
+    // Pre-compute question counts per package (single groupBy query)
+    const questionCountGroups = await this.prisma.examQuestion.groupBy({
+      by: ['package_id'],
+      where: { exam_id: examId },
+      _count: { id: true },
+    });
 
-    // Get answer counts for each session (respecting package assignment)
-    for (const s of sessions) {
-      const student = students.find((st) => st.session_id === s.id);
-      if (!student) continue;
-      const answerCount = await this.prisma.answer.count({ where: { exam_session_id: s.id } });
-      const questionFilter: any = { exam_id: examId };
-      if (s.package_id) {
-        questionFilter.OR = [
-          { package_id: s.package_id },
-          { package_id: null },
-        ];
-      }
-      const questionCount = await this.prisma.examQuestion.count({ where: questionFilter });
-      student.progress = { answered: answerCount, total: questionCount };
+    const questionCountByPackage = new Map<string | null, number>();
+    for (const group of questionCountGroups) {
+      questionCountByPackage.set(group.package_id, group._count.id);
     }
+
+    const baseQuestionCount = questionCountByPackage.get(null) ?? 0;
+
+    const students = sessions.map((s) => {
+      const packageCount = s.package_id
+        ? (questionCountByPackage.get(s.package_id) ?? 0)
+        : 0;
+      return {
+        session_id: s.id,
+        student_id: s.student_id,
+        student_user_id: s.student.user_id,
+        nis: s.student.nis,
+        student_name: s.student.full_name,
+        class_name: s.student.class.name,
+        status: s.status === SessionStatus.ACTIVE ? 'active' : s.status === SessionStatus.SUBMITTED ? 'finished' : 'disconnected',
+        progress: { answered: s._count.answers, total: baseQuestionCount + packageCount },
+        remaining_time_seconds: s.remaining_time_seconds ?? 0,
+        warning_count: s.warning_count,
+        last_activity_at: s.updated_at.toISOString(),
+      };
+    });
 
     return {
       exam_id: exam.id,
