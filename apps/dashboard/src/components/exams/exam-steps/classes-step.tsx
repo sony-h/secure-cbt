@@ -1,6 +1,7 @@
 'use client';
 
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { ExamFormData } from '../create-exam-modal';
 
 interface Props {
@@ -17,10 +18,9 @@ export function ClassesStep({ form, setForm, classes }: Props) {
       <div className="grid grid-cols-2 gap-3">
         {classes.map((c) => (
           <label key={c.id} className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer transition hover:bg-muted ${form.class_ids.includes(c.id) ? 'border-primary bg-primary/5' : ''}`}>
-            <input
-              type="checkbox"
+            <Checkbox
               checked={form.class_ids.includes(c.id)}
-              onChange={() => {
+              onCheckedChange={() => {
                 const ids = form.class_ids.includes(c.id)
                   ? form.class_ids.filter((i) => i !== c.id)
                   : [...form.class_ids, c.id];

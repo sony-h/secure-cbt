@@ -6,9 +6,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth.store';
 import { studentApi, teacherApi, academicApi, examApi } from '@/lib/api-service';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
-import { Spinner } from '@/components/ui/spinner';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Users, GraduationCap, BookOpen, FileText, ArrowRight } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, FileText, ArrowRight, FileQuestion } from 'lucide-react';
 import Link from 'next/link';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -40,7 +40,7 @@ function StatCard({ icon, title, value, subtitle, gradient }: {
   icon: React.ReactNode; title: string; value: string | number; subtitle: string; gradient: string;
 }) {
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${gradient} p-5 text-white shadow-sm`}>
+    <div className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${gradient} p-5 text-white shadow-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-lg`}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-semibold text-white/80">{title}</p>
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-white">{icon}</span>
@@ -84,7 +84,26 @@ function DashboardHomeContent() {
   });
 
   if (authLoading) {
-    return <div className="flex h-96 items-center justify-center"><Spinner className="h-8 w-8" /></div>;
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-xl border bg-card p-6">
+              <Skeleton className="h-4 w-24 mb-2" />
+              <Skeleton className="h-8 w-16" />
+            </div>
+          ))}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl lg:col-span-2" />
+        </div>
+      </div>
+    );
   }
 
   const studentCount = studentsData?.meta?.total ?? '—';
@@ -158,7 +177,11 @@ function DashboardHomeContent() {
           </div>
           <div className="space-y-2 max-h-[360px] overflow-y-auto">
             {allExams.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">Belum ada ujian.</p>
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <FileQuestion className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                <p className="text-sm font-medium text-muted-foreground">Belum ada ujian</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Buat ujian baru untuk memulai.</p>
+              </div>
             ) : (
               allExams.slice(0, 8).map((exam) => (
                 <div key={exam.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50/50 transition">

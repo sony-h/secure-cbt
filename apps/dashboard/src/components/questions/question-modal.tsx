@@ -5,6 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from '@/components/ui/select';
 import { X, Plus } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 
@@ -83,44 +87,38 @@ export function QuestionModal({
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>Bank Soal</Label>
-          <select
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={form.question_bank_id}
-            onChange={(e) => setForm({ ...form, question_bank_id: e.target.value })}
-          >
-            <option value="">Pilih Bank Soal</option>
-            {banks.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.title} ({b.subject.name})
-              </option>
-            ))}
-          </select>
+          <Select value={form.question_bank_id} onValueChange={(v) => setForm({ ...form, question_bank_id: v })}>
+            <SelectTrigger><SelectValue placeholder="Pilih Bank Soal" /></SelectTrigger>
+            <SelectContent>
+              {banks.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.title} ({b.subject.name})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Tipe Soal</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
-            >
-              {questionTypes.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
+            <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {questionTypes.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Tingkat Kesulitan</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={form.difficulty}
-              onChange={(e) => setForm({ ...form, difficulty: e.target.value })}
-            >
-              {difficultyLevels.map((d) => (
-                <option key={d.value} value={d.value}>{d.label}</option>
-              ))}
-            </select>
+            <Select value={form.difficulty} onValueChange={(v) => setForm({ ...form, difficulty: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {difficultyLevels.map((d) => (
+                  <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -156,11 +154,9 @@ export function QuestionModal({
                   placeholder={`Pilihan ${String.fromCharCode(65 + idx)}`}
                 />
                 <label className="flex items-center gap-1 text-sm cursor-pointer shrink-0">
-                  <input
-                    type={form.type === 'MULTI_SELECT' ? 'checkbox' : 'radio'}
-                    name="correct"
+                  <Checkbox
                     checked={opt.is_correct}
-                    onChange={() => {
+                    onCheckedChange={() => {
                       const newOpts = [...form.options];
                       if (form.type === 'MULTI_SELECT') {
                         const curr = newOpts[idx]!;

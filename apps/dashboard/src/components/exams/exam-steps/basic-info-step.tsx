@@ -2,6 +2,9 @@
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from '@/components/ui/select';
 import type { ExamFormData } from '../create-exam-modal';
 
 interface Props {
@@ -24,10 +27,12 @@ export function BasicInfoStep({ form, setForm, subjects }: Props) {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Mata Pelajaran</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.subject_id} onChange={(e) => setForm({ ...form, subject_id: e.target.value })}>
-            <option value="">Pilih Mapel</option>
-            {subjects.map((s) => (<option key={s.id} value={s.id}>{s.name} ({s.code})</option>))}
-          </select>
+          <Select value={form.subject_id} onValueChange={(v) => setForm({ ...form, subject_id: v })}>
+            <SelectTrigger><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
+            <SelectContent>
+              {subjects.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name} ({s.code})</SelectItem>))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label>Durasi (menit)</Label>

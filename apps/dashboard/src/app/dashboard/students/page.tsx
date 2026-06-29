@@ -12,6 +12,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTable, type DataTableFilter } from '@/components/ui/data-table';
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from '@/components/ui/select';
+import {
+  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -74,18 +82,23 @@ function StudentDialog({
         </div>
         <div className="space-y-2">
           <Label>Kelas</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })}>
-            <option value="">Pilih Kelas</option>
-            {classes.map((c) => (<option key={c.id} value={c.id}>{c.name}{c.major ? ` (${c.major.name})` : ''}</option>))}
-          </select>
+          <Select value={form.class_id} onValueChange={(v) => setForm({ ...form, class_id: v })}>
+            <SelectTrigger><SelectValue placeholder="Pilih Kelas" /></SelectTrigger>
+            <SelectContent>
+              {classes.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}{c.major ? ` (${c.major.name})` : ''}</SelectItem>))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label>Status</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option value="ACTIVE">Aktif</option>
-            <option value="INACTIVE">Nonaktif</option>
-            <option value="GRADUATED">Lulus</option>
-          </select>
+          <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+            <SelectTrigger><SelectValue placeholder="Pilih Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ACTIVE">Aktif</SelectItem>
+              <SelectItem value="INACTIVE">Nonaktif</SelectItem>
+              <SelectItem value="GRADUATED">Lulus</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
@@ -173,7 +186,21 @@ function StudentsPageContent() {
       cell: ({ row }: any) => (
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus siswa ini?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Hapus Siswa</AlertDialogTitle>
+                <AlertDialogDescription>Yakin ingin menghapus siswa ini? Tindakan ini tidak dapat dibatalkan.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteMutation.mutate(row.original.id)}>Hapus</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       ),
     }] : []),

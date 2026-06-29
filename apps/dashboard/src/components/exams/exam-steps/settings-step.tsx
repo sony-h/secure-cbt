@@ -2,6 +2,7 @@
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { ExamFormData } from '../create-exam-modal';
 
 interface Props {
@@ -38,11 +39,9 @@ export function SettingsStep({ form, setForm }: Props) {
               <p className="text-sm font-medium">{s.label}</p>
               <p className="text-xs text-muted-foreground">{s.desc}</p>
             </div>
-            <input
-              type="checkbox"
+            <Checkbox
               checked={(form as any)[s.key]}
-              onChange={() => setForm({ ...form, [s.key]: !(form as any)[s.key] })}
-              className="h-5 w-5"
+              onCheckedChange={() => setForm({ ...form, [s.key]: !(form as any)[s.key] })}
             />
           </label>
         ))}

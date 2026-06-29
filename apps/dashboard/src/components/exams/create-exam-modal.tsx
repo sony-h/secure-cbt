@@ -79,10 +79,12 @@ export function CreateExamModal({
         ))}
       </div>
 
-      {step === 0 && <BasicInfoStep form={form} setForm={setForm} subjects={subjects} />}
-      {step === 1 && <ClassesStep form={form} setForm={setForm} classes={classes} />}
-      {step === 2 && <QuestionsStep form={form} setForm={setForm} banks={banks} questions={questions} bankFilter={bankFilter} setBankFilter={setBankFilter} />}
-      {step === 3 && <SettingsStep form={form} setForm={setForm} />}
+      <div key={step} className="animate-in fade-in slide-in-from-right-4 duration-200">
+        {step === 0 && <BasicInfoStep form={form} setForm={setForm} subjects={subjects} />}
+        {step === 1 && <ClassesStep form={form} setForm={setForm} classes={classes} />}
+        {step === 2 && <QuestionsStep form={form} setForm={setForm} banks={banks} questions={questions} bankFilter={bankFilter} setBankFilter={setBankFilter} />}
+        {step === 3 && <SettingsStep form={form} setForm={setForm} />}
+      </div>
 
       <div className="flex justify-between mt-6 pt-4 border-t">
         <div>

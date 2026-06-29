@@ -12,6 +12,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from '@/components/ui/select';
+import {
+  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Plus, Pencil, Trash2, Copy } from 'lucide-react';
@@ -211,9 +219,21 @@ function QuestionsPageContent() {
           <Button variant="ghost" size="icon" onClick={() => duplicateMutation.mutate(row.original.id)}>
             <Copy className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Yakin ingin menghapus soal ini?')) deleteMutation.mutate(row.original.id); }}>
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Hapus Soal</AlertDialogTitle>
+                <AlertDialogDescription>Yakin ingin menghapus soal ini? Tindakan ini tidak dapat dibatalkan.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteMutation.mutate(row.original.id)}>Hapus</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       ),
     },
@@ -282,16 +302,14 @@ function QuestionsPageContent() {
                 </div>
                 <div className="w-48 space-y-2">
                   <Label>Mata Pelajaran</Label>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={newBankSubject}
-                    onChange={(e) => setNewBankSubject(e.target.value)}
-                  >
-                    <option value="">Pilih Mapel</option>
-                    {subjectsData?.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
+                  <Select value={newBankSubject} onValueChange={(v) => setNewBankSubject(v)}>
+                    <SelectTrigger><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
+                    <SelectContent>
+                      {subjectsData?.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <Button
                   onClick={() => {
@@ -315,14 +333,21 @@ function QuestionsPageContent() {
                     id: 'actions',
                     header: 'Aksi',
                     cell: ({ row }: any) => (
-                      <Button variant="ghost" size="icon" onClick={() => {
-                        const bank = row.original;
-                        if (confirm(`Yakin ingin menghapus bank "${bank.title}"? Semua soal di dalamnya akan dihapus.`)) {
-                          deleteBankMutation.mutate(bank.id);
-                        }
-                      }}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Hapus Bank Soal</AlertDialogTitle>
+                            <AlertDialogDescription>Yakin ingin menghapus bank "{row.original.title}"? Semua soal di dalamnya akan dihapus.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteBankMutation.mutate(row.original.id)}>Hapus</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     ),
                   },
                 ]}

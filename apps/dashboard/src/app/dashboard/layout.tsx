@@ -8,6 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@secure-cbt/shared';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   LayoutDashboard,
   Users,
@@ -59,7 +68,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const visibleItems = navItems.filter((item) => user?.role && item.roles.includes(user.role));
 
@@ -177,42 +185,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Spacer */}
           <div className="flex-1" />
 
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* Notification */}
           <Button variant="ghost" size="icon" className="relative text-slate-500 hover:text-slate-700">
             <Bell className="h-5 w-5" />
+            {/* TODO: wire real notification count */}
             <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
-              3
+              0
             </span>
           </Button>
 
           {/* Profile Avatar */}
-          <div className="relative">
-            <button
-              onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition-colors"
-            >
-              {initials}
-            </button>
-
-            {userMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-lg border bg-white p-2 shadow-lg">
-                  <div className="px-3 py-3 border-b">
-                    <p className="text-sm font-medium text-slate-900">{displayName}</p>
-                    <p className="text-xs text-slate-500">{roleLabel}</p>
-                  </div>
-                  <button
-                    onClick={() => { setUserMenuOpen(false); logout(); router.push('/login'); }}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50 mt-1 transition-colors"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Keluar
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition-colors">
+                {initials}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <div className="font-medium text-foreground">{displayName}</div>
+                <div className="text-xs text-muted-foreground font-normal mt-0.5">{roleLabel}</div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => { logout(); router.push('/login'); }} className="text-destructive focus:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                Keluar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </header>
 
         {/* Page Content */}

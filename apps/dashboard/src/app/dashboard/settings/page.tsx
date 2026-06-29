@@ -11,7 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Spinner } from '@/components/ui/spinner';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Save, RotateCcw } from 'lucide-react';
 
@@ -38,7 +40,31 @@ function SettingsPageContent() {
   });
 
   if (isLoading || !settings) {
-    return <div className="flex h-96 items-center justify-center"><Spinner className="h-8 w-8" /></div>;
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40 mb-2" />
+            <Skeleton className="h-4 w-72" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <div className="space-y-1 flex-1">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-56" />
+                </div>
+                <Skeleton className="h-9 w-20" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -57,6 +83,7 @@ function SettingsPageContent() {
           <SettingRow label="Interval Auto-Save (detik)" description="Seberapa sering jawaban siswa disimpan otomatis" value={settings.autosave_interval} type="number" min={1} max={60} onSave={(val) => updateMutation.mutate({ autosave_interval: Number(val) })} disabled={updateMutation.isPending} />
           <SettingRow label="Timeout Sesi (menit)" description="Waktu maksimal idle sebelum sesi dianggap expired" value={settings.session_timeout} type="number" min={5} max={120} onSave={(val) => updateMutation.mutate({ session_timeout: Number(val) })} disabled={updateMutation.isPending} />
           <SettingRow label="Kriteria Ketuntasan Minimal (KKM / Passing Grade)" description="Nilai minimal standar kelulusan ujian untuk siswa" value={settings.passing_grade} type="number" min={0} max={100} onSave={(val) => updateMutation.mutate({ passing_grade: Number(val) })} disabled={updateMutation.isPending} />
+          <Separator className="my-2" />
           <SettingToggle label="Auto Submit" description="Kumpulkan ujian otomatis saat batas peringatan terlampaui" value={settings.auto_submit_enabled} onSave={(val) => updateMutation.mutate({ auto_submit_enabled: val })} disabled={updateMutation.isPending} />
           <SettingToggle label="Wajib Fullscreen" description="Siswa harus dalam mode layar penuh selama ujian" value={settings.fullscreen_required} onSave={(val) => updateMutation.mutate({ fullscreen_required: val })} disabled={updateMutation.isPending} />
           <SettingToggle label="Lock Task Mode" description="Kunci perangkat dalam mode ujian (Android kiosk)" value={settings.lock_task_mode} onSave={(val) => updateMutation.mutate({ lock_task_mode: val })} disabled={updateMutation.isPending} />
@@ -100,9 +127,10 @@ function SettingToggle({ label, description, value, onSave, disabled }: {
         <Label>{label}</Label>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <Button variant={value ? 'default' : 'outline'} size="sm" onClick={() => onSave(!value)} disabled={disabled}>
-        {value ? 'Aktif' : 'Nonaktif'}
-      </Button>
+      <div className="flex items-center gap-3">
+        <Switch checked={value} onCheckedChange={onSave} disabled={disabled} />
+        <span className="text-sm text-muted-foreground min-w-[4rem]">{value ? 'Aktif' : 'Nonaktif'}</span>
+      </div>
     </div>
   );
 }

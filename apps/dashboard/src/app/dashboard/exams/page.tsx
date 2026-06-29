@@ -10,6 +10,11 @@ import { DataTable } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import { Plus, Pencil, Trash2, Key, Clock, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { CreateExamModal, emptyExamForm, type ExamFormData } from '@/components/exams/create-exam-modal';
@@ -191,7 +196,21 @@ function ExamsPageContent() {
           {(row.original.status === 'PUBLISHED' || row.original.status === 'ONGOING') && (
             <Button variant="ghost" size="icon" onClick={() => tokenMutation.mutate(row.original.id)} title="Generate Token"><Key className="h-4 w-4" /></Button>
           )}
-          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus ujian ini?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Hapus Ujian</AlertDialogTitle>
+                <AlertDialogDescription>Yakin ingin menghapus ujian ini? Tindakan ini tidak dapat dibatalkan.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Batal</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteMutation.mutate(row.original.id)}>Hapus</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       ),
     },

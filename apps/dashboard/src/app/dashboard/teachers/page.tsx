@@ -11,7 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable } from '@/components/ui/data-table';
+import {
+  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -79,7 +85,7 @@ function TeacherDialog({
           <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-1">
             {subjects.map((s) => (
               <label key={s.id} className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted text-sm ${form.subject_ids.includes(s.id) ? 'bg-primary/5 border border-primary/30' : ''}`}>
-                <input type="checkbox" checked={form.subject_ids.includes(s.id)} onChange={() => toggleSubject(s.id)} />
+                <Checkbox checked={form.subject_ids.includes(s.id)} onCheckedChange={() => toggleSubject(s.id)} />
                 <span>{s.name} <span className="text-muted-foreground text-xs">({s.code})</span></span>
               </label>
             ))}
@@ -154,7 +160,21 @@ function TeachersPageContent() {
     { id: 'actions', header: 'Aksi', cell: ({ row }: any) => (
       <div className="flex gap-1">
         <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}><Pencil className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus guru ini?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Hapus Guru</AlertDialogTitle>
+              <AlertDialogDescription>Yakin ingin menghapus guru ini? Tindakan ini tidak dapat dibatalkan.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteMutation.mutate(row.original.id)}>Hapus</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     )},
   ];
