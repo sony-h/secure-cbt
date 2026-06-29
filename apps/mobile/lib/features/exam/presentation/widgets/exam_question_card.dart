@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/exam_provider.dart';
 
-class ExamQuestionCard extends StatelessWidget {
+class ExamQuestionCard extends StatefulWidget {
   final Map<String, dynamic> question;
   final ExamState examState;
   final int index;
@@ -18,15 +19,28 @@ class ExamQuestionCard extends StatelessWidget {
   });
 
   @override
+  State<ExamQuestionCard> createState() => _ExamQuestionCardState();
+}
+
+class _ExamQuestionCardState extends State<ExamQuestionCard> {
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final content = question['question']?['content'] ?? question['content'] ?? '';
-    final options = (question['question']?['options'] as List<dynamic>?) ??
-        (question['options'] as List<dynamic>?) ??
+    final content = widget.question['question']?['content'] ?? widget.question['content'] ?? '';
+    final options = (widget.question['question']?['options'] as List<dynamic>?) ??
+        (widget.question['options'] as List<dynamic>?) ??
         [];
-    final questionId = question['question']?['id'] ?? question['id'] ?? '';
-    final type = question['question']?['type'] ?? '';
-    final isFlagged = examState.flagged.contains(questionId);
+    final questionId = widget.question['question']?['id'] ?? widget.question['id'] ?? '';
+    final type = widget.question['question']?['type'] ?? '';
+    final isFlagged = widget.examState.flagged.contains(questionId);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -42,7 +56,7 @@ class ExamQuestionCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'Soal ${index + 1}',
+                  'Soal ${widget.index + 1}',
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: theme.colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.bold,
@@ -51,7 +65,7 @@ class ExamQuestionCard extends StatelessWidget {
               ),
               const Spacer(),
               IconButton(
-                onPressed: () => onToggleFlag(questionId),
+                onPressed: () => widget.onToggleFlag(questionId),
                 icon: Icon(
                   isFlagged ? Icons.flag_rounded : Icons.flag_outlined,
                   size: 22,
@@ -84,15 +98,15 @@ class ExamQuestionCard extends StatelessWidget {
               final label = String.fromCharCode(65 + index);
               final isMultiSelect = type == 'MULTI_SELECT';
               final isSelected = isMultiSelect
-                  ? (examState.answers[questionId]?.split(',').contains(optId) ?? false)
-                  : examState.answers[questionId] == optId;
+                  ? (widget.examState.answers[questionId]?.split(',').contains(optId) ?? false)
+                  : widget.examState.answers[questionId] == optId;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: InkWell(
                   onTap: () {
                     if (isMultiSelect) {
-                      final current = examState.answers[questionId] ?? '';
+                      final current = widget.examState.answers[questionId] ?? '';
                       final selected =
                           current.split(',').where((s) => s.isNotEmpty).toList();
                       if (selected.contains(optId)) {
@@ -100,9 +114,9 @@ class ExamQuestionCard extends StatelessWidget {
                       } else {
                         selected.add(optId);
                       }
-                      onSaveAnswer(questionId, selected.join(','));
+                      widget.onSaveAnswer(questionId, selected.join(','));
                     } else {
-                      onSaveAnswer(questionId, optId);
+                      widget.onSaveAnswer(questionId, optId);
                     }
                   },
                   borderRadius: BorderRadius.circular(12),
@@ -188,7 +202,7 @@ class ExamQuestionCard extends StatelessWidget {
   }
 
   Widget _buildEssayInput(ThemeData theme, String questionId) {
-    final essayAnswer = examState.answers[questionId] ?? '';
+    final essayAnswer = widget.examState.answers[questionId] ?? '';
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
@@ -206,7 +220,12 @@ class ExamQuestionCard extends StatelessWidget {
           fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           contentPadding: const EdgeInsets.all(14),
         ),
-        onChanged: (value) => onSaveAnswer(questionId, value),
+        onChanged: (value) {
+          _debounce?.cancel();
+          _debounce = Timer(const Duration(milliseconds: 500), () {
+            widget.onSaveAnswer(questionId, value);
+          });
+        },
       ),
     );
   }

@@ -173,7 +173,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
               const SizedBox(height: 24),
               if (_upcomingExams.isNotEmpty) ...[
-                Text('🔔 Ujian Mendatang', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: const Color(0xFF334155))),
+                Row(children: [
+                  Icon(Icons.notifications_outlined, size: 20, color: Colors.orange),
+                  const SizedBox(width: 8),
+                  Text('Ujian Mendatang', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: const Color(0xFF334155))),
+                ]),
                 const SizedBox(height: 10),
                 ..._upcomingExams.map((exam) => AppCard(
                   margin: const EdgeInsets.only(bottom: 10),

@@ -167,7 +167,7 @@ class ExamBottomBar extends StatelessWidget {
                 onPressed: onSubmit,
                 icon: const Icon(Icons.assignment_turned_in, size: 18),
                 label: const Text(
-                  'Submit',
+                  'Kumpulkan',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 style: ElevatedButton.styleFrom(

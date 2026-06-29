@@ -79,9 +79,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   Text(
-                    'Welcome Back 👋',
+                    'Secure CBT',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Selamat Datang',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -90,7 +99,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Sign in to continue your exam journey',
+                    'Masuk untuk melanjutkan ujian',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: const Color(0xFF64748B),
@@ -109,7 +118,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            'Student ID / Username',
+                            'NIS / Username',
                             style: theme.textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: const Color(0xFF475569),
@@ -119,7 +128,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           TextFormField(
                             controller: _usernameController,
                             decoration: const InputDecoration(
-                              hintText: 'Enter your student ID',
+                              hintText: 'Masukkan NIS atau username',
                               prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
                               floatingLabelBehavior: FloatingLabelBehavior.never,
                             ),
@@ -139,7 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             decoration: InputDecoration(
-                              hintText: 'Enter your password',
+                              hintText: 'Masukkan kata sandi',
                               prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
                               suffixIcon: IconButton(
                                 icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 20),
@@ -173,7 +182,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Login'),
+                      : const Text('Masuk'),
                   ),
                   const SizedBox(height: 24),
                   Row(
@@ -182,7 +191,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Icon(Icons.security_rounded, size: 16, color: Colors.green.shade600),
                       const SizedBox(width: 6),
                       Text(
-                        'Secure & Protected',
+                        'Aman & Terlindungi',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: Colors.green.shade700,
                           fontWeight: FontWeight.w600,

@@ -122,7 +122,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                           ),
                           const SizedBox(height: 24),
                           Text(
-                            'Ujian Selesai! 🎉',
+                            'Ujian Selesai!',
                             textAlign: TextAlign.center,
                             style: theme.textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,

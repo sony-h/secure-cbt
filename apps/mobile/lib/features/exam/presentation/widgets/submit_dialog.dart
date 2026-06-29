@@ -8,20 +8,20 @@ Future<bool?> showSubmitDialog(
   return showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Submit Exam?'),
+      title: const Text('Kumpulkan Ujian?'),
       content: Text(
         answered < total
-            ? 'You have answered $answered of $total questions. Are you sure you want to submit?'
-            : 'All questions have been answered. Submit now?',
+            ? 'Kamu baru menjawab $answered dari $total soal. Yakin ingin mengumpulkan?'
+            : 'Semua soal sudah terjawab. Kumpulkan sekarang?',
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('CANCEL'),
+          child: const Text('BATAL'),
         ),
         TextButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('SUBMIT', style: TextStyle(color: Colors.red)),
+          child: const Text('KUMPULKAN', style: TextStyle(color: Colors.red)),
         ),
       ],
     ),
@@ -34,16 +34,16 @@ Future<bool?> showWarningSubmitDialog(
   return showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Submit Exam?'),
-      content: const Text('Your answers will be submitted and cannot be changed.'),
+      title: const Text('Kumpulkan Ujian?'),
+      content: const Text('Jawaban akan dikumpulkan dan tidak dapat diubah.'),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('CANCEL'),
+          child: const Text('BATAL'),
         ),
         TextButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('SUBMIT', style: TextStyle(color: Colors.red)),
+          child: const Text('KUMPULKAN', style: TextStyle(color: Colors.red)),
         ),
       ],
     ),

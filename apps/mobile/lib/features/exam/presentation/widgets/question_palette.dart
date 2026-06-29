@@ -160,28 +160,27 @@ class QuestionPalette extends StatelessWidget {
                 showDialog(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Submit Exam?'),
+                    title: const Text('Kumpulkan Ujian?'),
                     content: Text(
                       answeredCount < total
-                          ? 'You have answered $answeredCount of $total questions. Submit anyway?'
-                          : 'All questions answered. Submit your exam?',
+                          ? 'Kamu baru menjawab $answeredCount dari $total soal. Tetap kumpulkan?'
+                          : 'Semua soal sudah terjawab. Kumpulkan ujian?',
                     ),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCEL')),
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('BATAL')),
                       TextButton(
                         onPressed: () { Navigator.pop(ctx); onSubmit(); },
-                        child: Text('SUBMIT', style: TextStyle(color: theme.colorScheme.error)),
+                        child: Text('KUMPULKAN', style: TextStyle(color: theme.colorScheme.error)),
                       ),
                     ],
-                  ),
-                );
-              },
-              icon: const Icon(Icons.assignment_turned_in_rounded, size: 20),
-              label: Text(
-                answeredCount < total
-                    ? 'Submit ($answeredCount/$total)'
-                    : 'Submit Exam',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                  );
+                },
+                icon: const Icon(Icons.assignment_turned_in_rounded, size: 20),
+                label: Text(
+                  answeredCount < total
+                      ? 'Kumpulkan ($answeredCount/$total)'
+                      : 'Kumpulkan Ujian',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.error,

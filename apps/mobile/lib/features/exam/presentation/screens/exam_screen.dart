@@ -203,7 +203,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Exam auto-submitted: warning limit exceeded.'),
+          content: const Text('Ujian otomatis dikumpulkan: batas pelanggaran terlampaui.'),
           backgroundColor: Colors.red.shade700,
           duration: const Duration(seconds: 5),
         ),
