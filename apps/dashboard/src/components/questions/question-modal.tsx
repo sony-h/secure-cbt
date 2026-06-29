@@ -83,13 +83,13 @@ export function QuestionModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Soal' : 'Tambah Soal'} footer={
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Soal' : 'Tambah Soal'} maxWidth="sm:max-w-2xl" footer={
       <div className="flex justify-end gap-3">
         <Button variant="outline" onClick={onClose}>Batal</Button>
         <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Buat Soal'}</Button>
       </div>
     }>
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2">
         <div className="space-y-2">
           <Label>Bank Soal</Label>
           <Select value={form.question_bank_id} onValueChange={(v) => setForm({ ...form, question_bank_id: v })}>
