@@ -7,6 +7,7 @@ import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -182,7 +183,7 @@ function ReportsPageContent() {
           </div>
 
           {!selectedExam ? (
-            <p className="text-center text-muted-foreground py-8 print:hidden">Pilih ujian untuk melihat hasil</p>
+            <EmptyState title="Pilih Ujian" description="Pilih ujian untuk melihat hasil" className="py-8 print:hidden" />
           ) : (
             <DataTable columns={reportColumns} data={sortedResults} loading={isLoading} emptyMessage="Belum ada hasil ujian" />
           )}

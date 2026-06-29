@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@secure-cbt/shared';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -179,6 +180,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Input
               placeholder="Cari ujian, siswa..."
               className="h-9 pl-9 text-sm bg-slate-50 border-slate-200"
+              /* TODO: wire real search */
+              onChange={() => {}}
             />
           </div>
 
@@ -200,9 +203,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Profile Avatar */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition-colors">
-                {initials}
-              </button>
+              <Avatar className="h-8 w-8 cursor-pointer">
+                <AvatarFallback className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition-colors">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-normal">
@@ -219,7 +224,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page Content */}
-        <main className="p-4 lg:p-6">{children}</main>
+        <main className="animate-fade-in p-4 lg:p-6">{children}</main>
       </div>
     </div>
   );

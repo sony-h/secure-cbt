@@ -13,6 +13,14 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Plus, Trash2, School, BookOpen, Users, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -36,7 +44,7 @@ function YearDialog({ open, onClose, onSave, isEditing, initialName, initialActi
       <div className="space-y-4">
         <div className="space-y-2"><Label>Nama Tahun Ajaran</Label><Input placeholder="contoh: 2026/2027" value={name} onChange={(e) => setName(e.target.value)} /></div>
         <label className="flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer hover:bg-muted/50">
-          <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-4 w-4" />
+          <Checkbox checked={isActive} onCheckedChange={(v) => setIsActive(v === true)} />
           <span className="text-sm">Jadikan tahun ajaran aktif</span>
         </label>
       </div>
@@ -83,20 +91,27 @@ function ClassDialog({ open, onClose, form, setForm, majors, years, onSave, isEd
         <div className="space-y-2"><Label>Nama Kelas</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="contoh: XII MIPA 1" /></div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2"><Label>Jurusan</Label>
-            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.major_id} onChange={(e) => setForm({ ...form, major_id: e.target.value })}>
-              <option value="">Pilih</option>{majors.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
-            </select>
+            <Select value={form.major_id} onValueChange={(v) => setForm({ ...form, major_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
+              <SelectContent>{majors.map((m) => (<SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>))}</SelectContent>
+            </Select>
           </div>
           <div className="space-y-2"><Label>Tingkat</Label>
-            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.grade_level} onChange={(e) => setForm({ ...form, grade_level: Number(e.target.value) })}>
-              <option value={10}>10</option><option value={11}>11</option><option value={12}>12</option>
-            </select>
+            <Select value={String(form.grade_level)} onValueChange={(v) => setForm({ ...form, grade_level: Number(v) })}>
+              <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="11">11</SelectItem>
+                <SelectItem value="12">12</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="space-y-2"><Label>Tahun Ajaran</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.academic_year_id} onChange={(e) => setForm({ ...form, academic_year_id: e.target.value })}>
-            <option value="">Pilih</option>{years.map((y) => (<option key={y.id} value={y.id}>{y.name} {y.is_active ? '(Aktif)' : ''}</option>))}
-          </select>
+          <Select value={form.academic_year_id} onValueChange={(v) => setForm({ ...form, academic_year_id: v })}>
+            <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
+            <SelectContent>{years.map((y) => (<SelectItem key={y.id} value={y.id}>{y.name} {y.is_active ? '(Aktif)' : ''}</SelectItem>))}</SelectContent>
+          </Select>
         </div>
       </div>
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
@@ -120,9 +135,13 @@ function SubjectDialog({ open, onClose, form, setForm, majors, onSave, isEditing
         <div className="space-y-2"><Label>Nama Mapel</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="contoh: Matematika" /></div>
         <div className="space-y-2"><Label>Kode Mapel</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="contoh: MTK" /></div>
         <div className="space-y-2"><Label>Jurusan (opsional)</Label>
-          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={form.major_id} onChange={(e) => setForm({ ...form, major_id: e.target.value })}>
-            <option value="">Umum (semua jurusan)</option>{majors.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
-          </select>
+          <Select value={form.major_id} onValueChange={(v) => setForm({ ...form, major_id: v })}>
+            <SelectTrigger><SelectValue placeholder="Umum (semua jurusan)" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Umum (semua jurusan)</SelectItem>
+              {majors.map((m) => (<SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
@@ -148,7 +167,15 @@ function getYearColumns(isAdmin: boolean, setEditing: any, setOpen: any, deleteM
       cell: ({ row }: any) => (
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" onClick={() => { setEditing(row.original); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader><AlertDialogTitle>Hapus Tahun Ajaran</AlertDialogTitle><AlertDialogDescription>Yakin ingin menghapus tahun ajaran ini?</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(row.original.id)}>Hapus</AlertDialogAction></AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       ),
     }] : []),
@@ -165,7 +192,15 @@ function getMajorColumns(isAdmin: boolean, setEditing: any, setOpen: any, delete
       cell: ({ row }: any) => (
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" onClick={() => { setEditing(row.original); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader><AlertDialogTitle>Hapus Jurusan</AlertDialogTitle><AlertDialogDescription>Yakin ingin menghapus jurusan ini?</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(row.original.id)}>Hapus</AlertDialogAction></AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       ),
     }] : []),
@@ -188,7 +223,15 @@ function getClassColumns(canEdit: boolean, setEditingId: any, setForm: any, setO
             setForm({ name: c.name, major_id: c.major?.id || '', academic_year_id: c.academic_year?.id || '', grade_level: c.grade_level });
             setOpen(true);
           }}><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader><AlertDialogTitle>Hapus Kelas</AlertDialogTitle><AlertDialogDescription>Yakin ingin menghapus kelas ini?</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(row.original.id)}>Hapus</AlertDialogAction></AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       ),
     }] : []),
@@ -211,7 +254,15 @@ function getSubjectColumns(canEdit: boolean, setEditingId: any, setForm: any, se
             setForm({ name: s.name, code: s.code, major_id: s.major?.id || '' });
             setOpen(true);
           }}><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="icon" onClick={() => { if (confirm('Hapus?')) deleteMutation.mutate(row.original.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader><AlertDialogTitle>Hapus Mata Pelajaran</AlertDialogTitle><AlertDialogDescription>Yakin ingin menghapus mata pelajaran ini?</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel>Batal</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(row.original.id)}>Hapus</AlertDialogAction></AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       ),
     }] : []),

@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { studentApi, teacherApi, academicApi, examApi } from '@/lib/api-service';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Users, GraduationCap, BookOpen, FileText, ArrowRight, FileQuestion } from 'lucide-react';
 import Link from 'next/link';
@@ -177,11 +178,7 @@ function DashboardHomeContent() {
           </div>
           <div className="space-y-2 max-h-[360px] overflow-y-auto">
             {allExams.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <FileQuestion className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                <p className="text-sm font-medium text-muted-foreground">Belum ada ujian</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Buat ujian baru untuk memulai.</p>
-              </div>
+              <EmptyState title="Belum ada ujian" description="Buat ujian baru untuk memulai." className="py-8" />
             ) : (
               allExams.slice(0, 8).map((exam) => (
                 <div key={exam.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50/50 transition">

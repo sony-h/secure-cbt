@@ -8,7 +8,10 @@ import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Wifi, WifiOff, AlertTriangle, Users, CheckCircle, Eye, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
@@ -176,10 +179,20 @@ function MonitoringPageContent() {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Users className="h-5 w-5 text-muted-foreground" /><div><p className="text-xs text-muted-foreground">Total Peserta</p><p className="text-2xl font-bold">{totalStudents}</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Wifi className="h-5 w-5 text-green-600" /><div><p className="text-xs text-muted-foreground">Aktif</p><p className="text-2xl font-bold">{activeCount}</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><CheckCircle className="h-5 w-5 text-primary" /><div><p className="text-xs text-muted-foreground">Selesai</p><p className="text-2xl font-bold">{submittedCount}</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><AlertTriangle className="h-5 w-5 text-destructive" /><div><p className="text-xs text-muted-foreground">Peringatan</p><p className="text-2xl font-bold">{warnings}</p></div></div></CardContent></Card>
+        {monitoringLoading && selectedExamId ? (
+          <>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}><CardContent className="pt-6"><Skeleton className="h-5 w-24 mb-2" /><Skeleton className="h-8 w-12" /></CardContent></Card>
+            ))}
+          </>
+        ) : (
+          <>
+            <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Users className="h-5 w-5 text-muted-foreground" /><div><p className="text-xs text-muted-foreground">Total Peserta</p><p className="text-2xl font-bold">{totalStudents}</p></div></div></CardContent></Card>
+            <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Wifi className="h-5 w-5 text-green-600" /><div><p className="text-xs text-muted-foreground">Aktif</p><p className="text-2xl font-bold">{activeCount}</p></div></div></CardContent></Card>
+            <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><CheckCircle className="h-5 w-5 text-primary" /><div><p className="text-xs text-muted-foreground">Selesai</p><p className="text-2xl font-bold">{submittedCount}</p></div></div></CardContent></Card>
+            <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><AlertTriangle className="h-5 w-5 text-destructive" /><div><p className="text-xs text-muted-foreground">Peringatan</p><p className="text-2xl font-bold">{warnings}</p></div></div></CardContent></Card>
+          </>
+        )}
       </div>
 
       <div className="flex gap-4">
@@ -254,9 +267,7 @@ function MonitoringPageContent() {
                         </div>
                       </div>
                       {session.progress !== undefined && (
-                        <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-primary transition-all" style={{ width: `${Math.min((session.progress ?? 0) * 100, 100)}%` }} />
-                        </div>
+                        <Progress value={Math.min((session.progress ?? 0) * 100, 100)} className="mt-2 h-1.5" />
                       )}
                       {isExpanded && (
                         <div className="mt-3 pt-3 border-t">
@@ -280,7 +291,7 @@ function MonitoringPageContent() {
                     </div>
                   );
                 })}
-                {sessionData.length === 0 && <p className="text-center text-muted-foreground py-8">Belum ada peserta yang memulai ujian</p>}
+                {sessionData.length === 0 && <EmptyState title="Belum ada peserta" description="Belum ada peserta yang memulai ujian" className="py-8" />}
               </div>
             )}
           </CardContent>
