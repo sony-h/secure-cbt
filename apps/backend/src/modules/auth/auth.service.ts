@@ -64,31 +64,27 @@ export class AuthService {
       expiresIn: '7d',
     });
 
-    // Store refresh token
-    await this.prisma.refreshToken.create({
-      data: {
-        user_id: user.id,
-        token: refresh_token,
-        device_id,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-    });
+    return await this.prisma.$transaction(async (tx) => {
+      await tx.refreshToken.deleteMany({
+        where: { user_id: user.id, device_id },
+      });
 
-    // Invalidate old tokens for this device
-    await this.prisma.refreshToken.deleteMany({
-      where: {
-        user_id: user.id,
-        device_id,
-        token: { not: refresh_token },
-      },
-    });
+      await tx.refreshToken.create({
+        data: {
+          user_id: user.id,
+          token: refresh_token,
+          device_id,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
 
-    return {
-      access_token,
-      refresh_token,
-      expires_in: 900,
-      user: { id: user.id, username: user.username, role: user.role, full_name, nis, class_name },
-    };
+      return {
+        access_token,
+        refresh_token,
+        expires_in: 900,
+        user: { id: user.id, username: user.username, role: user.role, full_name, nis, class_name },
+      };
+    });
   }
 
   async refresh(dto: RefreshTokenRequestDto): Promise<LoginResponseDto> {
@@ -184,16 +180,20 @@ export class AuthService {
     const { password_hash, teacher, student, ...safeUser } = user;
 
     let full_name = user.username;
+    let nis: string | undefined;
+    let class_name: string | undefined;
     if (user.role === UserRole.TEACHER && teacher) {
       full_name = teacher.full_name;
     } else if (user.role === UserRole.STUDENT && student) {
       full_name = student.full_name;
+      nis = student.nis;
+      class_name = student.class?.name;
     } else if (user.role === UserRole.ADMIN) {
       full_name = 'Administrator';
     } else if (user.role === UserRole.OPERATOR) {
       full_name = 'Operator';
     }
 
-    return { ...safeUser, full_name, teacher, student };
+    return { ...safeUser, full_name, nis, class_name, teacher, student };
   }
 }

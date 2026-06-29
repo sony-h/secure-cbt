@@ -18,64 +18,60 @@ final dioProvider = Provider<Dio>((ref) {
     headers: {'Content-Type': 'application/json'},
   ));
 
-  // ── Logging Interceptor ─────────────────────────────────────
-  dio.interceptors.add(LogInterceptor(
-    requestBody: true,
-    responseBody: true,
-    logPrint: (obj) => AppLogger.debug('Dio', obj),
-  ));
-
-  // ── Auth Interceptor ────────────────────────────────────────
-  dio.interceptors.add(InterceptorsWrapper(
-    onRequest: (options, handler) async {
-      final storage = ref.read(secureStorageProvider);
-      final token = await storage.read(key: 'access_token');
-      if (token != null) {
-        options.headers['Authorization'] = 'Bearer $token';
-      }
-      handler.next(options);
-    },
-    onError: (error, handler) async {
-      // Auto-refresh token on 401
-      if (error.response?.statusCode == 401) {
+  // Order: Retry (closest to adapter) → Auth → Log (outermost)
+  dio.interceptors.addAll([
+    RetryInterceptor(
+      dio: dio,
+      logPrint: (msg) => AppLogger.debug('Retry', msg),
+      retries: 3,
+      retryDelays: const [
+        Duration(seconds: 1),
+        Duration(seconds: 2),
+        Duration(seconds: 4),
+      ],
+    ),
+    InterceptorsWrapper(
+      onRequest: (options, handler) async {
         final storage = ref.read(secureStorageProvider);
-        final refreshToken = await storage.read(key: 'refresh_token');
-        if (refreshToken != null) {
-          try {
-            final refreshDio = Dio(BaseOptions(baseUrl: _baseUrl));
-            final response = await refreshDio.post('/auth/refresh', data: {
-              'refresh_token': refreshToken,
-            });
-            final newAccess = response.data['data']['access_token'];
-            final newRefresh = response.data['data']['refresh_token'];
-            await storage.write(key: 'access_token', value: newAccess);
-            await storage.write(key: 'refresh_token', value: newRefresh);
+        final token = await storage.read(key: 'access_token');
+        if (token != null) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+        handler.next(options);
+      },
+      onError: (error, handler) async {
+        if (error.response?.statusCode == 401) {
+          final storage = ref.read(secureStorageProvider);
+          final refreshToken = await storage.read(key: 'refresh_token');
+          if (refreshToken != null) {
+            try {
+              final refreshDio = Dio(BaseOptions(baseUrl: _baseUrl));
+              final response = await refreshDio.post('/auth/refresh', data: {
+                'refresh_token': refreshToken,
+              });
+              final newAccess = response.data['data']['access_token'];
+              final newRefresh = response.data['data']['refresh_token'];
+              await storage.write(key: 'access_token', value: newAccess);
+              await storage.write(key: 'refresh_token', value: newRefresh);
 
-            // Retry original request
-            final opts = error.requestOptions;
-            opts.headers['Authorization'] = 'Bearer $newAccess';
-            final retryResponse = await Dio().fetch(opts);
-            return handler.resolve(retryResponse);
-          } catch (e) {
-            await storage.deleteAll();
+              final opts = error.requestOptions;
+              opts.headers['Authorization'] = 'Bearer $newAccess';
+              final retryResponse = await dio.fetch(opts);
+              return handler.resolve(retryResponse);
+            } catch (e) {
+              await storage.deleteAll();
+            }
           }
         }
-      }
-      handler.next(error);
-    },
-  ));
-
-  // ── Retry Interceptor (for offline resilience) ──────────────
-  dio.interceptors.add(RetryInterceptor(
-    dio: dio,
-    logPrint: (msg) => AppLogger.debug('Retry', msg),
-    retries: 3,
-    retryDelays: const [
-      Duration(seconds: 1),
-      Duration(seconds: 2),
-      Duration(seconds: 4),
-    ],
-  ));
+        handler.next(error);
+      },
+    ),
+    LogInterceptor(
+      requestBody: true,
+      responseBody: true,
+      logPrint: (obj) => AppLogger.debug('Dio', obj),
+    ),
+  ]);
 
   return dio;
 });
