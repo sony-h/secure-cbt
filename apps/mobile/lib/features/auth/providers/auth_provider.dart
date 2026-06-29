@@ -96,8 +96,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (token != null) {
         await _dio.post('/auth/logout', data: {'refresh_token': token});
       }
-    } catch (_) {
-      // Ignore logout API errors
+    } catch (e) {
+      AppLogger.error('Logout API error', e);
     } finally {
       await _storage.deleteAll();
       state = const AuthState();
@@ -121,7 +121,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           nis: user['nis'] as String?,
           className: user['class_name'] as String?,
         );
-      } catch (_) {
+      } catch (e) {
+        AppLogger.error('tryAutoLogin failed', e);
         await _storage.deleteAll();
       }
     }

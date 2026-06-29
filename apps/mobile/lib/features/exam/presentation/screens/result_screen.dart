@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
-import 'package:secure_cbt_mobile/core/network/dio_client.dart';
-import 'package:secure_cbt_mobile/core/logger/logger.dart';
+import 'package:secure_cbt_mobile/features/exam/providers/result_provider.dart';
 
 class ResultScreen extends ConsumerStatefulWidget {
   final String sessionId;
@@ -16,61 +14,19 @@ class ResultScreen extends ConsumerStatefulWidget {
 }
 
 class _ResultScreenState extends ConsumerState<ResultScreen> {
-  bool _isLoading = true;
-  Map<String, dynamic>? _resultData;
-  String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fetchResult();
-    });
-  }
-
-  Future<void> _fetchResult() async {
-    try {
-      final dio = ref.read(dioProvider);
-      final response = await dio.get('/grading/result/${widget.sessionId}');
-      final data = response.data;
-      if (data['success'] == true && data['data'] != null) {
-        setState(() {
-          _resultData = data['data'];
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _errorMessage = 'Hasil tidak ditemukan';
-          _isLoading = false;
-        });
-      }
-    } on DioException catch (e) {
-      AppLogger.error('Failed to fetch exam result', e);
-      setState(() {
-        _errorMessage = e.response?.data?['message'] ?? 'Gagal memuat hasil ujian';
-        _isLoading = false;
-      });
-    } catch (e) {
-      AppLogger.error('Failed to fetch exam result', e);
-      setState(() {
-        _errorMessage = 'Gagal memuat hasil ujian';
-        _isLoading = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final resultAsync = ref.watch(examResultProvider(widget.sessionId));
 
     return PopScope(
       canPop: false,
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         body: SafeArea(
-          child: _isLoading
+          child: resultAsync.isLoading
               ? const Center(child: CircularProgressIndicator())
-              : _errorMessage != null
+              : resultAsync.hasError
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(32),
@@ -85,7 +41,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              _errorMessage!,
+                              resultAsync.error?.toString() ?? 'Gagal memuat hasil ujian',
                               textAlign: TextAlign.center,
                               style: TextStyle(color: Colors.grey.shade500),
                             ),
@@ -131,7 +87,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            _resultData?['exam_title'] ?? 'Ujian',
+                            resultAsync.value?['exam_title'] ?? 'Ujian',
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.primary,
@@ -147,7 +103,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                 fit: StackFit.expand,
                                 children: [
                                   CircularProgressIndicator(
-                                    value: ((_resultData?['total_score'] ?? 0.0) as num).toDouble() / 100.0,
+                                    value: ((resultAsync.value?['total_score'] ?? 0.0) as num).toDouble() / 100.0,
                                     strokeWidth: 12,
                                     backgroundColor: const Color(0xFFF1F5F9),
                                     valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
@@ -157,7 +113,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Text(
-                                          '${((_resultData?['total_score'] ?? 0.0) as num).toStringAsFixed(0)}%',
+                                          '${((resultAsync.value?['total_score'] ?? 0.0) as num).toStringAsFixed(0)}%',
                                           style: theme.textTheme.headlineMedium?.copyWith(
                                             fontWeight: FontWeight.bold,
                                             color: const Color(0xFF0F172A),
@@ -199,22 +155,22 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                     icon: Icons.check_circle_rounded,
                                     iconColor: Colors.green.shade600,
                                     label: 'Jawaban Benar',
-                                    value: '${_resultData?['correct_count'] ?? 0}',
+                                    value: '${resultAsync.value?['correct_count'] ?? 0}',
                                   ),
                                   const Divider(height: 24, color: Color(0xFFF1F5F9)),
                                   _MetricRow(
                                     icon: Icons.cancel_rounded,
                                     iconColor: Colors.red.shade600,
                                     label: 'Jawaban Salah',
-                                    value: '${_resultData?['wrong_count'] ?? 0}',
+                                    value: '${resultAsync.value?['wrong_count'] ?? 0}',
                                   ),
-                                  if (_resultData?['essay_score'] != null) ...[
+                                  if (resultAsync.value?['essay_score'] != null) ...[
                                     const Divider(height: 24, color: Color(0xFFF1F5F9)),
                                     _MetricRow(
                                       icon: Icons.edit_note_rounded,
                                       iconColor: theme.colorScheme.primary,
                                       label: 'Nilai Esai',
-                                      value: ((_resultData?['essay_score'] ?? 0.0) as num).toStringAsFixed(1),
+                                      value: ((resultAsync.value?['essay_score'] ?? 0.0) as num).toStringAsFixed(1),
                                     ),
                                   ],
                                 ],

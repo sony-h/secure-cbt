@@ -168,17 +168,19 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
 
   void _showViolationSnackbar(String message) {
     if (!mounted) return;
+    final theme = Theme.of(context);
     final examState = ref.read(examProvider);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$message (Peringatan ${examState.warningCount}/${examState.warningLimit})'),
-        backgroundColor: Colors.red.shade700,
-        duration: const Duration(seconds: 3),
+          SnackBar(
+            content: Text('$message (Peringatan ${examState.warningCount}/${examState.warningLimit})'),
+            backgroundColor: theme.colorScheme.error,
+            duration: const Duration(seconds: 3),
       ),
     );
   }
 
   Future<void> _forceSubmit() async {
+    final theme = Theme.of(context);
     if (_submitting) return;
     _submitting = true;
     try {
@@ -193,7 +195,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Auto-submit gagal: ${e.toString()}'),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: theme.colorScheme.error,
           ),
         );
       }
@@ -204,7 +206,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Ujian otomatis dikumpulkan: batas pelanggaran terlampaui.'),
-          backgroundColor: Colors.red.shade700,
+          backgroundColor: theme.colorScheme.error,
           duration: const Duration(seconds: 5),
         ),
       );
@@ -214,6 +216,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
   }
 
   Future<void> _submitExam() async {
+    final theme = Theme.of(context);
     if (_submitting) return;
     _submitting = true;
     try {
@@ -225,7 +228,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Submit gagal: ${e.toString()}'),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: theme.colorScheme.error,
           ),
         );
       }
@@ -267,7 +270,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final ok = await showWarningSubmitDialog(context);
+        final ok = await showSubmitDialog(context, answered: 0, total: 1, isWarning: true);
         if (ok == true) _submitExam();
       },
       child: Scaffold(
@@ -283,7 +286,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.assignment_late, size: 64, color: Colors.grey.shade400),
+                        Icon(Icons.assignment_late, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
                         const SizedBox(height: 16),
                         const Text('Tidak ada soal tersedia'),
                       ],

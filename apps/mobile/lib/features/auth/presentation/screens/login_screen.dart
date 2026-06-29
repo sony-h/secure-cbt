@@ -94,7 +94,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0F172A),
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -102,7 +102,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     'Masuk untuk melanjutkan ujian',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF64748B),
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -110,7 +110,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      side: BorderSide(color: theme.colorScheme.outlineVariant),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(20),

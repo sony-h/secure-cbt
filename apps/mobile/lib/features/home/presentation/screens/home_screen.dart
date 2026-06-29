@@ -1,9 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
+import 'package:secure_cbt_mobile/features/home/providers/home_provider.dart';
 
 const _quotes = [
   'Belajar adalah investasi paling menguntungkan.',
@@ -33,10 +33,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _greeting = '';
   String _quote = '';
-  int _totalExams = 0;
-  double _averageScore = 0.0;
-  List<Map<String, dynamic>> _upcomingExams = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -53,54 +49,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     _quote = _quotes[Random().nextInt(_quotes.length)];
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
-  }
-
-  Future<void> _loadData() async {
-    try {
-      final dio = ref.read(dioProvider);
-
-      final historyRes = await dio.get('/sessions/history');
-      final history = historyRes.data['data'] as List? ?? [];
-      final examsRes = await dio.get('/exams/student');
-      final exams = examsRes.data['data'] as List? ?? [];
-
-      final scores = history.map((h) => (h['total_score'] as num).toDouble()).toList();
-
-      setState(() {
-        _totalExams = history.length;
-        _averageScore = scores.isEmpty ? 0 : scores.reduce((a, b) => a + b) / scores.length;
-        _upcomingExams = exams
-            .where((e) {
-              final startAt = DateTime.tryParse(e['start_at'] ?? '');
-              return startAt != null && startAt.isAfter(DateTime.now());
-            })
-            .take(2)
-            .map((e) => e as Map<String, dynamic>)
-            .toList();
-        _isLoading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
+    final theme = Theme.of(context);
+    final homeDataAsync = ref.watch(homeDataProvider);
+
     ref.listen(authProvider, (prev, next) {
       if (prev != null && !prev.isAuthenticated && next.isAuthenticated) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+        ref.invalidate(homeDataProvider);
       }
     });
 
-    final auth = ref.watch(authProvider);
-    final theme = Theme.of(context);
+    final isLoading = homeDataAsync.isLoading;
+    final history = homeDataAsync.valueOrNull?['history'] as List? ?? [];
+    final allExams = homeDataAsync.valueOrNull?['upcomingExams'] as List? ?? [];
+    final scores = history.map((h) => (h['total_score'] as num?)?.toDouble() ?? 0.0).toList();
+    final totalExams = history.length;
+    final averageScore = scores.isEmpty ? 0 : scores.reduce((a, b) => a + b) / scores.length;
+    final upcomingExams = allExams
+        .where((e) {
+          final startAt = DateTime.tryParse(e['start_at'] ?? '');
+          return startAt != null && startAt.isAfter(DateTime.now());
+        })
+        .take(2)
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Beranda', style: TextStyle(fontWeight: FontWeight.bold))),
       body: RefreshIndicator(
-        onRefresh: _loadData,
+        onRefresh: () async { ref.invalidate(homeDataProvider); },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(20),
@@ -122,7 +104,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     CircleAvatar(
                       radius: 28,
-                      backgroundColor: Colors.white,
+                      backgroundColor: theme.colorScheme.surface,
                       child: Text(
                         (auth.fullName ?? '?')[0].toUpperCase(),
                         style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 22),
@@ -133,10 +115,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('$_greeting, ${auth.fullName ?? 'Siswa'}!', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                          Text('$_greeting, ${auth.fullName ?? 'Siswa'}!', style: TextStyle(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
                           const SizedBox(height: 4),
-                          Text('NIS: ${auth.nis ?? '—'}', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
-                          Text('Kelas: ${auth.className ?? '—'}', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
+                          Text('NIS: ${auth.nis ?? '—'}', style: TextStyle(color: theme.colorScheme.onPrimary.withValues(alpha: 0.8), fontSize: 13)),
+                          Text('Kelas: ${auth.className ?? '—'}', style: TextStyle(color: theme.colorScheme.onPrimary.withValues(alpha: 0.8), fontSize: 13)),
                         ],
                       ),
                     ),
@@ -153,33 +135,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     Icon(Icons.format_quote, color: theme.colorScheme.primary.withValues(alpha: 0.3), size: 36),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text('"$_quote"', style: const TextStyle(fontSize: 13, height: 1.5, fontStyle: FontStyle.italic, color: Color(0xFF475569))),
+                      child: Text('"$_quote"', style: TextStyle(fontSize: 13, height: 1.5, fontStyle: FontStyle.italic, color: theme.colorScheme.onSurfaceVariant)),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 20),
-              if (!_isLoading)
+              if (!isLoading)
                 Row(
                   children: [
-                    Expanded(child: _StatCard(label: 'Total Ujian', value: '$_totalExams', icon: Icons.assignment_rounded, color: theme.colorScheme.primary)),
+                    Expanded(child: _StatCard(label: 'Total Ujian', value: '$totalExams', icon: Icons.assignment_rounded, color: theme.colorScheme.primary)),
                     const SizedBox(width: 12),
-                    Expanded(child: _StatCard(label: 'Rata-rata Nilai', value: _averageScore.toStringAsFixed(1), icon: Icons.trending_up_rounded, color: Colors.green.shade600)),
+                    Expanded(child: _StatCard(label: 'Rata-rata Nilai', value: averageScore.toStringAsFixed(1), icon: Icons.trending_up_rounded, color: Colors.green.shade600)),
                     const SizedBox(width: 12),
-                    Expanded(child: _StatCard(label: 'Ujian Tersedia', value: '${_upcomingExams.length}', icon: Icons.calendar_month_rounded, color: Colors.orange.shade600)),
+                    Expanded(child: _StatCard(label: 'Ujian Tersedia', value: '${upcomingExams.length}', icon: Icons.calendar_month_rounded, color: Colors.orange.shade600)),
                   ],
                 ),
-              if (_isLoading)
+              if (isLoading)
                 const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
               const SizedBox(height: 24),
-              if (_upcomingExams.isNotEmpty) ...[
+              if (upcomingExams.isNotEmpty) ...[
                 Row(children: [
                   Icon(Icons.notifications_outlined, size: 20, color: Colors.orange),
                   const SizedBox(width: 8),
-                  Text('Ujian Mendatang', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: const Color(0xFF334155))),
+                  Text('Ujian Mendatang', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
                 ]),
                 const SizedBox(height: 10),
-                ..._upcomingExams.map((exam) => AppCard(
+                ...upcomingExams.map((exam) => AppCard(
                   margin: const EdgeInsets.only(bottom: 10),
                   borderRadius: 12,
                   padding: const EdgeInsets.all(14),
@@ -195,7 +177,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(exam['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF94A3B8))),
+                            Text(exam['title'] ?? '', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.outline)),
                             const SizedBox(height: 2),
                             Text(exam['subject']?['name'] ?? '', style: TextStyle(fontSize: 12, color: Colors.orange.shade300)),
                           ],
@@ -240,12 +222,13 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
         children: [
@@ -253,7 +236,7 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color)),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+          Text(label, style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant)),
         ],
       ),
     );

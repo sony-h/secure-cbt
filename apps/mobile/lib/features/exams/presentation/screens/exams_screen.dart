@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
-import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/core/utils/date_utils.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_icon_box.dart';
 import 'package:secure_cbt_mobile/core/widgets/empty_state.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
+import 'package:secure_cbt_mobile/features/exams/providers/exams_provider.dart';
 
 class ExamsScreen extends ConsumerStatefulWidget {
   const ExamsScreen({super.key});
@@ -16,74 +16,54 @@ class ExamsScreen extends ConsumerStatefulWidget {
 }
 
 class _ExamsScreenState extends ConsumerState<ExamsScreen> {
-  bool _isLoading = true;
-  List<Map<String, dynamic>> _exams = [];
-  List<Map<String, dynamic>> _subjects = [];
   String _selectedSubjectId = '';
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
-  }
-
-  Future<void> _loadData() async {
-    try {
-      final dio = ref.read(dioProvider);
-      final examsRes = await dio.get('/exams/student');
-      final subjectsRes = await dio.get('/academic/subjects');
-      setState(() {
-        _exams = List<Map<String, dynamic>>.from(examsRes.data['data'] ?? []);
-        _subjects = List<Map<String, dynamic>>.from(subjectsRes.data['data'] ?? []);
-        _isLoading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  List<Map<String, dynamic>> get _filteredExams {
-    if (_selectedSubjectId.isEmpty) return _exams;
-    return _exams.where((e) => e['subject']?['id'] == _selectedSubjectId).toList();
-  }
-
-  List<Map<String, dynamic>> _section(String status) =>
-      _filteredExams.where((e) {
-        if (e['status'] != status) return false;
-        if (status == 'PUBLISHED') {
-          final s = DateTime.tryParse(e['start_at'] ?? '');
-          if (s != null && s.isAfter(DateTime.now())) return false;
-        }
-        return true;
-      }).toList();
-
-  List<Map<String, dynamic>> _upcoming() =>
-      _filteredExams.where((e) {
-        final s = DateTime.tryParse(e['start_at'] ?? '');
-        return s != null && s.isAfter(DateTime.now()) && e['status'] == 'PUBLISHED';
-      }).toList();
-
-  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final examsAsync = ref.watch(examsDataProvider);
+
     ref.listen(authProvider, (prev, next) {
       if (prev != null && !prev.isAuthenticated && next.isAuthenticated) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+        ref.invalidate(examsDataProvider);
       }
     });
 
-    final theme = Theme.of(context);
+    final isLoading = examsAsync.isLoading;
+    final exams = (examsAsync.valueOrNull?['exams'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final subjects = (examsAsync.valueOrNull?['subjects'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
-    final ongoing = _section('ONGOING');
-    final available = _section('PUBLISHED');
-    final upcoming = _upcoming();
+    final filteredExams = _selectedSubjectId.isEmpty
+        ? exams
+        : exams.where((e) => e['subject']?['id'] == _selectedSubjectId).toList();
+
+    List<Map<String, dynamic>> section(String status) =>
+        filteredExams.where((e) {
+          if (e['status'] != status) return false;
+          if (status == 'PUBLISHED') {
+            final s = DateTime.tryParse(e['start_at'] ?? '');
+            if (s != null && s.isAfter(DateTime.now())) return false;
+          }
+          return true;
+        }).toList();
+
+    List<Map<String, dynamic>> upcoming() =>
+        filteredExams.where((e) {
+          final s = DateTime.tryParse(e['start_at'] ?? '');
+          return s != null && s.isAfter(DateTime.now()) && e['status'] == 'PUBLISHED';
+        }).toList();
+
+    final ongoing = section('ONGOING');
+    final available = section('PUBLISHED');
+    final upcomingExams = upcoming();
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Ujian', style: TextStyle(fontWeight: FontWeight.bold))),
-      body: _isLoading
+      body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: _loadData,
+              onRefresh: () async { ref.invalidate(examsDataProvider); },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -94,13 +74,13 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       children: [
                         _buildFilterChip('Semua', '', theme),
-                        ..._subjects.map((s) => _buildFilterChip(s['name'], s['id'], theme)),
+                        ...subjects.map((s) => _buildFilterChip(s['name'], s['id'], theme)),
                       ],
                     ),
                   ),
                   const Divider(height: 1, color: Color(0xFFF1F5F9)),
                   Expanded(
-                    child: _exams.isEmpty
+                    child: exams.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.all(32),
                             child: EmptyState(
@@ -128,13 +108,13 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
                                 )),
                                 const SizedBox(height: 12),
                               ],
-                              if (upcoming.isNotEmpty) ...[
-                                _SectionHeader(title: 'Akan Datang', count: upcoming.length, color: Colors.orange.shade600),
-                                ...upcoming.map((e) => _ExamCard(
+                              if (upcomingExams.isNotEmpty) ...[
+                                _SectionHeader(title: 'Akan Datang', count: upcomingExams.length, color: Colors.orange.shade600),
+                                ...upcomingExams.map((e) => _ExamCard(
                                   exam: e, theme: theme, isOngoing: false, isUpcoming: true, onTap: () {},
                                 )),
                               ],
-                              if (ongoing.isEmpty && available.isEmpty && upcoming.isEmpty && _filteredExams.isNotEmpty)
+                              if (ongoing.isEmpty && available.isEmpty && upcomingExams.isEmpty && filteredExams.isNotEmpty)
                                 const Padding(padding: EdgeInsets.all(40), child: Center(child: Text('Tidak ada ujian dengan filter ini', style: TextStyle(color: Color(0xFF64748B))))),
                             ],
                           ),

@@ -121,9 +121,13 @@ class ExamNotifier extends StateNotifier<ExamState> {
             'timestamp': ans.answeredAt.toUtc().toIso8601String(),
           });
           await _db.markSynced(ans.id);
-        } catch (_) {}
+        } catch (e) {
+          AppLogger.error('Failed to sync pending answer', e);
+        }
       }
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.error('Failed to get pending answers', e);
+    }
 
     _startTimer();
     _startAutosave();
@@ -165,7 +169,9 @@ class ExamNotifier extends StateNotifier<ExamState> {
         questionId: questionId,
         answerText: answer,
       );
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.error('Failed to save answer locally', e);
+    }
 
     try {
       await dio.post('/answers/save', data: {
@@ -182,7 +188,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
         state = state.copyWith(showSaveIndicator: false);
       });
     } catch (e) {
-      AppLogger.debug('Answer saved locally (offline): $questionId');
+      AppLogger.error('Failed to save answer to server', e);
     }
   }
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:secure_cbt_mobile/core/logger/logger.dart';
 import 'dart:io';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -33,7 +34,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _osVersion = 'Android ${android.version.release}';
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.error('Failed to load device info', e);
+    }
   }
 
   Future<void> _logoutConfirm() async {

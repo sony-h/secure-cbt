@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
 import 'package:secure_cbt_mobile/core/widgets/empty_state.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
+import 'package:secure_cbt_mobile/features/history/providers/history_provider.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -13,46 +13,28 @@ class HistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
-  bool _isLoading = true;
-  List<Map<String, dynamic>> _history = [];
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadHistory());
-  }
-
-  Future<void> _loadHistory() async {
-    try {
-      final dio = ref.read(dioProvider);
-      final res = await dio.get('/sessions/history');
-      setState(() {
-        _history = List<Map<String, dynamic>>.from(res.data['data'] ?? []);
-        _isLoading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final historyAsync = ref.watch(historyDataProvider);
+
     ref.listen(authProvider, (prev, next) {
       if (prev != null && !prev.isAuthenticated && next.isAuthenticated) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _loadHistory());
+        ref.invalidate(historyDataProvider);
       }
     });
 
-    final theme = Theme.of(context);
+    final history = historyAsync.valueOrNull ?? [];
+    final isLoading = historyAsync.isLoading;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Riwayat', style: TextStyle(fontWeight: FontWeight.bold))),
-      body: _isLoading
+      body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: _loadHistory,
-              child: _history.isEmpty
+              onRefresh: () async { ref.invalidate(historyDataProvider); },
+              child: history.isEmpty
                   ? ListView(
                       children: [
                         SizedBox(
@@ -67,9 +49,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                      itemCount: _history.length,
+                      itemCount: history.length,
                       itemBuilder: (context, index) {
-                        final h = _history[index];
+                        final h = history[index];
                         final totalScore = (h['total_score'] as num).toDouble();
                         final passed = totalScore >= 60;
 

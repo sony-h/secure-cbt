@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submit_dialog.dart';
 
 class QuestionPalette extends StatelessWidget {
   final List<Map<String, dynamic>> questions;
@@ -156,26 +157,11 @@ class QuestionPalette extends StatelessWidget {
             width: double.infinity,
             height: 48,
             child: ElevatedButton.icon(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Kumpulkan Ujian?'),
-                    content: Text(
-                      answeredCount < total
-                          ? 'Kamu baru menjawab $answeredCount dari $total soal. Tetap kumpulkan?'
-                          : 'Semua soal sudah terjawab. Kumpulkan ujian?',
-                    ),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('BATAL')),
-                      TextButton(
-                        onPressed: () { Navigator.pop(ctx); onSubmit(); },
-                        child: Text('KUMPULKAN', style: TextStyle(color: theme.colorScheme.error)),
-                      ),
-                    ],
-                  );
-                },
-                icon: const Icon(Icons.assignment_turned_in_rounded, size: 20),
+              onPressed: () async {
+                final ok = await showSubmitDialog(context, answered: answeredCount, total: total);
+                if (ok == true) onSubmit();
+              },
+              icon: const Icon(Icons.assignment_turned_in_rounded, size: 20),
                 label: Text(
                   answeredCount < total
                       ? 'Kumpulkan ($answeredCount/$total)'
