@@ -113,6 +113,14 @@ export class SessionService {
       ? [...ordered].sort(() => Math.random() - 0.5)
       : ordered;
 
+    // Persist shuffled order so resume() can restore it
+    if (exam.randomize_questions) {
+      await this.prisma.examSession.update({
+        where: { id: session.id },
+        data: { question_order: finalOrder.map((eq) => eq.id) },
+      });
+    }
+
     const questions = finalOrder.map((eq) => {
       const opts = exam.randomize_answers
         ? [...eq.question.options].sort(() => Math.random() - 0.5)
@@ -164,9 +172,18 @@ export class SessionService {
       .filter((eq) => !eq.package_id || eq.package_id === session.package_id);
 
     const ordered = [...filtered].sort((a, b) => a.position - b.position);
-    const finalOrder = session.exam.randomize_questions
-      ? [...ordered].sort(() => Math.random() - 0.5)
-      : ordered;
+
+    let finalOrder;
+    if (session.exam.randomize_questions && session.question_order) {
+      const orderArray = session.question_order as string[];
+      finalOrder = orderArray
+        .map((id) => filtered.find((eq) => eq.id === id))
+        .filter(Boolean) as typeof filtered;
+    } else if (session.exam.randomize_questions) {
+      finalOrder = [...ordered].sort(() => Math.random() - 0.5);
+    } else {
+      finalOrder = ordered;
+    }
 
     const questions = finalOrder.map((eq) => {
       const opts = session.exam.randomize_answers

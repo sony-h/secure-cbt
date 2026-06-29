@@ -369,6 +369,7 @@ model ExamSession {
   remaining_time_seconds Int?
   warning_count          Int           @default(0)
   device_id              String?
+  question_order         Json?
   created_at             DateTime      @default(now())
   updated_at             DateTime      @updatedAt
 
