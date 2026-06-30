@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/exam_provider.dart';
+import 'package:secure_cbt_mobile/core/security/screen_security.dart';
 
 class ExamSubmitHandler {
   final Dio dio;
@@ -42,6 +43,7 @@ class ExamSubmitHandler {
       return;
     }
     ref.read(examProvider.notifier).markSubmitted();
+    ScreenSecurity.disable();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -71,6 +73,7 @@ class ExamSubmitHandler {
       return;
     }
     ref.read(examProvider.notifier).markSubmitted();
+    ScreenSecurity.disable();
     if (context.mounted) context.goNamed(RouteNames.result, extra: {'sessionId': sessionId});
   }
 }

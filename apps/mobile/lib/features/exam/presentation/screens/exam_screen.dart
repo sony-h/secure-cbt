@@ -17,6 +17,7 @@ import 'package:secure_cbt_mobile/features/exam/presentation/widgets/question_pa
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submit_dialog.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_submit_handler.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_violation_handler.dart';
+import 'package:secure_cbt_mobile/core/security/screen_security.dart';
 
 class ExamScreen extends ConsumerStatefulWidget {
   final String sessionId;
@@ -54,6 +55,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
     WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
     ref.read(monitoringSocketProvider).disconnect();
+    ScreenSecurity.disable();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
@@ -85,6 +87,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         DeviceOrientation.portraitUp,
         DeviceOrientation.portraitDown,
       ]);
+      ScreenSecurity.enable();
 
       final notifier = ref.read(examProvider.notifier);
       _submitHandler = ExamSubmitHandler(dio: _dio, sessionId: widget.sessionId, ref: ref, context: context);
@@ -133,6 +136,12 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       AppLogger.error('Failed to load session', e);
       if (mounted) context.goNamed(RouteNames.token);
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    _violationHandler?.handleLifecycleChange(state);
   }
 
   void _openPalette() {
