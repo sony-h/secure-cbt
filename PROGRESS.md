@@ -1,9 +1,9 @@
 # Progress Note: Secure CBT Platform
 
-**Current Phase:** Phase 7 & 8 - Testing & Polish - COMPLETE
+**Current Phase:** Phase 10 - Post-Audit Hardening & Security Fixes - COMPLETE
 **Target Platform:** Indonesian High Schools (SMA/SMK)
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)
-**Last Updated:** 2026-06-29
+**Last Updated:** 2026-06-30
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -323,3 +323,237 @@ users, students, teachers, teacher_subjects, academic_years, majors, classes, su
 - **Timezone:** Added `TZ: Asia/Jakarta` to PostgreSQL and backend services in `docker-compose.yml`.
 - **Gitignore:** Updated with additional patterns.
 - **Prisma migrations:** 3 new migrations added for `passing_grade`, `feedback`, `total_questions` fields.
+
+---
+
+## Phase 9 — Thermo-Nuclear Audit Fixes (2026-06-29) — COMPLETE
+
+### Backend Data Integrity (5 bugs fixed)
+- **Session resume preserves question order:** Added `question_order` JSONB column to `exam_sessions` table. Questions shuffled on start are persisted; resume reads persisted order instead of re-shuffling. Legacy sessions fall back to Math.random.
+- **Submit/autoSubmit wrapped in transactions:** `submit()`, `autoSubmit()`, `gradeEssay()`, `batchSync()` are all atomic — no more orphan sessions if score calculation fails mid-write.
+- **N+1 monitoring eliminated:** Replaced per-session answer/question counts (62 queries for 30 students) with `_count` + `groupBy` (3 queries).
+- **Socket.io wrong field fixed:** `STUDENT_CONNECTED` payload was sending `examId` as `sessionId` field — corrected.
+- **Auth token cleanup order fixed:** Login now deletes old tokens before creating new ones, wrapped in transaction.
+
+### Backend Infrastructure Cleanup
+- **Removed unused RedisModule:** `RedisService` was never injected by any service — deleted.
+- **Removed dead `publish()` endpoint:** `create()` auto-publishes, making `publish()` dead code — deleted.
+- **Stricter rate limiting:** 5 req/min on `/auth/login` (was 60 like everything else).
+- **Password strength validation:** `passwordSchema` with min 8 chars, uppercase, lowercase, digit — Indonesian error messages.
+- **Shared helpers extracted:** `parsePagination()`/`buildMeta()` in `pagination.helper.ts` replaces 5+ duplicated pagination blocks. `resolveStudentId()`/`resolveTeacherId()` in `user-resolver.helper.ts` replaces 8+ duplicated Prisma lookups.
+- **Unused module imports removed:** AuthModule/UserModule, ExamModule/QuestionBankModule, SessionModule/ExamModule.
+- **SecurityDefaults wired:** `RATE_LIMIT_TTL` added and connected to ThrottlerModule config.
+
+### Database
+- **Performance indexes:** Added indexes on `SessionLog.exam_session_id`, `ExamSession.status`, `Question.question_bank_id`, `QuestionOption.question_id`, `Score.exam_session_id`.
+- **Soft-delete:** Added `deleted_at` to `AcademicYear`, `Major`, `Class`, `Subject` — academic entities now soft-delete with existing FK protection.
+- **3 migrations applied** to live Docker DB (PostgreSQL on 5433).
+
+### Backend Config Fixes
+- `@nestjs/core` and `@prisma/client` moved from devDependencies → dependencies (would crash production builds).
+- `pnpm-lock.yaml` removed from `.gitignore` and committed.
+- `vitest.config.e2e.ts` port fixed from 5432 → 5433 (matched docker-compose).
+- `TZ: Asia/Jakarta` added to docker-compose services.
+
+### Shared Package Consolidation (Biggest structural change)
+- **14 DTO files deleted** — replaced with `z.infer` types derived from Zod schemas. Eliminated 26-file duplication (DTOs + schemas). Every field change now edits one file instead of two.
+- **Event names unified** — `SocketEvent` enum is now the single source of truth. `EventNames` object and `ConnectivityState` dead code removed.
+- **All Zod error messages translated** to Bahasa Indonesia across 13 schema files.
+- **Missing schemas added** — `UpdateClassDto`, `UpdateSubjectDto` with proper Zod validation (were using `Partial<CreateClassDto>` and `body: any`).
+
+### Dashboard Visual Polish (20 tasks across 3 layers)
+
+**Layer 1 — Component Library (9 new files):**
+Select, Checkbox, AlertDialog, Switch, Skeleton, Avatar, DropdownMenu, Progress, Separator — all Radix-based wrappers matching Shadcn pattern. `@radix-ui/react-switch` added to deps.
+
+**Layer 2 — Dark Mode + High-Impact Pages:**
+- Dark mode wired: `next-themes` ThemeProvider with `class` attribute, ThemeToggle component, CSS variables adapted for `.dark`.
+- 15 hardcoded color classes replaced with theme tokens across `layout.tsx`, `page.tsx`, `login/page.tsx`.
+- Skeleton loading states on Dashboard Home (replaces center spinner for stat cards).
+- Radix Select/Checkbox/AlertDialog replacements on Students, Teachers, Exams, Settings pages.
+- Search bar marked as TODO, notification badge set to "0".
+
+**Layer 3 — Polish Pass:**
+- Scale-on-press (`active:scale-[0.96]`) on all buttons.
+- Concentric border radius audit: Card `rounded-2xl`, Dialog `rounded-xl`, inner buttons `rounded-lg`.
+- Card shadows replaced with layered box-shadow approach + hover lift.
+- Page transition animations: `animate-fade-in` on main content.
+- `EmptyState` component created and used across dashboard home, monitoring, reports.
+- Image outlines, font smoothing, tabular numbers on root.
+- `max-w-7xl` content wrapper for page headers.
+
+### Dashboard Modal Bug Fixes (9 issues)
+- Modal `footer` prop wired across all 8 dialogs (students, teachers, academic, questions, exams).
+- QuestionModal checkbox label `htmlFor`/`id` association fixed.
+- Option spread preserves all fields (was dropping `is_correct`).
+- ClassesStep grid made responsive (`grid-cols-1 sm:grid-cols-2`).
+- Mobile sidebar body scroll lock added.
+- Native `<select>` → Radix `Select` on reports/grading pages.
+- Native `<input>` → `Input` component on grading page.
+- Modal `maxWidth` prop added + exam wizard widened to `sm:max-w-xl lg:max-w-2xl`.
+- Question modal content scrollable with `max-h-[65vh] overflow-y-auto`.
+
+### Sidebar & Layout Redesign
+- Left-border accent on active nav item (instead of full bg highlight).
+- Section labels in sidebar ("Utama", "Manajemen").
+- Hover translate-x animation on nav items.
+- Login page: radial gradient overlay, card hover shadow, copyright footer, brand wordmark.
+- Dashboard home: softer gradient stat cards, icon scale on hover, exam list left accent border.
+- Monitoring page: timeline-style session logs with color-coded dots.
+- Replaced custom user dropdown with Radix DropdownMenu + Avatar component.
+
+### Mobile UI/UX — Translations & Dark Mode
+- All submit dialogs translated to Indonesian ("Kumpulkan Ujian?", "BATAL", "KUMPULKAN").
+- Login screen translated to Indonesian (Selamat Datang, Masuk, NIS/Username).
+- Emoji replaced with Icon widgets for accessibility.
+- Essay input debounced (500ms) to prevent 1000+ API calls per essay.
+- 130+ hardcoded `Color(0xFF...)` values replaced with `theme.colorScheme.*` across 14 files.
+- Dark mode enabled (`ThemeMode.system`).
+- 4 data providers extracted (home, exams, history, result).
+- Silent error swallowing fixed (7 `catch (_) {}` blocks).
+- Duplicate submit dialogs consolidated into one function.
+
+### Mobile Visual Polish (7 areas)
+- Theme: M3 surface tint elevation, CupertinoPageTransitionsBuilder, shimmer skeleton widget.
+- Login: animated gradient background, bouncy entrance animation.
+- Home: stat cards → elevated Card with surface tint, staggered entrance, shimmer loading.
+- Token screen: numbered circle rules, animated input focus border.
+- Exam screen: gradient progress bar, animated timer color transition, scale on option selection, staggered palette grid.
+- Result screen: animated score circle (0→final), staggered metric rows.
+- Bottom nav: icon scale animation on selection, elevation 6 + surface tint.
+
+### Mobile Bug Fixes
+- **Flagged questions leaking** between user sessions on same device — added `flagged: {}` to `loadSession` reset.
+- **Question count on exam detail** now divided by `package_count`.
+- **Date display** fixed: added `initializeDateFormatting('id_ID', null)` in `main.dart` — was returning "-" because `DateFormat` threw when locale wasn't initialized.
+- **Hardcoded colors** in exam_detail_screen description and `_InfoRow` replaced with theme tokens.
+- **Cache invalidation** fixed: replaced broken `refreshTriggerProvider` pattern (trigger incremented before screen mount, listener never fired) with direct `ref.invalidate()` calls at auth login/logout and result screen navigation.
+
+### Config & Infrastructure
+- `.dockerignore` created (excludes node_modules, .git, build artifacts).
+- `apps/dashboard/.env.example` added.
+- `apps/dashboard/package.json`: `typecheck` and `clean` scripts added.
+- `next.config.js`: image `remotePatterns` restricted (was `hostname: '**'`).
+- `apps/dashboard/tsconfig.json`: extends root tsconfig.
+- `.gitignore`: `.superpowers/` added.
+
+### Testing
+- Unit tests added for SessionService (7 tests), GradingService (4 tests), AnswerService (3 tests) — 14 total.
+- Vitest config added.
+- E2E test cleanup: moved cleanup to beforeAll, removed hardcoded UUID, removed console.log.
+
+### Docker Migrations Applied
+- `20260629000000_add_session_question_order`
+- `20260629000000_add_performance_indexes`
+- `20260629000001_add_soft_delete_academic`
+
+### Stats
+- **13 commits** from audit implementation across backend, dashboard, mobile, shared.
+- **~12k lines changed** (added + removed) across ~200 files.
+- **3 Prisma migrations** created and applied.
+- **~130 hardcoded colors** replaced with theme tokens in mobile.
+- **14 DTO files** deleted from shared package.
+- **9 new Radix components** built for dashboard.
+- **29 plan tasks** completed out of 29 (100%).
+
+---
+
+## Phase 10 — Thermo-Nuclear Audit Execution (2026-06-30) — COMPLETE
+
+Three sprint execution covering 38 items across Critical, High, and Medium priorities.
+
+### Sprint 1 — Critical (8 items)
+
+**Infrastructure:**
+- `.gitignore` fixed: `docs/`, `seed-csv/`, `apps/backend/test/` now tracked. Only compiled JS artifacts excluded.
+- Docker: 3-stage `Dockerfile.backend` (build → prod-deps → runtime). `docker-compose.yml` command override removed (was fragile multi-step shell). `Dockerfile.prisma` lockfile flag fixed.
+
+**Backend Type Safety:**
+- **All 11 controllers typed**: `@Body() body: any`, `@Query() query: any`, `@Req() req: any` eliminated. 50+ endpoints now use `z.infer<typeof schema>` types + `AuthenticatedRequest`.
+- New `apps/backend/src/common/types/index.ts` with `AuthenticatedRequest` interface.
+
+**Backend Bug Fixes:**
+- **Admin can create exams/question banks**: `Exam.teacher_id` and `QuestionBank.teacher_id` made nullable (migration). `resolveTeacherId()` returns `null` for non-teacher roles instead of throwing.
+- **Fisher-Yates shuffle**: 6 biased `sort(() => Math.random() - 0.5)` calls replaced. `shuffle<T>()` utility added to `packages/shared/src/utils/`.
+
+**Database:**
+- **12 indexes** added across `refresh_tokens`, `exam_classes`, `exams`, `exam_tokens`, `exam_sessions`, `teacher_subjects`, `question_tags`, `academic_years`, `users`, `students`, `teachers`.
+- **Soft-delete middleware**: `PrismaService.$use()` auto-injects `deleted_at: null` on 10 models' `findMany`/`findFirst`/`findUnique`/`count` operations.
+
+**AuthService dedup:**
+- `resolveProfileData(user)` private method replaces 3 duplicated profile resolution blocks (login, refresh, getProfile). File reduced from 200→179 lines.
+
+### Sprint 2 — High (12 items)
+
+**Dead Code Removal:**
+- 5 unused hook files deleted (`use-students`, `use-exams`, `use-classes`, `use-subjects`, `use-question-banks`).
+- `react-hook-form`, `@hookform/resolvers` removed from dashboard deps (never used).
+- `connectivity_plus` removed from mobile `pubspec.yaml` (never imported).
+
+**Bug Fixes:**
+- **Dashboard exam edit flow**: Error toast on fetch failure; modal no longer opens with empty `question_ids` (was wiping question assignments).
+- **GoRouter auth redirect**: `ref.read(authProvider)` → `ref.watch(authProvider)`. Redirect re-fires on auth state changes.
+- **Monitoring page name resolution**: Removed fragile `studentNameMap` ref-based approach. Replaced with clean `resolveStudentName()` lookup from `sessionData`.
+- **Mobile autosave**: Timer now actually syncs pending answers from local DB every 15s via batch POST. Changed interval from 5s to 15s.
+
+**File Decomposition:**
+- **Academic page** (431→276 lines): `YearDialog`, `MajorDialog`, `ClassDialog`, `SubjectDialog` extracted to `components/academic/`.
+- **Exam provider** (288 lines split): `exam_state.dart` (pure data), `exam_notifier.dart` (business logic), `exam_provider.dart` (provider creation).
+- **Exam screen** (348 lines split): `exam_submit_handler.dart`, `exam_violation_handler.dart` extracted.
+
+**Error Handling:**
+- `runZonedGuarded` added to `main.dart` — catches async errors from timers/streams.
+
+**Test Expansion:**
+- AuthService: 9 tests (login, refresh, changePassword, resolveProfileData).
+- ExamService: 7 tests (findAll, findById, create, getExamsForStudent, generateToken).
+- Total: 30 tests across 5 files (was 14 across 3).
+
+### Sprint 3 — Medium (10 items)
+
+**Infrastructure:**
+- `.nvmrc`, `.node-version` added (Node 22).
+- Docker resource limits added to postgres (512M/1.0), redis (256M/0.5), minio (512M/0.5), backend (1G/1.0).
+- MinIO pinned to `RELEASE.2024-07-01T00-00-00Z` (was `:latest`).
+
+**Database:**
+- **Settings singleton**: Fixed ID `'global'` + upsert pattern prevents duplicate rows.
+- **Score passing_grade snapshot**: New migration `20260630152430_add_passing_grade_snapshot`. `passing_grade_at_score` stored at grading time in all 3 score upsert sites (grading.service, session.service submit/autoSubmit).
+
+**Schema Consistency:**
+- `Subject.name` max length unified to 200 in both `createSubjectSchema` and `updateSubjectSchema` (was 200 vs 100).
+
+**Dashboard DX:**
+- API params: 12 typed interfaces (`StudentQueryParams`, `ExamQueryParams`, etc.) replace `Record<string, unknown>`.
+- `editingYear`/`editingMajor` typed as `YearOption | null` / `MajorOption | null` (was `any`).
+- `useCrud<T>` generic hook for standardized CRUD patterns.
+- Recharts lazy-loaded via `next/dynamic` → `DonutChart` component (ssr: false).
+
+### Mobile Security Fix (post-sprint hotfix)
+
+**Critical: Violation detection was completely inactive.**
+- **Root cause:** `_ExamScreenState` mixed in `WidgetsBindingObserver` and called `addObserver(this)`, but never overrode `didChangeAppLifecycleState`. Flutter called the default empty implementation — all lifecycle events were silently swallowed.
+- **Fix:** Added `didChangeAppLifecycleState` override delegating to `ExamViolationHandler.handleLifecycleChange()`.
+
+**Screen Security (FLAG_SECURE):**
+- Previously set permanently in `MainActivity.onCreate` — blocked screenshots on login/home too.
+- Now toggled via MethodChannel: enabled on exam load, disabled on dispose/submit.
+- New `lib/core/security/screen_security.dart` service wrapping the native channel.
+- iOS screenshot detection stub added (broadcast `Stream`, reserved for future when `ios/` platform files are generated).
+
+### Migration Summary
+| Migration | Purpose |
+|-----------|---------|
+| `20260630144309_make_teacher_id_optional` | `Exam.teacher_id`, `QuestionBank.teacher_id` nullable |
+| `20260630144744_add_missing_indexes` | 12 performance indexes across 7 tables |
+| `20260630152430_add_passing_grade_snapshot` | `Score.passing_grade_at_score` column |
+
+### Final Stats
+- **67 files changed** across 3 sprints + hotfix.
+- **4 commits** (sprint 1, sprint 2, sprint 3, security hotfix).
+- **3 new Prisma migrations** applied.
+- **30 unit tests** passing across 5 service files.
+- **0 TypeScript errors** in backend.
+- **0 Dart errors** in mobile.
+- **0 build errors** in dashboard.
+- **1 critical bug fixed**: Violation detection was completely dead — `didChangeAppLifecycleState` not overridden.
