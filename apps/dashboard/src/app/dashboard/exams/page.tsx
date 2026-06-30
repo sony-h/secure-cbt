@@ -124,7 +124,7 @@ function ExamsPageContent() {
     saveMutation.mutate(dto);
   };
 
-  const handleEdit = (exam: Exam) => {
+  const handleEdit = async (exam: Exam) => {
     setEditingId(exam.id);
     const toWIB = (iso: string) => {
       if (!iso) return '';
@@ -133,7 +133,8 @@ function ExamsPageContent() {
       return d.toISOString().slice(0, 16);
     };
 
-    examApi.getById(exam.id).then((res) => {
+    try {
+      const res = await examApi.getById(exam.id);
       const full = res.data.data;
       setForm({
         title: full.title, description: full.description || '',
@@ -146,18 +147,10 @@ function ExamsPageContent() {
         auto_submit_enabled: full.auto_submit_enabled, fullscreen_required: full.fullscreen_required,
       });
       setModalOpen(true);
-    }).catch(() => {
-      setForm({
-        title: exam.title, description: exam.description || '',
-        subject_id: exam.subject?.id || '', duration_minutes: exam.duration_minutes,
-        start_at: toWIB(exam.start_at), end_at: toWIB(exam.end_at),
-        class_ids: exam.classes?.map((c) => c.class.id) || [], question_ids: [],
-        package_count: exam.package_count || 1, randomize_questions: exam.randomize_questions,
-        randomize_answers: exam.randomize_answers, warning_limit: exam.warning_limit,
-        auto_submit_enabled: exam.auto_submit_enabled, fullscreen_required: exam.fullscreen_required,
-      });
-      setModalOpen(true);
-    });
+    } catch {
+      toast.error('Gagal memuat data ujian. Silakan coba lagi.');
+      setEditingId(null);
+    }
   };
 
   const examColumns: ColumnDef<Exam>[] = [

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:secure_cbt_mobile/features/exam/providers/exam_provider.dart';
+import 'package:secure_cbt_mobile/features/exam/providers/exam_state.dart';
 
 class ExamAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;

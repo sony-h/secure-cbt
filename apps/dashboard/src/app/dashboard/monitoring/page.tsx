@@ -50,7 +50,6 @@ function MonitoringPageContent() {
   const [sessionData, setSessionData] = useState<StudentSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
-  const studentNameMap = useRef<Map<string, { name: string; sessionId: string }>>(new Map());
 
   const { data: exams, isLoading: examsLoading } = useQuery({
     queryKey: ['monitoring-exams'],
@@ -87,16 +86,6 @@ function MonitoringPageContent() {
     refetchInterval: 5000,
   });
 
-  useEffect(() => {
-    const map = new Map<string, { name: string; sessionId: string }>();
-    for (const s of sessionData) {
-      const userId = (s as any).student_user_id;
-      if (userId) map.set(userId, { name: s.student.full_name, sessionId: s.id });
-      map.set(s.id, { name: s.student.full_name, sessionId: s.id });
-    }
-    studentNameMap.current = map;
-  }, [sessionData]);
-
   const { data: logs } = useQuery({
     queryKey: ['session-logs', selectedSession],
     queryFn: async () => {
@@ -108,10 +97,8 @@ function MonitoringPageContent() {
     refetchInterval: 3000,
   });
 
-  function resolveName(data: any): string {
+  function resolveStudentName(data: { studentName?: string; studentId?: string; sessionId?: string }): string {
     if (data.studentName) return data.studentName;
-    const entry = studentNameMap.current.get(data.studentId);
-    if (entry) return entry.name;
     if (data.sessionId) {
       const sess = sessionData.find((s) => s.id === data.sessionId);
       if (sess) return sess.student.full_name;
@@ -131,13 +118,13 @@ function MonitoringPageContent() {
     });
 
     socket.on('student.connected', (data: { studentId: string; studentName?: string; sessionId?: string }) => {
-      const name = resolveName(data);
+      const name = resolveStudentName(data);
       setConnectedStudents((prev) => new Set(prev).add(data.studentId));
       toast.info(`Siswa terhubung: ${name}`);
     });
 
     socket.on('student.disconnected', (data: { studentId: string }) => {
-      const name = resolveName(data);
+      const name = resolveStudentName({ studentId: data.studentId });
       setConnectedStudents((prev) => {
         const next = new Set(prev); next.delete(data.studentId); return next;
       });
@@ -145,13 +132,13 @@ function MonitoringPageContent() {
     });
 
     socket.on('exam.submitted', (data: { sessionId: string; studentId: string; studentName?: string }) => {
-      const name = resolveName(data);
+      const name = resolveStudentName(data);
       setSessionData((prev) => prev.map((s) => s.id === data.sessionId ? { ...s, status: 'SUBMITTED' } : s));
       toast.success(`Siswa selesai: ${name}`);
     });
 
     socket.on('warning.triggered', (data: { sessionId: string; studentId: string; studentName?: string; count: number }) => {
-      const name = resolveName(data);
+      const name = resolveStudentName(data);
       setSessionData((prev) => prev.map((s) => s.id === data.sessionId ? { ...s, warning_count: data.count } : s));
       toast.error(`Peringatan #${data.count}: ${name}`);
     });

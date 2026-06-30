@@ -1,20 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { academicApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription,
@@ -24,137 +20,14 @@ import {
 import { Plus, Trash2, School, BookOpen, Users, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Modal } from '@/components/ui/modal';
+import { YearDialog } from '@/components/academic/year-dialog';
+import { MajorDialog } from '@/components/academic/major-dialog';
+import { ClassDialog } from '@/components/academic/class-dialog';
+import { SubjectDialog } from '@/components/academic/subject-dialog';
 
 interface MajorOption { id: string; name: string; code: string; }
 interface YearOption { id: string; name: string; is_active: boolean; }
 interface ClassOption { id: string; name: string; major?: { name: string }; grade_level: number; }
-
-function YearDialog({ open, onClose, onSave, isEditing, initialName, initialActive }: {
-  open: boolean; onClose: () => void; onSave: (name: string, isActive: boolean) => void;
-  isEditing: boolean; initialName?: string; initialActive?: boolean;
-}) {
-  const [name, setName] = useState('');
-  const [isActive, setIsActive] = useState(false);
-  useEffect(() => {
-    if (open) { setName(initialName || ''); setIsActive(initialActive || false); }
-  }, [open, initialName, initialActive]);
-  return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Tahun Ajaran' : 'Tambah Tahun Ajaran'} footer={
-      <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={() => { if (name.trim()) { onSave(name, isActive); } else toast.error('Nama harus diisi'); }}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
-      </div>
-    }>
-      <div className="space-y-4">
-        <div className="space-y-2"><Label>Nama Tahun Ajaran</Label><Input placeholder="contoh: 2026/2027" value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <label className="flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer hover:bg-muted/50">
-          <Checkbox checked={isActive} onCheckedChange={(v) => setIsActive(v === true)} />
-          <span className="text-sm">Jadikan tahun ajaran aktif</span>
-        </label>
-      </div>
-    </Modal>
-  );
-}
-
-function MajorDialog({ open, onClose, onSave, isEditing, initialName, initialCode }: {
-  open: boolean; onClose: () => void; onSave: (name: string, code: string) => void;
-  isEditing: boolean; initialName?: string; initialCode?: string;
-}) {
-  const [name, setName] = useState(''); const [code, setCode] = useState('');
-  useEffect(() => {
-    if (open) { setName(initialName || ''); setCode(initialCode || ''); }
-  }, [open, initialName, initialCode]);
-  return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Jurusan' : 'Tambah Jurusan'} footer={
-      <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={() => { if (name.trim() && code.trim()) { onSave(name, code); } else toast.error('Nama dan kode harus diisi'); }}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
-      </div>
-    }>
-      <div className="space-y-4">
-        <div className="space-y-2"><Label>Nama Jurusan</Label><Input placeholder="contoh: MIPA" value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div className="space-y-2"><Label>Kode Jurusan</Label><Input placeholder="contoh: MIPA" value={code} onChange={(e) => setCode(e.target.value)} /></div>
-      </div>
-    </Modal>
-  );
-}
-
-function ClassDialog({ open, onClose, form, setForm, majors, years, onSave, isEditing }: {
-  open: boolean; onClose: () => void;
-  form: { name: string; major_id: string; academic_year_id: string; grade_level: number };
-  setForm: (f: any) => void;
-  majors: MajorOption[]; years: YearOption[];
-  onSave: () => void; isEditing: boolean;
-}) {
-  return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Kelas' : 'Tambah Kelas'} footer={
-      <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
-      </div>
-    }>
-      <div className="space-y-4">
-        <div className="space-y-2"><Label>Nama Kelas</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="contoh: XII MIPA 1" /></div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2"><Label>Jurusan</Label>
-            <Select value={form.major_id} onValueChange={(v) => setForm({ ...form, major_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
-              <SelectContent>{majors.map((m) => (<SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>))}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2"><Label>Tingkat</Label>
-            <Select value={String(form.grade_level)} onValueChange={(v) => setForm({ ...form, grade_level: Number(v) })}>
-              <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="11">11</SelectItem>
-                <SelectItem value="12">12</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="space-y-2"><Label>Tahun Ajaran</Label>
-          <Select value={form.academic_year_id} onValueChange={(v) => setForm({ ...form, academic_year_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
-            <SelectContent>{years.map((y) => (<SelectItem key={y.id} value={y.id}>{y.name} {y.is_active ? '(Aktif)' : ''}</SelectItem>))}</SelectContent>
-          </Select>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-function SubjectDialog({ open, onClose, form, setForm, majors, onSave, isEditing }: {
-  open: boolean; onClose: () => void;
-  form: { name: string; code: string; major_id: string };
-  setForm: (f: any) => void;
-  majors: MajorOption[];
-  onSave: () => void; isEditing: boolean;
-}) {
-  return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Mapel' : 'Tambah Mata Pelajaran'} footer={
-      <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button onClick={onSave}>{isEditing ? 'Simpan' : 'Tambah'}</Button>
-      </div>
-    }>
-      <div className="space-y-4">
-        <div className="space-y-2"><Label>Nama Mapel</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="contoh: Matematika" /></div>
-        <div className="space-y-2"><Label>Kode Mapel</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="contoh: MTK" /></div>
-        <div className="space-y-2"><Label>Jurusan (opsional)</Label>
-          <Select value={form.major_id} onValueChange={(v) => setForm({ ...form, major_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Umum (semua jurusan)" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Umum (semua jurusan)</SelectItem>
-              {majors.map((m) => (<SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    </Modal>
-  );
-}
 
 const emptyClassForm = { name: '', major_id: '', academic_year_id: '', grade_level: 10 };
 const emptySubjectForm = { name: '', code: '', major_id: '' };
@@ -288,8 +161,8 @@ function AcademicPageContent() {
   const [subjectForm, setSubjectForm] = useState(emptySubjectForm);
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
-  const [editingYear, setEditingYear] = useState<any>(null);
-  const [editingMajor, setEditingMajor] = useState<any>(null);
+  const [editingYear, setEditingYear] = useState<YearOption | null>(null);
+  const [editingMajor, setEditingMajor] = useState<MajorOption | null>(null);
 
   const { data: years } = useQuery({ queryKey: ['academic-years'], queryFn: async () => { const { data } = await academicApi.getYears(); return data.data as YearOption[]; } });
   const { data: majors } = useQuery({ queryKey: ['majors'], queryFn: async () => { const { data } = await academicApi.getMajors(); return data.data as MajorOption[]; } });

@@ -15,6 +15,8 @@ import 'package:secure_cbt_mobile/features/exam/presentation/widgets/exam_questi
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/exam_bottom_bar.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/question_palette.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submit_dialog.dart';
+import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_submit_handler.dart';
+import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_violation_handler.dart';
 
 class ExamScreen extends ConsumerStatefulWidget {
   final String sessionId;
@@ -35,15 +37,15 @@ class ExamScreen extends ConsumerStatefulWidget {
 class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObserver {
   late Dio _dio;
   late PageController _pageController;
-  bool _submitting = false;
-  bool _violationsEnabled = false;
-  bool _violationPending = false;
+  ExamSubmitHandler? _submitHandler;
+  ExamViolationHandler? _violationHandler;
 
   @override
   void initState() {
     super.initState();
     _dio = ref.read(dioProvider);
     _pageController = PageController();
+    _violationHandler = ExamViolationHandler(ref: ref, context: context);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadSessionData());
   }
 
@@ -72,10 +74,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       if (questions.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tidak ada soal untuk ujian ini'),
-              backgroundColor: Colors.red,
-            ),
+            const SnackBar(content: Text('Tidak ada soal untuk ujian ini'), backgroundColor: Colors.red),
           );
         }
         return;
@@ -88,7 +87,8 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       ]);
 
       final notifier = ref.read(examProvider.notifier);
-      notifier.setOnForceSubmit(() => _forceSubmit());
+      _submitHandler = ExamSubmitHandler(dio: _dio, sessionId: widget.sessionId, ref: ref, context: context);
+      notifier.setOnForceSubmit(() => _submitHandler!.forceSubmit());
       notifier.loadSession(widget.sessionId, questions, remainingSeconds, _dio);
       notifier.setWarningLimit(warningLimit);
 
@@ -110,7 +110,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         if (!mounted) return;
         WidgetsBinding.instance.addObserver(this);
         Future.delayed(const Duration(milliseconds: 1500), () {
-          if (mounted) _violationsEnabled = true;
+          if (mounted) _violationHandler?.enable();
         });
       });
     } on DioException catch (e) {
@@ -123,14 +123,8 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
             title: const Text('Gagal Memuat Soal'),
             content: Text(e.response?.data?['message'] ?? 'Tidak dapat memuat soal ujian.'),
             actions: [
-              TextButton(
-                onPressed: () => context.goNamed(RouteNames.token),
-                child: const Text('KEMBALI'),
-              ),
-              TextButton(
-                onPressed: () { Navigator.pop(ctx); _loadSessionData(); },
-                child: const Text('COBA LAGI'),
-              ),
+              TextButton(onPressed: () => context.goNamed(RouteNames.token), child: const Text('KEMBALI')),
+              TextButton(onPressed: () { Navigator.pop(ctx); _loadSessionData(); }, child: const Text('COBA LAGI')),
             ],
           ),
         );
@@ -141,111 +135,12 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
     }
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_violationsEnabled) return;
-    final notifier = ref.read(examProvider.notifier);
-    switch (state) {
-      case AppLifecycleState.paused:
-      case AppLifecycleState.hidden:
-        notifier.pauseTimer();
-        if (!_violationPending) {
-          _violationPending = true;
-          notifier.logViolation('APP_MINIMIZED');
-          _showViolationSnackbar('Peringatan! Aplikasi tidak boleh diminimalkan.');
-        }
-        break;
-      case AppLifecycleState.resumed:
-        _violationPending = false;
-        notifier.resumeTimer();
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-        break;
-      case AppLifecycleState.inactive:
-      case AppLifecycleState.detached:
-        break;
-    }
-  }
-
-  void _showViolationSnackbar(String message) {
-    if (!mounted) return;
-    final theme = Theme.of(context);
-    final examState = ref.read(examProvider);
-    ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$message (Peringatan ${examState.warningCount}/${examState.warningLimit})'),
-            backgroundColor: theme.colorScheme.error,
-            duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  Future<void> _forceSubmit() async {
-    final theme = Theme.of(context);
-    if (_submitting) return;
-    _submitting = true;
-    try {
-      await _dio.post('/sessions/submit', data: {
-        'session_id': widget.sessionId,
-        'reason': 'WARNING_LIMIT_EXCEEDED',
-      });
-    } catch (e) {
-      AppLogger.error('Force submit failed', e);
-      _submitting = false;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Auto-submit gagal: ${e.toString()}'),
-            backgroundColor: theme.colorScheme.error,
-          ),
-        );
-      }
-      return;
-    }
-    ref.read(examProvider.notifier).markSubmitted();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Ujian otomatis dikumpulkan: batas pelanggaran terlampaui.'),
-          backgroundColor: theme.colorScheme.error,
-          duration: const Duration(seconds: 5),
-        ),
-      );
-      await Future.delayed(const Duration(seconds: 2));
-      if (mounted) context.goNamed(RouteNames.result, extra: {'sessionId': widget.sessionId});
-    }
-  }
-
-  Future<void> _submitExam() async {
-    final theme = Theme.of(context);
-    if (_submitting) return;
-    _submitting = true;
-    try {
-      await _dio.post('/sessions/submit', data: {'session_id': widget.sessionId});
-    } catch (e) {
-      AppLogger.error('Submit failed', e);
-      _submitting = false;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Submit gagal: ${e.toString()}'),
-            backgroundColor: theme.colorScheme.error,
-          ),
-        );
-      }
-      return;
-    }
-    ref.read(examProvider.notifier).markSubmitted();
-    if (mounted) context.goNamed(RouteNames.result, extra: {'sessionId': widget.sessionId});
-  }
-
   void _openPalette() {
     final examState = ref.read(examProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => QuestionPalette(
         questions: examState.questions,
         answers: examState.answers,
@@ -256,7 +151,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
           ref.read(examProvider.notifier).setCurrentIndex(i);
           Navigator.pop(ctx);
         },
-        onSubmit: () => _submitExam(),
+        onSubmit: () => _submitHandler?.submitExam(),
       ),
     );
   }
@@ -270,15 +165,16 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final ok = await showSubmitDialog(context, answered: 0, total: 1, isWarning: true);
-        if (ok == true) _submitExam();
+        final examState = ref.read(examProvider);
+        final ok = await showSubmitDialog(context, answered: examState.answers.length, total: examState.questions.length, isWarning: true);
+        if (ok == true && _submitHandler != null) {
+          final handler = _submitHandler!;
+          if (!handler.isSubmitting) handler.submitExam();
+        }
       },
       child: Scaffold(
         backgroundColor: theme.colorScheme.surface,
-        appBar: ExamAppBar(
-          title: widget.examTitle,
-          examState: examState,
-        ),
+        appBar: ExamAppBar(title: widget.examTitle, examState: examState),
         body: examState.isLoading
             ? const Center(child: CircularProgressIndicator())
             : examState.questions.isEmpty
@@ -302,10 +198,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                       index: index,
                       onSaveAnswer: (qId, answer) {
                         ref.read(examProvider.notifier).saveAnswer(
-                          questionId: qId,
-                          answer: answer,
-                          dio: _dio,
-                          onSaved: () {},
+                          questionId: qId, answer: answer, dio: _dio, onSaved: () {},
                         );
                       },
                       onToggleFlag: (qId) {
@@ -321,24 +214,20 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                 answered: examState.answers.length,
                 showSaveIndicator: examState.showSaveIndicator,
                 onSubmit: () async {
-                  final ok = await showSubmitDialog(
-                    context,
+                  final ok = await showSubmitDialog(context,
                     answered: examState.answers.length,
                     total: examState.questions.length,
                   );
-                  if (ok == true) _submitExam();
+                  if (ok == true && _submitHandler != null) {
+                    final handler = _submitHandler!;
+                    if (!handler.isSubmitting) handler.submitExam();
+                  }
                 },
                 onPrevious: examState.currentIndex > 0
-                    ? () => _pageController.previousPage(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeInOut,
-                        )
+                    ? () => _pageController.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut)
                     : null,
                 onNext: examState.currentIndex < examState.questions.length - 1
-                    ? () => _pageController.nextPage(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeInOut,
-                        )
+                    ? () => _pageController.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeInOut)
                     : null,
                 onOpenPalette: _openPalette,
               ),

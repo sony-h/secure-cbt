@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -40,9 +41,13 @@ void main() async {
     return true;
   };
 
-  runApp(
-    const ProviderScope(
-      child: SecureCbtApp(),
-    ),
-  );
+  runZonedGuarded(() {
+    runApp(
+      const ProviderScope(
+        child: SecureCbtApp(),
+      ),
+    );
+  }, (error, stack) {
+    AppLogger.error('Uncaught async error', error, stack);
+  });
 }
