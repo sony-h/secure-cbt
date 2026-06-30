@@ -40,7 +40,7 @@ export const createSubjectSchema = z.object({
 });
 
 export const updateSubjectSchema = z.object({
-  name: z.string().min(1, { message: 'Nama mata pelajaran wajib diisi' }).max(100, { message: 'Nama mata pelajaran maksimal 100 karakter' }).optional(),
+  name: z.string().min(1, { message: 'Nama mata pelajaran wajib diisi' }).max(200, { message: 'Nama mata pelajaran maksimal 200 karakter' }).optional(),
   code: z.string().min(1, { message: 'Kode mata pelajaran wajib diisi' }).max(20, { message: 'Kode mata pelajaran maksimal 20 karakter' }).optional(),
   major_id: z.string().uuid({ message: 'ID jurusan tidak valid' }).optional().nullable(),
 });

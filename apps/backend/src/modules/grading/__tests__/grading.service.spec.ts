@@ -17,6 +17,7 @@ describe('GradingService', () => {
       examSession: { findUnique: vi.fn() },
       questionOption: { findMany: vi.fn() },
       score: { upsert: vi.fn(), findFirst: vi.fn() },
+      setting: { findFirst: vi.fn().mockResolvedValue({ passing_grade: 70 }) },
       $transaction: vi.fn((fn: any) => fn(mockPrisma)),
     };
     mockEventEmitter = { emit: vi.fn() };

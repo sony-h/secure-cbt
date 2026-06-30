@@ -24,6 +24,7 @@ function createMockPrisma() {
     answer: { upsert: vi.fn() },
     questionOption: { findMany: vi.fn() },
     score: { upsert: vi.fn() },
+    setting: { findFirst: vi.fn().mockResolvedValue({ passing_grade: 70 }) },
     $transaction: vi.fn((fn: any) => fn(mock)),
   };
   return mock;
@@ -171,6 +172,7 @@ describe('SessionService', () => {
           update: vi.fn().mockResolvedValue({ id: sessionId, status: 'SUBMITTED' }),
         };
         tx.score = { upsert: vi.fn().mockResolvedValue({}) };
+        tx.setting = { findFirst: vi.fn().mockResolvedValue({ passing_grade: 70 }) };
         return fn(tx);
       });
 
@@ -201,6 +203,7 @@ describe('SessionService', () => {
           update: vi.fn().mockResolvedValue({ id: sessionId, status: 'AUTO_SUBMITTED' }),
         };
         tx.score = { upsert: vi.fn().mockResolvedValue({}) };
+        tx.setting = { findFirst: vi.fn().mockResolvedValue({ passing_grade: 70 }) };
         return fn(tx);
       });
 

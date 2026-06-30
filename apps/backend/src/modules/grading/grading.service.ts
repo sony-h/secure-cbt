@@ -27,18 +27,23 @@ export class GradingService {
         data: { score, is_correct: score >= 50, feedback },
       });
 
-      const scoreData = await this.calculateTotalScore(tx, session_id);
+      const [scoreData, settings] = await Promise.all([
+        this.calculateTotalScore(tx, session_id),
+        tx.setting.findFirst({ select: { passing_grade: true } }),
+      ]);
 
       await tx.score.upsert({
         where: { exam_session_id: session_id },
         create: {
           exam_session_id: session_id,
           ...scoreData,
+          passing_grade_at_score: settings?.passing_grade ?? null,
           graded_by: graderId,
           graded_at: new Date(),
         },
         update: {
           ...scoreData,
+          passing_grade_at_score: settings?.passing_grade ?? null,
           graded_by: graderId,
           graded_at: new Date(),
         },

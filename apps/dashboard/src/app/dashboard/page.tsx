@@ -11,7 +11,9 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Users, GraduationCap, BookOpen, FileText, ArrowRight, FileQuestion } from 'lucide-react';
 import Link from 'next/link';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import dynamic from 'next/dynamic';
+
+const DonutChart = dynamic(() => import('@/components/charts/donut-chart'), { ssr: false });
 
 interface ExamItem {
   id: string; title: string; subject?: { name: string }; status: string;
@@ -144,14 +146,7 @@ function DashboardHomeContent() {
           </div>
           {pieData.length > 0 ? (
             <div className="flex items-center gap-4">
-              <ResponsiveContainer width="60%" height={200}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
-                    {pieData.map((entry, idx) => (<Cell key={idx} fill={entry.color} />))}
-                  </Pie>
-                  <Tooltip formatter={(value: number, name: string) => [`${value} ujian`, name]} />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="w-[60%]"><DonutChart data={pieData} /></div>
               <div className="space-y-2 text-sm">
                 {pieData.map((entry) => (
                   <div key={entry.name} className="flex items-center gap-2">
