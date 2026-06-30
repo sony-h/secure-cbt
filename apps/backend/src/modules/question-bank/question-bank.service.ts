@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateQuestionInput, UpdateQuestionInput, createQuestionSchema, updateQuestionSchema,
@@ -34,11 +34,8 @@ export class QuestionBankService {
   async createBank(dto: { title: string; subject_id: string }, userId: string) {
     const data = createQuestionBankSchema.parse(dto);
     const teacher = await this.prisma.teacher.findUnique({ where: { user_id: userId } });
-    if (!teacher) {
-      throw new BadRequestException('Only users with a teacher profile can create question banks');
-    }
     return this.prisma.questionBank.create({
-      data: { ...data, teacher_id: teacher.id },
+      data: { ...data, ...(teacher ? { teacher_id: teacher.id } : {}) },
       include: { subject: true },
     });
   }

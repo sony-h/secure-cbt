@@ -53,8 +53,8 @@ ios/build/
 *.pem
 *.key
 *.crt
-docs/
-seed-csv/
-apps/backend/test/
 .ai/
 .superpowers/
+
+# Build artifacts from E2E tests
+apps/backend/test/dist/

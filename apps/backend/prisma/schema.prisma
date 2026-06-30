@@ -71,6 +71,8 @@ model User {
 
   @@index([username])
   @@index([email])
+  @@index([is_active])
+  @@index([deleted_at])
   @@map("users")
 }
 
@@ -93,6 +95,7 @@ model Student {
 
   @@index([nis])
   @@index([class_id, status])
+  @@index([deleted_at])
   @@map("students")
 }
 
@@ -113,6 +116,7 @@ model Teacher {
   exams             Exam[]
 
   @@index([nip])
+  @@index([deleted_at])
   @@map("teachers")
 }
 
@@ -126,6 +130,8 @@ model TeacherSubject {
   teacher  Teacher  @relation(fields: [teacher_id], references: [id], onDelete: Cascade)
   subject  Subject  @relation(fields: [subject_id], references: [id], onDelete: Cascade)
 
+  @@index([teacher_id])
+  @@index([subject_id])
   @@map("teacher_subjects")
 }
 
@@ -142,6 +148,8 @@ model AcademicYear {
 
   classes  Class[]
 
+  @@index([is_active])
+  @@index([deleted_at])
   @@map("academic_years")
 }
 
@@ -209,13 +217,13 @@ model QuestionBank {
   id         String    @id @default(uuid()) @db.Uuid
   title      String
   subject_id String    @db.Uuid
-  teacher_id String    @db.Uuid
+  teacher_id String?   @db.Uuid
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
   deleted_at DateTime?
 
   subject    Subject     @relation(fields: [subject_id], references: [id], onDelete: Restrict)
-  teacher    Teacher     @relation(fields: [teacher_id], references: [id], onDelete: Restrict)
+  teacher    Teacher?    @relation(fields: [teacher_id], references: [id], onDelete: SetNull)
   questions  Question[]
 
   @@map("question_banks")
@@ -270,6 +278,7 @@ model QuestionTag {
 
   question  Question  @relation(fields: [question_id], references: [id], onDelete: Cascade)
 
+  @@index([tag])
   @@map("question_tags")
 }
 
@@ -284,7 +293,7 @@ model Exam {
   status               ExamStatus @default(DRAFT)
   start_at             DateTime
   end_at               DateTime
-  teacher_id           String     @db.Uuid
+  teacher_id           String?    @db.Uuid
   randomize_questions  Boolean    @default(true)
   randomize_answers    Boolean    @default(true)
   warning_limit        Int        @default(3)
@@ -296,13 +305,19 @@ model Exam {
   deleted_at           DateTime?
 
   subject        Subject        @relation(fields: [subject_id], references: [id], onDelete: Restrict)
-  teacher        Teacher        @relation(fields: [teacher_id], references: [id], onDelete: Restrict)
+  teacher        Teacher?       @relation(fields: [teacher_id], references: [id], onDelete: SetNull)
   exam_token     ExamToken?
   exam_packages  ExamPackage[]
   exam_questions ExamQuestion[]
   exam_classes   ExamClass[]
   exam_sessions  ExamSession[]
 
+  @@index([status])
+  @@index([start_at])
+  @@index([end_at])
+  @@index([subject_id])
+  @@index([teacher_id])
+  @@index([deleted_at])
   @@map("exams")
 }
 
@@ -318,6 +333,7 @@ model ExamToken {
   exam  Exam  @relation(fields: [exam_id], references: [id], onDelete: Cascade)
 
   @@index([token])
+  @@index([expires_at])
   @@map("exam_tokens")
 }
 
@@ -363,6 +379,8 @@ model ExamClass {
   exam   Exam   @relation(fields: [exam_id], references: [id], onDelete: Cascade)
   class  Class  @relation(fields: [class_id], references: [id], onDelete: Cascade)
 
+  @@index([exam_id])
+  @@index([class_id])
   @@map("exam_classes")
 }
 
@@ -394,6 +412,7 @@ model ExamSession {
   @@index([student_id])
   @@index([exam_id, student_id])
   @@index([status])
+  @@index([student_id, status])
   @@map("exam_sessions")
 }
 
@@ -439,17 +458,18 @@ model Answer {
 // ── scores ───────────────────────────────────────────────────────
 
 model Score {
-  id               String    @id @default(uuid()) @db.Uuid
-  exam_session_id  String    @unique @db.Uuid
-  total_score      Float     @default(0)
-  correct_count    Int       @default(0)
-  wrong_count      Int       @default(0)
-  essay_score      Float?
-  total_questions  Int       @default(0)
-  graded_by        String?   @db.Uuid
-  graded_at        DateTime?
-  created_at       DateTime  @default(now())
-  updated_at       DateTime  @updatedAt
+  id                        String    @id @default(uuid()) @db.Uuid
+  exam_session_id           String    @unique @db.Uuid
+  total_score               Float     @default(0)
+  correct_count             Int       @default(0)
+  wrong_count               Int       @default(0)
+  essay_score               Float?
+  total_questions           Int       @default(0)
+  passing_grade_at_score    Int?
+  graded_by                 String?   @db.Uuid
+  graded_at                 DateTime?
+  created_at                DateTime  @default(now())
+  updated_at                DateTime  @updatedAt
 
   exam_session  ExamSession  @relation(fields: [exam_session_id], references: [id], onDelete: Restrict)
   grader        User?        @relation("GradedBy", fields: [graded_by], references: [id], onDelete: SetNull)
@@ -487,5 +507,7 @@ model RefreshToken {
 
   user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
+  @@index([expires_at])
   @@map("refresh_tokens")
 }

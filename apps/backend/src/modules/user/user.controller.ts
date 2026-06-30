@@ -1,9 +1,13 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { z } from 'zod';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../../common/guards/roles.guard';
-import { ApiResponse, UserRole } from '@secure-cbt/shared';
+import { UserRole, createUserSchema, updateUserSchema, PaginationQuery } from '@secure-cbt/shared';
+
+type CreateUserDto = z.infer<typeof createUserSchema>;
+type UpdateUserDto = z.infer<typeof updateUserSchema>;
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -15,9 +19,9 @@ export class UserController {
   @Get()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'List all users' })
-  async findAll(@Query() query: any) {
+  async findAll(@Query() query: PaginationQuery) {
     const data = await this.userService.findAll(query);
-    return { success: true, message: 'Users retrieved', ...data } satisfies ApiResponse;
+    return { success: true, message: 'Users retrieved', ...data };
   }
 
   @Get(':id')
@@ -31,7 +35,7 @@ export class UserController {
   @Post()
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Create new user' })
-  async create(@Body() body: any) {
+  async create(@Body() body: CreateUserDto) {
     const data = await this.userService.create(body);
     return { success: true, message: 'User created', data };
   }
@@ -39,7 +43,7 @@ export class UserController {
   @Patch(':id')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update user' })
-  async update(@Param('id') id: string, @Body() body: any) {
+  async update(@Param('id') id: string, @Body() body: UpdateUserDto) {
     const data = await this.userService.update(id, body);
     return { success: true, message: 'User updated', data };
   }

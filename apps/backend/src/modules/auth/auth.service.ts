@@ -38,25 +38,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Determine full name from role
-    let full_name = username;
-    let nis: string | undefined;
-    let class_name: string | undefined;
-    if (user.role === UserRole.STUDENT) {
-      const student = await this.prisma.student.findUnique({
-        where: { user_id: user.id },
-        include: { class: true },
-      });
-      if (student) {
-        full_name = student.full_name;
-        nis = student.nis;
-        class_name = student.class?.name;
-      }
-    } else if (user.role === UserRole.TEACHER) {
-      const teacher = await this.prisma.teacher.findUnique({ where: { user_id: user.id } });
-      if (teacher) full_name = teacher.full_name;
-    }
-
+    const profile = await this.resolveProfileData(user);
     const payload = { sub: user.id, username: user.username, role: user.role };
     const access_token = this.jwtService.sign(payload);
     const refresh_token = this.jwtService.sign(payload, {
@@ -82,7 +64,7 @@ export class AuthService {
         access_token,
         refresh_token,
         expires_in: 900,
-        user: { id: user.id, username: user.username, role: user.role, full_name, nis, class_name },
+        user: { id: user.id, username: user.username, role: user.role, ...profile },
       };
     });
   }
@@ -113,29 +95,13 @@ export class AuthService {
       data: { token: new_refresh_token, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
     });
 
-    let full_name = user.username;
-    let nis: string | undefined;
-    let class_name: string | undefined;
-    if (user.role === UserRole.STUDENT) {
-      const student = await this.prisma.student.findUnique({
-        where: { user_id: user.id },
-        include: { class: true },
-      });
-      if (student) {
-        full_name = student.full_name;
-        nis = student.nis;
-        class_name = student.class?.name;
-      }
-    } else if (user.role === UserRole.TEACHER) {
-      const teacher = await this.prisma.teacher.findUnique({ where: { user_id: user.id } });
-      if (teacher) full_name = teacher.full_name;
-    }
+    const profile = await this.resolveProfileData(user);
 
     return {
       access_token,
       refresh_token: new_refresh_token,
       expires_in: 900,
-      user: { id: user.id, username: user.username, role: user.role, full_name, nis, class_name },
+      user: { id: user.id, username: user.username, role: user.role, ...profile },
     };
   }
 
@@ -167,6 +133,33 @@ export class AuthService {
     await this.prisma.refreshToken.deleteMany({ where: { user_id: userId } });
   }
 
+  private async resolveProfileData(user: { id: string; role: string; username: string }) {
+    let full_name = user.username;
+    let nis: string | undefined;
+    let class_name: string | undefined;
+
+    if (user.role === UserRole.STUDENT) {
+      const student = await this.prisma.student.findUnique({
+        where: { user_id: user.id },
+        include: { class: true },
+      });
+      if (student) {
+        full_name = student.full_name;
+        nis = student.nis;
+        class_name = student.class?.name;
+      }
+    } else if (user.role === UserRole.TEACHER) {
+      const teacher = await this.prisma.teacher.findUnique({ where: { user_id: user.id } });
+      if (teacher) full_name = teacher.full_name;
+    } else if (user.role === UserRole.ADMIN) {
+      full_name = 'Administrator';
+    } else if (user.role === UserRole.OPERATOR) {
+      full_name = 'Operator';
+    }
+
+    return { full_name, nis, class_name };
+  }
+
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -179,22 +172,8 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('User not found');
 
     const { password_hash, teacher, student, ...safeUser } = user;
+    const profile = await this.resolveProfileData(user);
 
-    let full_name = user.username;
-    let nis: string | undefined;
-    let class_name: string | undefined;
-    if (user.role === UserRole.TEACHER && teacher) {
-      full_name = teacher.full_name;
-    } else if (user.role === UserRole.STUDENT && student) {
-      full_name = student.full_name;
-      nis = student.nis;
-      class_name = student.class?.name;
-    } else if (user.role === UserRole.ADMIN) {
-      full_name = 'Administrator';
-    } else if (user.role === UserRole.OPERATOR) {
-      full_name = 'Operator';
-    }
-
-    return { ...safeUser, full_name, nis, class_name, teacher, student };
+    return { ...safeUser, ...profile, teacher, student };
   }
 }

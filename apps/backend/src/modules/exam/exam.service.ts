@@ -3,7 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateExamInput, UpdateExamInput, createExamSchema, updateExamSchema,
-  PaginationQuery, ExamStatus, SessionStatus, SocketEvent,
+  PaginationQuery, ExamStatus, SessionStatus, SocketEvent, shuffle,
 } from '@secure-cbt/shared';
 import { randomBytes } from 'crypto';
 import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
@@ -77,7 +77,7 @@ export class ExamService {
           duration_minutes: data.duration_minutes,
           start_at: new Date(data.start_at),
           end_at: new Date(data.end_at),
-          teacher_id: teacherId,
+          ...(teacherId ? { teacher_id: teacherId } : {}),
           randomize_questions: data.randomize_questions ?? true,
           randomize_answers: data.randomize_answers ?? true,
           warning_limit: data.warning_limit ?? 3,
@@ -100,7 +100,7 @@ export class ExamService {
 
       // Create packages and assign questions
       const pkgCount = data.package_count ?? 1;
-      const shuffled = [...data.question_ids].sort(() => Math.random() - 0.5);
+      const shuffled = shuffle(data.question_ids);
       const perPkg = Math.ceil(shuffled.length / pkgCount);
 
       for (let i = 0; i < pkgCount; i++) {
@@ -161,7 +161,7 @@ export class ExamService {
         await tx.examQuestion.deleteMany({ where: { exam_id: id } });
         await tx.examPackage.deleteMany({ where: { exam_id: id } });
 
-        const shuffled = [...data.question_ids].sort(() => Math.random() - 0.5);
+        const shuffled = shuffle(data.question_ids);
         const pkgCount = data.package_count ?? existing.package_count ?? 1;
         const perPkg = Math.ceil(shuffled.length / pkgCount);
 

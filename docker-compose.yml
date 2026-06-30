@@ -12,6 +12,11 @@ services:
       - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
@@ -27,6 +32,11 @@ services:
       - '6379:6379'
     volumes:
       - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -35,7 +45,7 @@ services:
 
   # ── MinIO (S3-compatible storage) ──────────────────────────
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2024-07-01T00-00-00Z
     container_name: secure-cbt-minio
     command: server /data --console-address ":9001"
     environment:
@@ -46,6 +56,11 @@ services:
       - '9001:9001'  # Console
     volumes:
       - minio_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
     healthcheck:
       test: ['CMD', 'mc', 'ready', 'local']
       interval: 5s
@@ -91,6 +106,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.backend
+      target: development
     container_name: secure-cbt-backend
     depends_on:
       postgres:
@@ -111,11 +127,15 @@ services:
       TZ: Asia/Jakarta
     ports:
       - '3000:3000'
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
     volumes:
       - ./apps/backend/prisma:/app/apps/backend/prisma
       - ./apps/backend/src:/app/apps/backend/src
       - ./packages/shared/src:/app/packages/shared/src
-    command: ['sh', '-c', 'cd /app/packages/shared && npx tsc && cd /app/apps/backend && npx prisma generate && npx tsc && node dist/main.js']
 
 volumes:
   postgres_data:

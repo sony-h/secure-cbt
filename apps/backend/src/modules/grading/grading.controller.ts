@@ -1,9 +1,13 @@
 import { Controller, Post, Get, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { z } from 'zod';
 import { GradingService } from './grading.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../../common/guards/roles.guard';
-import { ApiResponse, UserRole } from '@secure-cbt/shared';
+import { UserRole, gradeEssaySchema } from '@secure-cbt/shared';
+import type { AuthenticatedRequest } from '../../common/types';
+
+type GradeEssayDto = z.infer<typeof gradeEssaySchema>;
 
 @ApiTags('grading')
 @ApiBearerAuth()
@@ -15,7 +19,7 @@ export class GradingController {
   @Post('essay')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Grade an essay answer' })
-  async gradeEssay(@Req() req: any, @Body() body: any) {
+  async gradeEssay(@Req() req: AuthenticatedRequest, @Body() body: GradeEssayDto) {
     const data = await this.gradingService.gradeEssay(body, req.user.sub);
     return { success: true, message: 'Essay graded', data };
   }

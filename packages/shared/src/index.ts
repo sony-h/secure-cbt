@@ -3,6 +3,7 @@ export * from './enums/index';
 export * from './types/index';
 export * from './constants/index';
 export * from './schemas/index';
+export * from './utils/index';
 
 // Re-export z.infer types for convenience
 export type {

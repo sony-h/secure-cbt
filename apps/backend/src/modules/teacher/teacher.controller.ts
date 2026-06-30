@@ -1,9 +1,13 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { z } from 'zod';
 import { TeacherService } from './teacher.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../../common/guards/roles.guard';
-import { ApiResponse, UserRole } from '@secure-cbt/shared';
+import { UserRole, createTeacherSchema, updateTeacherSchema, PaginationQuery } from '@secure-cbt/shared';
+
+type CreateTeacherDto = z.infer<typeof createTeacherSchema>;
+type UpdateTeacherDto = z.infer<typeof updateTeacherSchema>;
 
 @ApiTags('teachers')
 @ApiBearerAuth()
@@ -14,9 +18,9 @@ export class TeacherController {
 
   @Get()
   @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER)
-  async findAll(@Query() query: any) {
+  async findAll(@Query() query: PaginationQuery) {
     const result = await this.teacherService.findAll(query);
-    return { success: true, message: 'Teachers retrieved', ...result } satisfies ApiResponse;
+    return { success: true, message: 'Teachers retrieved', ...result };
   }
 
   @Get(':id')
@@ -28,14 +32,14 @@ export class TeacherController {
 
   @Post()
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  async create(@Body() body: any) {
+  async create(@Body() body: CreateTeacherDto) {
     const data = await this.teacherService.create(body);
     return { success: true, message: 'Teacher created', data };
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  async update(@Param('id') id: string, @Body() body: any) {
+  async update(@Param('id') id: string, @Body() body: UpdateTeacherDto) {
     const data = await this.teacherService.update(id, body);
     return { success: true, message: 'Teacher updated', data };
   }

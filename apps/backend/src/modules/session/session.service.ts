@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { GradingService } from '../grading/grading.service';
 import {
   StartSessionInput, SubmitSessionInput, startSessionSchema, submitSessionSchema,
-  SessionStatus, ExamStatus, SocketEvent,
+  SessionStatus, ExamStatus, SocketEvent, shuffle,
 } from '@secure-cbt/shared';
 import { resolveStudentId } from '../../common/helpers/user-resolver.helper';
 
@@ -111,7 +111,7 @@ export class SessionService {
 
     const ordered = [...filtered].sort((a, b) => a.position - b.position);
     const finalOrder = exam.randomize_questions
-      ? [...ordered].sort(() => Math.random() - 0.5)
+      ? shuffle(ordered)
       : ordered;
 
     // Persist shuffled order so resume() can restore it
@@ -124,7 +124,7 @@ export class SessionService {
 
     const questions = finalOrder.map((eq) => {
       const opts = exam.randomize_answers
-        ? [...eq.question.options].sort(() => Math.random() - 0.5)
+        ? shuffle(eq.question.options)
         : eq.question.options;
       return {
         id: eq.id,
@@ -180,14 +180,14 @@ export class SessionService {
         .map((id) => filtered.find((eq) => eq.id === id))
         .filter(Boolean) as typeof filtered;
     } else if (session.exam.randomize_questions) {
-      finalOrder = [...ordered].sort(() => Math.random() - 0.5);
+      finalOrder = shuffle(ordered);
     } else {
       finalOrder = ordered;
     }
 
     const questions = finalOrder.map((eq) => {
       const opts = session.exam.randomize_answers
-        ? [...eq.question.options].sort(() => Math.random() - 0.5)
+        ? shuffle(eq.question.options)
         : eq.question.options;
       return {
         id: eq.id,
@@ -225,12 +225,15 @@ export class SessionService {
         data: { status: SessionStatus.SUBMITTED, submitted_at: new Date() },
       });
 
-      const scoreData = await this.gradingService.calculateTotalScore(tx, session_id);
+      const [scoreData, settings] = await Promise.all([
+        this.gradingService.calculateTotalScore(tx, session_id),
+        tx.setting.findFirst({ select: { passing_grade: true } }),
+      ]);
 
       await tx.score.upsert({
         where: { exam_session_id: session_id },
-        create: { exam_session_id: session_id, ...scoreData, graded_at: new Date() },
-        update: { ...scoreData, graded_at: new Date() },
+        create: { exam_session_id: session_id, ...scoreData, passing_grade_at_score: settings?.passing_grade ?? null, graded_at: new Date() },
+        update: { ...scoreData, passing_grade_at_score: settings?.passing_grade ?? null, graded_at: new Date() },
       });
 
       return updatedSession;
@@ -285,12 +288,15 @@ export class SessionService {
         data: { status: SessionStatus.AUTO_SUBMITTED, submitted_at: new Date() },
       });
 
-      const scoreData = await this.gradingService.calculateTotalScore(tx, sessionId);
+      const [scoreData, settings] = await Promise.all([
+        this.gradingService.calculateTotalScore(tx, sessionId),
+        tx.setting.findFirst({ select: { passing_grade: true } }),
+      ]);
 
       await tx.score.upsert({
         where: { exam_session_id: sessionId },
-        create: { exam_session_id: sessionId, ...scoreData, graded_at: new Date() },
-        update: { ...scoreData, graded_at: new Date() },
+        create: { exam_session_id: sessionId, ...scoreData, passing_grade_at_score: settings?.passing_grade ?? null, graded_at: new Date() },
+        update: { ...scoreData, passing_grade_at_score: settings?.passing_grade ?? null, graded_at: new Date() },
       });
 
       return updatedSession;

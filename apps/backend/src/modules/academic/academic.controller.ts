@@ -1,9 +1,19 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { z } from 'zod';
 import { AcademicService } from './academic.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../../common/guards/roles.guard';
-import { ApiResponse, UserRole } from '@secure-cbt/shared';
+import { UserRole, createAcademicYearSchema, updateAcademicYearSchema, createMajorSchema, updateMajorSchema, createClassSchema, updateClassSchema, createSubjectSchema, updateSubjectSchema, PaginationQuery } from '@secure-cbt/shared';
+
+type CreateYearDto = z.infer<typeof createAcademicYearSchema>;
+type UpdateYearDto = z.infer<typeof updateAcademicYearSchema>;
+type CreateMajorDto = z.infer<typeof createMajorSchema>;
+type UpdateMajorDto = z.infer<typeof updateMajorSchema>;
+type CreateClassDto = z.infer<typeof createClassSchema>;
+type UpdateClassDto = z.infer<typeof updateClassSchema>;
+type CreateSubjectDto = z.infer<typeof createSubjectSchema>;
+type UpdateSubjectDto = z.infer<typeof updateSubjectSchema>;
 
 @ApiTags('academic')
 @ApiBearerAuth()
@@ -22,14 +32,14 @@ export class AcademicController {
 
   @Post('years')
   @Roles(UserRole.ADMIN)
-  async createYear(@Body() body: any) {
+  async createYear(@Body() body: CreateYearDto) {
     const data = await this.academicService.createAcademicYear(body);
     return { success: true, message: 'Academic year created', data };
   }
 
   @Patch('years/:id')
   @Roles(UserRole.ADMIN)
-  async updateYear(@Param('id') id: string, @Body() body: any) {
+  async updateYear(@Param('id') id: string, @Body() body: UpdateYearDto) {
     const data = await this.academicService.updateAcademicYear(id, body);
     return { success: true, message: 'Academic year updated', data };
   }
@@ -51,7 +61,7 @@ export class AcademicController {
 
   @Post('majors')
   @Roles(UserRole.ADMIN)
-  async createMajor(@Body() body: any) {
+  async createMajor(@Body() body: CreateMajorDto) {
     const data = await this.academicService.createMajor(body);
     return { success: true, message: 'Major created', data };
   }
@@ -65,7 +75,7 @@ export class AcademicController {
 
   @Patch('majors/:id')
   @Roles(UserRole.ADMIN)
-  async updateMajor(@Param('id') id: string, @Body() body: any) {
+  async updateMajor(@Param('id') id: string, @Body() body: UpdateMajorDto) {
     const data = await this.academicService.updateMajor(id, body);
     return { success: true, message: 'Major updated', data };
   }
@@ -73,14 +83,14 @@ export class AcademicController {
   // Classes
   @Get('classes')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER)
-  async getClasses(@Query() query: any) {
+  async getClasses(@Query() query: PaginationQuery) {
     const data = await this.academicService.getClasses(query);
     return { success: true, message: 'Classes retrieved', data };
   }
 
   @Post('classes')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  async createClass(@Body() body: any) {
+  async createClass(@Body() body: CreateClassDto) {
     const data = await this.academicService.createClass(body);
     return { success: true, message: 'Class created', data };
   }
@@ -94,7 +104,7 @@ export class AcademicController {
 
   @Patch('classes/:id')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  async updateClass(@Param('id') id: string, @Body() body: any) {
+  async updateClass(@Param('id') id: string, @Body() body: UpdateClassDto) {
     const data = await this.academicService.updateClass(id, body);
     return { success: true, message: 'Class updated', data };
   }
@@ -102,14 +112,14 @@ export class AcademicController {
   // Subjects
   @Get('subjects')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER, UserRole.STUDENT)
-  async getSubjects(@Query() query: any) {
+  async getSubjects(@Query() query: PaginationQuery & { major_id?: string }) {
     const data = await this.academicService.getSubjects(query);
     return { success: true, message: 'Subjects retrieved', data };
   }
 
   @Post('subjects')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  async createSubject(@Body() body: any) {
+  async createSubject(@Body() body: CreateSubjectDto) {
     const data = await this.academicService.createSubject(body);
     return { success: true, message: 'Subject created', data };
   }
@@ -123,7 +133,7 @@ export class AcademicController {
 
   @Patch('subjects/:id')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  async updateSubject(@Param('id') id: string, @Body() body: any) {
+  async updateSubject(@Param('id') id: string, @Body() body: UpdateSubjectDto) {
     const data = await this.academicService.updateSubject(id, body);
     return { success: true, message: 'Subject updated', data };
   }

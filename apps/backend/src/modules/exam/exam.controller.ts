@@ -1,9 +1,14 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req, Inject } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { z } from 'zod';
 import { ExamService } from './exam.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../../common/guards/roles.guard';
-import { ApiResponse, UserRole } from '@secure-cbt/shared';
+import { UserRole, createExamSchema, updateExamSchema, PaginationQuery, ExamStatus } from '@secure-cbt/shared';
+import type { AuthenticatedRequest } from '../../common/types';
+
+type CreateExamDto = z.infer<typeof createExamSchema>;
+type UpdateExamDto = z.infer<typeof updateExamSchema>;
 
 @ApiTags('exams')
 @ApiBearerAuth()
@@ -17,14 +22,14 @@ export class ExamController {
 
   @Get()
   @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
-  async findAll(@Query() query: any) {
+  async findAll(@Query() query: PaginationQuery & { status?: ExamStatus; subject_id?: string }) {
     const result = await this.examService.findAll(query);
     return { success: true, message: 'Exams retrieved', ...result };
   }
 
   @Get('student')
   @Roles(UserRole.STUDENT)
-  async getForStudent(@Req() req: any) {
+  async getForStudent(@Req() req: AuthenticatedRequest) {
     const data = await this.examService.getExamsForStudent(req.user.sub);
     return { success: true, message: 'Exams retrieved', data };
   }
@@ -38,14 +43,14 @@ export class ExamController {
 
   @Post()
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  async create(@Req() req: any, @Body() body: any) {
+  async create(@Req() req: AuthenticatedRequest, @Body() body: CreateExamDto) {
     const data = await this.examService.create(body, req.user.sub);
     return { success: true, message: 'Exam created', data };
   }
 
   @Patch(':id')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  async update(@Param('id') id: string, @Body() body: any) {
+  async update(@Param('id') id: string, @Body() body: UpdateExamDto) {
     const data = await this.examService.update(id, body);
     return { success: true, message: 'Exam updated', data };
   }

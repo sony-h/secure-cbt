@@ -10,11 +10,13 @@ export async function resolveStudentId(prisma: PrismaService, userId: string): P
   return student.id;
 }
 
-export async function resolveTeacherId(prisma: PrismaService, userId: string): Promise<string> {
+export async function resolveTeacherId(
+  prisma: PrismaService,
+  userId: string,
+): Promise<string | null> {
   const teacher = await prisma.teacher.findUnique({
     where: { user_id: userId },
     select: { id: true },
   });
-  if (!teacher) throw new NotFoundException('Data guru tidak ditemukan');
-  return teacher.id;
+  return teacher?.id ?? null;
 }

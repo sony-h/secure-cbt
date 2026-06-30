@@ -18,8 +18,8 @@ COPY apps/backend/package.json apps/backend/package.json
 COPY apps/dashboard/package.json apps/dashboard/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-# Install ALL workspace dependencies (resolves workspace:* properly)
-RUN pnpm install --frozen-lockfile=false
+# Install ALL workspace dependencies (copies lockfile if available)
+RUN pnpm install
 
 # Copy source files after install (so code changes don't bust layer cache)
 COPY apps/backend/nest-cli.json apps/backend/nest-cli.json
