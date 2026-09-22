@@ -1,8 +1,13 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:secure_cbt_mobile/app/route_names.dart';
+import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
+import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 import 'package:secure_cbt_mobile/core/widgets/shimmer.dart';
+import 'package:secure_cbt_mobile/core/widgets/status_pill.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 import 'package:secure_cbt_mobile/features/home/providers/home_provider.dart';
 
@@ -16,12 +21,11 @@ const _quotes = [
   'Ilmu tanpa amal bagaikan pohon tanpa buah.',
   'Sesungguhnya sesudah kesulitan itu ada kemudahan. — QS Al-Insyirah: 6',
   'Pendidikan adalah paspor untuk masa depan. — Malcolm X',
-  'Belajarlah dari kesalahan orang lain. — Eleanor Roosevelt',
-  'Pekerjaan hebat tidak dilakukan dengan kekuatan, tapi dengan ketekunan. — Samuel Johnson',
+  'Pekerjaan hebat dilakukan bukan dengan kekuatan, tapi ketekunan.',
   'Pengetahuan adalah kekuatan. — Francis Bacon',
   'Persiapan yang baik adalah setengah dari kemenangan.',
-  'Score bukan segalanya, yang terpenting adalah proses belajar.',
-  'Setiap soal yang kau jawab adalah langkah menuju impianmu.',
+  'Skor bukan segalanya, yang terpenting adalah integritas dan proses belajar.',
+  'Setiap soal yang kamu kerjakan adalah langkah menuju impianmu.',
 ];
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -39,7 +43,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     final hour = DateTime.now().hour;
-    if (hour < 12) {
+    if (hour < 11) {
       _greeting = 'Selamat Pagi';
     } else if (hour < 15) {
       _greeting = 'Selamat Siang';
@@ -55,56 +59,90 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
-    final theme = Theme.of(context);
     final homeDataAsync = ref.watch(homeDataProvider);
 
-
-
     final isLoading = homeDataAsync.isLoading;
-    final history = homeDataAsync.valueOrNull?['history'] as List? ?? [];
-    final allExams = homeDataAsync.valueOrNull?['upcomingExams'] as List? ?? [];
+    final history = homeDataAsync.valueOrNull?['history'] ?? [];
+    final allExams = homeDataAsync.valueOrNull?['upcomingExams'] ?? [];
     final scores = history.map((h) => (h['total_score'] as num?)?.toDouble() ?? 0.0).toList();
     final totalExams = history.length;
-    final averageScore = scores.isEmpty ? 0 : scores.reduce((a, b) => a + b) / scores.length;
+    final averageScore = scores.isEmpty ? 0.0 : scores.reduce((a, b) => a + b) / scores.length;
+
+    final ongoingExams = allExams
+        .where((e) => e['status'] == 'ONGOING')
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
+
     final upcomingExams = allExams
         .where((e) {
           final startAt = DateTime.tryParse(e['start_at'] ?? '');
-          return startAt != null && startAt.isAfter(DateTime.now());
+          return e['status'] == 'PUBLISHED' && startAt != null && startAt.isAfter(DateTime.now());
         })
         .take(2)
         .map((e) => e as Map<String, dynamic>)
         .toList();
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(title: const Text('Beranda', style: TextStyle(fontWeight: FontWeight.bold))),
+      backgroundColor: AppColors.canvas,
+      appBar: AppBar(
+        title: const Text('Beranda'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, size: 22),
+            onPressed: () => ref.invalidate(homeDataProvider),
+            tooltip: 'Perbarui Data',
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: RefreshIndicator(
-        onRefresh: () async { ref.invalidate(homeDataProvider); },
+        onRefresh: () async {
+          ref.invalidate(homeDataProvider);
+        },
+        color: AppColors.primary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Student Identity Banner
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [theme.colorScheme.primary, theme.colorScheme.primary.withValues(alpha: 0.8)],
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryDark],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: theme.colorScheme.primary.withValues(alpha: 0.15), blurRadius: 10, offset: const Offset(0, 4))],
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: AppShadows.primaryButton,
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: theme.colorScheme.surface,
-                      child: Text(
-                        (auth.fullName ?? '?')[0].toUpperCase(),
-                        style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 22),
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          (auth.fullName?.isNotEmpty == true ? auth.fullName![0] : '?').toUpperCase(),
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 24,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -112,116 +150,247 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('$_greeting, ${auth.fullName ?? 'Siswa'}!', style: TextStyle(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold, fontSize: 18)),
-                          const SizedBox(height: 4),
-                          Text('NIS: ${auth.nis ?? '—'}', style: TextStyle(color: theme.colorScheme.onPrimary.withValues(alpha: 0.8), fontSize: 13)),
-                          Text('Kelas: ${auth.className ?? '—'}', style: TextStyle(color: theme.colorScheme.onPrimary.withValues(alpha: 0.8), fontSize: 13)),
+                          Text(
+                            '$_greeting,',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            auth.fullName ?? 'Siswa',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                              letterSpacing: -0.3,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              _IdentityPill(label: 'NIS: ${auth.nis ?? '—'}'),
+                              const SizedBox(width: 6),
+                              _IdentityPill(label: auth.className ?? 'Kelas —'),
+                            ],
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              AppCard(
-                padding: const EdgeInsets.all(16),
-                borderRadius: 12,
-                borderColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+
+              const SizedBox(height: 18),
+
+              // Active Exam Alert Card (If an exam is ongoing right now)
+              if (ongoingExams.isNotEmpty) ...[
+                _OngoingExamBanner(exam: ongoingExams.first),
+                const SizedBox(height: 18),
+              ],
+
+              // 3 Readiness Metrics
+              if (isLoading)
+                const Row(
+                  children: [
+                    Expanded(child: ShimmerBox(height: 84, borderRadius: 16)),
+                    SizedBox(width: 12),
+                    Expanded(child: ShimmerBox(height: 84, borderRadius: 16)),
+                    SizedBox(width: 12),
+                    Expanded(child: ShimmerBox(height: 84, borderRadius: 16)),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'Total Selesai',
+                        value: '$totalExams',
+                        icon: Icons.assignment_turned_in_rounded,
+                        accentColor: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'Rata-Rata',
+                        value: averageScore.toStringAsFixed(1),
+                        icon: Icons.analytics_rounded,
+                        accentColor: AppColors.success,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'Tersedia',
+                        value: '${allExams.length}',
+                        icon: Icons.event_available_rounded,
+                        accentColor: AppColors.warning,
+                      ),
+                    ),
+                  ],
+                ),
+
+              const SizedBox(height: 18),
+
+              // Motivational Quote Card
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: AppShadows.card,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.format_quote, color: theme.colorScheme.primary.withValues(alpha: 0.3), size: 36),
-                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.format_quote_rounded,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text('"$_quote"', style: TextStyle(fontSize: 13, height: 1.5, fontStyle: FontStyle.italic, color: theme.colorScheme.onSurfaceVariant)),
+                      child: Text(
+                        '"$_quote"',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.45,
+                          fontStyle: FontStyle.italic,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              if (isLoading)
+
+              const SizedBox(height: 24),
+
+              // Section: Upcoming Exams
+              if (upcomingExams.isNotEmpty) ...[
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    for (var i = 0; i < 3; i++) ...[
-                      if (i > 0) const SizedBox(width: 12),
-                      const Expanded(child: ShimmerBox(height: 80)),
-                    ],
+                    const Text(
+                      'Ujian Akan Datang',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.goNamed(RouteNames.exams),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: const Row(
+                        children: [
+                          Text('Lihat Semua', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
+                          SizedBox(width: 2),
+                          Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.primary),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              if (!isLoading)
-                Row(
-                  children: [
-                    for (var i = 0; i < 3; i++) ...[
-                      if (i > 0) const SizedBox(width: 12),
-                      Expanded(
-                        child: TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0, end: 1),
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
-                          builder: (context, value, child) =>
-                              Opacity(opacity: value, child: Transform.translate(offset: Offset(0, 20 * (1 - value)), child: child)),
-                          child: _StatCard(
-                            label: i == 0 ? 'Total Ujian' : i == 1 ? 'Rata-rata Nilai' : 'Ujian Tersedia',
-                            value: i == 0 ? '$totalExams' : i == 1 ? averageScore.toStringAsFixed(1) : '${upcomingExams.length}',
-                            icon: i == 0 ? Icons.assignment_rounded : i == 1 ? Icons.trending_up_rounded : Icons.calendar_month_rounded,
-                            color: i == 0 ? theme.colorScheme.primary : i == 1 ? Colors.green.shade600 : Colors.orange.shade600,
+                const SizedBox(height: 10),
+                ...upcomingExams.map((exam) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: AppCard(
+                    onTap: () => context.goNamed(RouteNames.examDetail, extra: exam),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.school_rounded, color: AppColors.primary, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                exam['title'] ?? '',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: AppColors.textPrimary,
+                                  letterSpacing: -0.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                exam['subject']?['name'] ?? 'Mata Pelajaran',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textMuted,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
-                  ],
-                ),
-              const SizedBox(height: 24),
-              if (upcomingExams.isNotEmpty) ...[
-                Row(children: [
-                  const Icon(Icons.notifications_outlined, size: 20, color: Colors.orange),
-                  const SizedBox(width: 8),
-                  Text('Ujian Mendatang', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurfaceVariant)),
-                ]),
-                const SizedBox(height: 10),
-                ...upcomingExams.map((exam) => AppCard(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  borderRadius: 12,
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.calendar_month_outlined, color: Colors.orange, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(exam['title'] ?? '', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.onSurface)),
-                            const SizedBox(height: 2),
-                            Text(exam['subject']?['name'] ?? '', style: TextStyle(fontSize: 12, color: Colors.orange.shade300)),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.lock_outline_rounded, color: Colors.orange.shade200, size: 18),
-                    ],
+                        const SizedBox(width: 8),
+                        StatusPill.fromExamStatus(exam['status'] ?? 'PUBLISHED'),
+                      ],
+                    ),
                   ),
                 )),
+                const SizedBox(height: 12),
               ],
+
+              // Daily Study Tip
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.amber.shade200),
+                  color: AppColors.warningContainer.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.2)),
                 ),
-                child: Row(
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.lightbulb_outline_rounded, color: Colors.amber.shade700, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text('Tips: Belajar secara konsisten 30 menit setiap hari lebih efektif daripada belajar berjam-jam dalam sehari.', style: TextStyle(fontSize: 12, color: Colors.amber.shade900))),
+                    Icon(Icons.tips_and_updates_rounded, color: AppColors.warning, size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Tips Integritas: Pastikan baterai HP Anda terisi di atas 50% dan jangan membuka aplikasi lain agar tidak memicu peringatan otomatis selama ujian.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.45,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.onWarningContainer,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -230,30 +399,153 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _IdentityPill extends StatelessWidget {
   final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _StatCard({required this.label, required this.value, required this.icon, required this.color});
+  const _IdentityPill({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      elevation: 0,
-      surfaceTintColor: color.withValues(alpha: 0.08),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color accentColor;
+
+  const _MetricCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: accentColor),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: AppColors.textPrimary,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textMuted,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OngoingExamBanner extends StatelessWidget {
+  final Map<String, dynamic> exam;
+  const _OngoingExamBanner({required this.exam});
+
+  @override
+  Widget build(BuildContext context) {
+    return BouncingButton(
+      onTap: () => context.goNamed(RouteNames.examDetail, extra: exam),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.successContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.success.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
           children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 6),
-            Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color)),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant)),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                color: AppColors.success,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'UJIAN SEDANG AKTIF',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: AppColors.onSuccessContainer,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    exam['title'] ?? 'Ujian',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.onSuccessContainer),
           ],
         ),
       ),

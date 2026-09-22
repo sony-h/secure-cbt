@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:secure_cbt_mobile/core/theme/theme.dart';
+import 'package:secure_cbt_mobile/core/utils/date_utils.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
 import 'package:secure_cbt_mobile/core/widgets/empty_state.dart';
+import 'package:secure_cbt_mobile/core/widgets/status_pill.dart';
 import 'package:secure_cbt_mobile/features/history/providers/history_provider.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -14,85 +17,165 @@ class HistoryScreen extends ConsumerStatefulWidget {
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final historyAsync = ref.watch(historyDataProvider);
-
 
     final history = historyAsync.valueOrNull ?? [];
     final isLoading = historyAsync.isLoading;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(title: const Text('Riwayat', style: TextStyle(fontWeight: FontWeight.bold))),
+      backgroundColor: AppColors.canvas,
+      appBar: AppBar(
+        title: const Text('Riwayat Ujian'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, size: 22),
+            onPressed: () => ref.invalidate(historyDataProvider),
+            tooltip: 'Segarkan',
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : RefreshIndicator(
               onRefresh: () async { ref.invalidate(historyDataProvider); },
+              color: AppColors.primary,
               child: history.isEmpty
                   ? ListView(
                       children: [
                         SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.6,
+                          height: MediaQuery.of(context).size.height * 0.65,
                           child: const EmptyState(
                             icon: Icons.history_rounded,
-                            title: 'Belum ada riwayat ujian',
-                            subtitle: 'Hasil ujian yang sudah selesai akan muncul di sini.',
+                            title: 'Belum Ada Riwayat Ujian',
+                            subtitle: 'Hasil dan skor ujian yang telah Anda selesaikan akan dicatat di sini.',
                           ),
                         ),
                       ],
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                       itemCount: history.length,
                       itemBuilder: (context, index) {
                         final h = history[index];
-                        final totalScore = (h['total_score'] as num).toDouble();
-                        final passed = totalScore >= 60;
+                        final totalScore = ((h['total_score'] ?? 0) as num).toDouble();
+                        final passed = totalScore >= 60.0;
+                        final submittedAt = h['submitted_at'] as String?;
+                        final dateStr = submittedAt != null
+                            ? (() {
+                                try {
+                                  return formatDateTimeWIB(DateTime.parse(submittedAt));
+                                } catch (_) {
+                                  return '-';
+                                }
+                              })()
+                            : '-';
 
-                        return AppCard(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          borderRadius: 14,
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 44, height: 44,
-                                decoration: BoxDecoration(
-                                  color: passed ? Colors.green.shade50 : Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(passed ? Icons.check_circle_outline_rounded : Icons.cancel_outlined, color: passed ? Colors.green.shade600 : Colors.red.shade600, size: 24),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(h['exam_title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.check_circle_rounded, size: 12, color: Colors.green.shade600),
-                                        const SizedBox(width: 3),
-                                        Text('${h['correct_count'] ?? 0}', style: TextStyle(fontSize: 12, color: Colors.green.shade600)),
-                                        const SizedBox(width: 10),
-                                        Icon(Icons.cancel_rounded, size: 12, color: Colors.red.shade600),
-                                        const SizedBox(width: 3),
-                                        Text('${h['wrong_count'] ?? 0}', style: TextStyle(fontSize: 12, color: Colors.red.shade600)),
-                                      ],
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: AppCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // Status Icon Box
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: passed ? AppColors.successContainer : AppColors.warningContainer,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: (passed ? AppColors.success : AppColors.warning).withValues(alpha: 0.3),
                                     ),
+                                  ),
+                                  child: Icon(
+                                    passed ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded,
+                                    color: passed ? AppColors.success : AppColors.warning,
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+
+                                // Title and Detail Breakdown
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        h['exam_title'] ?? 'Ujian',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                          letterSpacing: -0.2,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        dateStr,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textMuted,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.check_rounded, size: 13, color: AppColors.success),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            '${h['correct_count'] ?? 0} Benar',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.success,
+                                              fontFeatures: [FontFeature.tabularFigures()],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          const Icon(Icons.close_rounded, size: 13, color: AppColors.error),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            '${h['wrong_count'] ?? 0} Salah',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.error,
+                                              fontFeatures: [FontFeature.tabularFigures()],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(width: 10),
+
+                                // Score and Status Pill
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      totalScore.toStringAsFixed(0),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 22,
+                                        letterSpacing: -0.5,
+                                        fontFeatures: const [FontFeature.tabularFigures()],
+                                        color: passed ? AppColors.success : AppColors.warning,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    StatusPill.passOrFail(passed: passed, compact: true),
                                   ],
                                 ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(totalScore.toStringAsFixed(0), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: passed ? Colors.green.shade700 : Colors.red.shade700)),
-                                  const SizedBox(height: 2),
-                                  Text(passed ? 'Lulus' : 'Remedial', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: passed ? Colors.green.shade600 : Colors.red.shade600)),
-                                ],
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       },

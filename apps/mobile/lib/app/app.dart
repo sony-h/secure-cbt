@@ -14,8 +14,7 @@ class SecureCbtApp extends ConsumerWidget {
       title: 'Secure CBT',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light, // Strictly Light Mode Only
       routerConfig: router,
     );
   }

@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
+import 'package:secure_cbt_mobile/core/theme/theme.dart';
+import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 
 class TokenScreen extends ConsumerStatefulWidget {
@@ -45,7 +47,12 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
     final token = _tokenController.text.trim().toUpperCase();
     if (token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Masukkan token ujian')),
+        SnackBar(
+          content: const Text('Masukkan token ujian terlebih dahulu'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
       return;
     }
@@ -72,13 +79,23 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
       final message = e.response?.data?['message'] ?? 'Token tidak valid atau sudah kadaluarsa';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red.shade700),
+          SnackBar(
+            content: Text(message),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red.shade700),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
         );
       }
     } finally {
@@ -88,141 +105,189 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final canSubmit = !_isLoading && _rulesAgreed && _tokenController.text.trim().isNotEmpty;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        title: const Text('Persiapan Ujian', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Konfirmasi & Token'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           onPressed: () => context.goNamed(RouteNames.exams),
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+              // Exam Header Card
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: AppShadows.card,
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Icon(Icons.assignment_turned_in_rounded, size: 48, color: theme.colorScheme.primary),
-                      const SizedBox(height: 12),
-                      Text(
-                        widget.examTitle ?? 'Informasi Ujian',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryContainer,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    ],
-                  ),
+                      child: const Icon(
+                        Icons.assignment_turned_in_rounded,
+                        size: 28,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.examTitle ?? 'Informasi Ujian',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Pastikan Anda berada di ruang ujian resmi sebelum memulai.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Peraturan & Petunjuk Ujian',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurfaceVariant,
+
+              const SizedBox(height: 22),
+
+              // Rules Section
+              const Text(
+                'Peraturan & Tata Tertib',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 10),
-              Card(
-                color: theme.colorScheme.surfaceContainerHighest,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: AppShadows.card,
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var i = 0; i < _rules.length; i++)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CircleAvatar(
-                                radius: 10,
-                                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                                child: Text('${i + 1}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  _rules[i],
-                                  style: TextStyle(fontSize: 13, height: 1.4, color: theme.colorScheme.onSurfaceVariant),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: List.generate(_rules.length, (i) {
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: i == _rules.length - 1 ? 0 : 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${i + 1}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _rules[i],
+                              style: const TextStyle(
+                                fontSize: 13,
+                                height: 1.45,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
                 ),
               ),
-              const SizedBox(height: 24),
-              Text(
+
+              const SizedBox(height: 22),
+
+              // Token Input Box
+              const Text(
                 'Masukkan Token Ujian',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurfaceVariant,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Focus(
-                onFocusChange: (focused) {
-                  setState(() => _tokenFocused = focused);
-                },
+                onFocusChange: (focused) => setState(() => _tokenFocused = focused),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 250),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: _tokenFocused
-                          ? theme.colorScheme.primary
-                          : _tokenController.text.isEmpty
-                              ? theme.colorScheme.outlineVariant
-                              : theme.colorScheme.primary.withValues(alpha: 0.5),
+                      color: _tokenFocused ? AppColors.primary : AppColors.border,
                       width: _tokenFocused ? 2 : 1,
                     ),
+                    boxShadow: _tokenFocused ? AppShadows.cardElevated : AppShadows.card,
                   ),
                   child: TextFormField(
                     controller: _tokenController,
                     textAlign: TextAlign.center,
                     textCapitalization: TextCapitalization.characters,
-                    style: TextStyle(
-                      fontSize: 22,
-                      letterSpacing: 6,
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      letterSpacing: 8,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                      fontFeatures: [FontFeature.tabularFigures()],
                     ),
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       hintText: 'XXXXXXXX',
                       hintStyle: TextStyle(
-                        fontSize: 22,
-                        letterSpacing: 6,
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                        fontSize: 24,
+                        letterSpacing: 8,
+                        color: AppColors.textMuted,
                       ),
                       counterText: '',
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 8),
                     ),
                     maxLength: 8,
                     onFieldSubmitted: (_) => _startExam(),
@@ -230,46 +295,91 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Checkbox(
-                    value: _rulesAgreed,
-                    onChanged: (val) => setState(() => _rulesAgreed = val ?? false),
-                    activeColor: theme.colorScheme.primary,
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Saya telah membaca dan memahami seluruh peraturan ujian di atas.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
+
+              const SizedBox(height: 18),
+
+              // Agreement Checkbox
+              BouncingButton(
+                onTap: () => setState(() => _rulesAgreed = !_rulesAgreed),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _rulesAgreed ? AppColors.primaryContainer.withValues(alpha: 0.4) : AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _rulesAgreed ? AppColors.primaryLight : AppColors.border,
                     ),
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: _rulesAgreed,
+                        onChanged: (val) => setState(() => _rulesAgreed = val ?? false),
+                        activeColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Saya setuju dan mematuhi seluruh peraturan ujian di atas.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Start Exam CTA
+              BouncingButton(
+                onTap: canSubmit ? _startExam : null,
+                child: Container(
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: canSubmit
+                        ? const LinearGradient(
+                            colors: [AppColors.primary, AppColors.primaryDark],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          )
+                        : null,
+                    color: canSubmit ? null : AppColors.surfaceSubtle,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: canSubmit ? AppShadows.primaryButton : null,
+                    border: canSubmit ? null : Border.all(color: AppColors.border),
+                  ),
+                  child: Center(
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            'Mulai Pengerjaan Ujian',
+                            style: TextStyle(
+                              color: canSubmit ? Colors.white : AppColors.textMuted,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: (_isLoading || !_rulesAgreed) ? null : _startExam,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade300,
-                  disabledForegroundColor: Colors.grey.shade500,
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('MULAI UJIAN'),
-              ),
             ],
           ),
         ),
@@ -279,9 +389,9 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
 }
 
 const _rules = [
-  'Dilarang keluar dari layar penuh / meminimalkan aplikasi.',
-  'Aplikasi akan otomatis mengunci dalam mode kiosk (Lock Task).',
-  'Pelanggaran/membuka aplikasi lain akan dicatat sebagai kecurangan.',
-  'Jawaban disimpan otomatis (auto-save) setiap beberapa detik.',
-  'Jika batas pelanggaran terlampaui, ujian akan otomatis dikumpulkan.',
+  'Dilarang keluar dari layar penuh atau meminimalkan aplikasi selama ujian.',
+  'Tangkapan layar (screenshot) dan perekaman layar otomatis diblokir.',
+  'Membuka aplikasi lain akan dicatat secara otomatis sebagai pelanggaran.',
+  'Jawaban Anda tersimpan otomatis (auto-save) ke server.',
+  'Jika batas pelanggaran tercapai, lembar ujian akan langsung dikumpulkan.',
 ];

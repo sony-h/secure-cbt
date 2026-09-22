@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
+import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/utils/date_utils.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
-import 'package:secure_cbt_mobile/core/widgets/app_icon_box.dart';
+import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 
 class ExamDetailScreen extends StatelessWidget {
   final Map<String, dynamic> exam;
@@ -12,10 +13,9 @@ class ExamDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final title = exam['title'] as String? ?? '';
+    final title = exam['title'] as String? ?? 'Ujian';
     final subject = exam['subject'] as Map<String, dynamic>?;
-    final subjectName = subject?['name'] as String? ?? '';
+    final subjectName = subject?['name'] as String? ?? 'Mata Pelajaran';
     final duration = exam['duration_minutes'] as int? ?? 0;
     final startAt = exam['start_at'] as String? ?? '';
     final endAt = exam['end_at'] as String? ?? '';
@@ -33,83 +33,158 @@ class ExamDetailScreen extends StatelessWidget {
     })();
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        title: const Text('Detail Ujian', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Detail Ujian'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           onPressed: () => context.goNamed(RouteNames.exams),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Top Hero Card
             AppCard(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: Column(
                 children: [
-                  AppIconBox(
-                    icon: Icons.assignment_rounded,
-                    color: theme.colorScheme.primary,
-                    size: 64,
-                    iconSize: 32,
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Icon(Icons.assignment_rounded, color: AppColors.primary, size: 30),
                   ),
-                  const SizedBox(height: 16),
-                  Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface), maxLines: 3, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 14),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(color: theme.colorScheme.primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
-                    child: Text(subjectName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      subjectName,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
+
             const SizedBox(height: 16),
+
+            // Metadata Specifications Card
             AppCard(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(18),
               child: Column(
-                  children: [
-                    _InfoRow(icon: Icons.timer_outlined, label: 'Durasi', value: formatDetailDuration(duration)),
-                    const SizedBox(height: 24),
-                    _InfoRow(icon: Icons.help_outline_rounded, label: 'Jumlah Soal', value: '$questionDisplay soal'),
-                    const SizedBox(height: 24),
-                    _InfoRow(icon: Icons.play_circle_outline_rounded, label: 'Mulai', value: startLabel),
-                    const SizedBox(height: 12),
-                    _InfoRow(icon: Icons.stop_circle_outlined, label: 'Selesai', value: endLabel),
+                children: [
+                  _SpecRow(
+                    icon: Icons.timer_outlined,
+                    label: 'Durasi Waktu',
+                    value: formatDetailDuration(duration),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(height: 1, color: AppColors.border),
+                  ),
+                  _SpecRow(
+                    icon: Icons.format_list_numbered_rounded,
+                    label: 'Jumlah Soal',
+                    value: '$questionDisplay Soal',
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(height: 1, color: AppColors.border),
+                  ),
+                  _SpecRow(
+                    icon: Icons.calendar_today_rounded,
+                    label: 'Jadwal Mulai',
+                    value: startLabel,
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(height: 1, color: AppColors.border),
+                  ),
+                  _SpecRow(
+                    icon: Icons.event_busy_rounded,
+                    label: 'Jadwal Selesai',
+                    value: endLabel,
+                  ),
                 ],
               ),
             ),
+
             if (description.isNotEmpty) ...[
               const SizedBox(height: 16),
-              AppCard(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Deskripsi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: theme.colorScheme.onSurface)),
-                    const SizedBox(height: 8),
-                    Text(description, style: TextStyle(fontSize: 13, height: 1.5, color: theme.colorScheme.onSurfaceVariant)),
-                  ],
-                ),
+              AppCard.section(
+                title: 'Keterangan Ujian',
+                children: [
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ],
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () => context.goNamed(RouteNames.token, extra: {
+
+            const SizedBox(height: 28),
+
+            // Action Button
+            BouncingButton(
+              onTap: () => context.goNamed(RouteNames.token, extra: {
                 'examId': exam['id'],
                 'examTitle': title,
                 'examDuration': duration,
               }),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryDark],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: AppShadows.primaryButton,
+                ),
+                child: const Center(
+                  child: Text(
+                    'Lanjutkan ke Masukkan Token',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
               ),
-              child: const Text('LANJUTKAN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             ),
           ],
         ),
@@ -118,27 +193,48 @@ class ExamDetailScreen extends StatelessWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
+class _SpecRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _InfoRow({required this.icon, required this.label, required this.value});
+
+  const _SpecRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceSubtle,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: AppColors.primary),
+        ),
         const SizedBox(width: 12),
-        Text(label, style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const Spacer(),
         Flexible(
           child: Text(
             value,
             textAlign: TextAlign.end,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ],

@@ -17,6 +17,7 @@ import 'package:secure_cbt_mobile/features/exam/presentation/widgets/question_pa
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submit_dialog.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_submit_handler.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_violation_handler.dart';
+import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/security/screen_security.dart';
 
 class ExamScreen extends ConsumerStatefulWidget {
@@ -182,7 +183,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         }
       },
       child: Scaffold(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: AppColors.canvas,
         appBar: ExamAppBar(title: widget.examTitle, examState: examState),
         body: examState.isLoading
             ? const Center(child: CircularProgressIndicator())
