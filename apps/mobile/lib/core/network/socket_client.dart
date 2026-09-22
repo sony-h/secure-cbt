@@ -3,7 +3,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:socket_io_client/socket_io_client.dart' as socket_io;
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 
-const _socketBaseUrl = 'http://10.0.2.2:3000';
+const _socketBaseUrl = String.fromEnvironment(
+  'API_URL',
+  defaultValue: 'http://10.0.2.2:3000',
+);
 
 class MonitoringSocket {
   socket_io.Socket? _socket;

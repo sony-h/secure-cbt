@@ -4,7 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 
-const _baseUrl = 'http://10.0.2.2:3000/api/v1'; // Android emulator → host
+const _apiHost = String.fromEnvironment(
+  'API_URL',
+  defaultValue: 'http://10.0.2.2:3000',
+);
+const _baseUrl = '$_apiHost/api/v1';
 
 final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
   return const FlutterSecureStorage();
