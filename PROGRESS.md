@@ -541,6 +541,13 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - New `lib/core/security/screen_security.dart` service wrapping the native channel.
 - iOS screenshot detection stub added (broadcast `Stream`, reserved for future when `ios/` platform files are generated).
 
+### Mobile Submit & Device Compatibility Hotfix (2026-09-22)
+- **Cleartext HTTP & Configurable API Host**: Added `android:usesCleartextTraffic="true"` to `AndroidManifest.xml` and wired `String.fromEnvironment('API_URL')` across `dio_client.dart` and `socket_client.dart` to support physical device testing over USB reverse port forwarding (`adb reverse tcp:3000 tcp:3000`).
+- **Idempotent Exam Submit**: Fixed race condition where auto-submit (triggered by security warning limits) marked the exam as `AUTO_SUBMITTED`, causing subsequent client submits or retries to throw HTTP 400 (`Ujian sudah dikumpulkan`). `SessionService.submit()` is now idempotent, returning the completed session.
+- **Graceful Client Error Recovery**: `ExamSubmitHandler.submitExam()` and `forceSubmit()` now recognize already-submitted status responses from the server, cleanly disabling screen security and navigating to the Result screen instead of trapping the student.
+- **Backend Docker Watch & Build Fix**: Removed erroneous `"prisma"` folder exclusion in `apps/backend/tsconfig.json` which blocked TypeScript emission of `src/prisma`, and set `incremental: false`.
+- **Test Suite**: 31 unit tests passing.
+
 ### Migration Summary
 | Migration | Purpose |
 |-----------|---------|
