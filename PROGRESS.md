@@ -564,3 +564,42 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - **0 Dart errors** in mobile.
 - **0 build errors** in dashboard.
 - **1 critical bug fixed**: Violation detection was completely dead — `didChangeAppLifecycleState` not overridden.
+
+---
+
+## Phase 11 — Mobile UI/UX Full Revamp (Modern Minimalist Academic) — COMPLETE
+
+**Target Aesthetic:** Modern Minimalist Academic (Light Mode Only)  
+**Date:** 2026-09-22
+
+### 1. Theme & Design Tokens
+- **Light Mode Only Enforcement:** App locked to `ThemeMode.light`. Cleaned up dark theme dependencies across `theme.dart` and `app.dart`.
+- **`AppColors` Token System:** Porcelain canvas (`#F8FAFC`), Pure White surface (`#FFFFFF`), Electric Indigo primary (`#4F46E5`), Soft Indigo wash (`#EEF2FF`), Mint Emerald (`#10B981`), Warm Amber (`#F59E0B`), and Crimson Coral (`#EF4444`).
+- **`AppShadows`:** Dual-layer box shadows for organic soft depth (`0.04 - 0.08` opacity) eliminating harsh dark borders.
+- **Tipografi Inter:** Line-height `1.65` for comfortable exam text reading and tabular figures (`FontFeature.tabularFigures()`) across all numbers.
+
+### 2. Core Reusable Widgets
+- **`BouncingButton`:** Taktil scale-on-press (`scale: 0.96`, `Curves.easeOutBack`) pada seluruh tombol, tile pilihan ganda, dan kartu interaktif.
+- **`CountUpText`:** Animasi hitung angka bertahap (0 ke skor akhir) pada lembar pengumuman hasil ujian.
+- **`StatusPill`:** Penanda status konsisten (Sedang Berlangsung, Tersedia, Selesai, Lulus KKM, Perlu Remedial).
+- **Unified `AppCard`:** Menggabungkan implementasi kartu ke `core/widgets/app_card.dart` dan menghapus duplikasi class `AppCard` di `profile_screen.dart`.
+
+### 3. Floating Island Bottom Navigation
+- **`ScaffoldWithNavBar` Overhaul:** Mengganti bar M3 bawaan yang kaku dengan kapsul melayang (*floating island pill*) `16px` dari tepi bawah layar, dilengkapi *smooth sliding container* dan animasi ikon membesar (`1.12`).
+
+### 4. Screen-by-Screen Redesign
+- **`LoginScreen`:** Logo Secure CBT dengan siluet lencana melingkar, kartu form melayang beradius 20px, input field dengan border fokus indigo, dan tombol submit taktil.
+- **`TokenScreen`:** Input kotak token monospaced 8-karakter di tengah layar, daftar tata tertib dengan badge bernomor, dan persetujuan ujian.
+- **`HomeScreen`:** Banner profil siswa bergradien indigo, 3 kartu metrik ringkasan (Total Ujian, Rata-rata Skor, Ujian Tersedia), banner peringatan jika ada ujian aktif, dan kartu quote motivasi.
+- **`ExamsScreen` & `ExamDetailScreen`:** Carousel chip filter mata pelajaran, kartu ujian dengan badge status terpadu, dan layar detail spesifikasi (durasi, jumlah soal, jadwal WIB).
+- **In-Exam (`ExamScreen`, `ExamAppBar`, `ExamQuestionCard`, `ExamBottomBar`, `QuestionPalette`, `SubmitDialog`):**
+  - Timer bar dengan aksen peringatan pulsasi ketika waktu tersisa < 5 menit.
+  - Kartu soal lega dengan pilihan ganda `A`, `B`, `C`, `D` taktil, background tint halus saat dipilih, dan indikator centang mikro.
+  - Palet nomor soal dalam modal grid bertingkat (*staggered scale-in*) dengan status warna kontras (Indigo = Terjawab, Amber = Ragu, Outlined = Aktif, Netral = Belum).
+  - Dialog submit konfirmasi dengan penjelasan jumlah soal yang belum terisi.
+- **`ResultScreen`:** Lingkaran radial gauge dengan *count-up score*, badge kelulusan, dan ringkasan jumlah benar/salah.
+- **`HistoryScreen` & `ProfileScreen`:** Kartu timeline riwayat dengan pill nilai, profil akun dan detail perangkat.
+
+### 5. Verification
+- `flutter analyze lib/`: **0 errors, 0 warnings**.
+- Backend test suite: **31/31 unit tests passing**.
