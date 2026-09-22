@@ -33,14 +33,22 @@ class ExamSubmitHandler {
         'reason': 'WARNING_LIMIT_EXCEEDED',
       });
     } catch (e) {
-      AppLogger.error('Force submit failed', e);
-      _submitting = false;
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Auto-submit gagal: ${e.toString()}'), backgroundColor: Theme.of(context).colorScheme.error),
-        );
+      final isAlreadySubmitted = e is DioException &&
+          (e.response?.statusCode == 400 &&
+              (e.response?.data?['message']?.toString().toLowerCase().contains('dikumpulkan') == true ||
+               e.response?.data?['message']?.toString().toLowerCase().contains('completed') == true));
+
+      if (!isAlreadySubmitted) {
+        AppLogger.error('Force submit failed', e);
+        _submitting = false;
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Auto-submit gagal: ${e.toString()}'), backgroundColor: Theme.of(context).colorScheme.error),
+          );
+        }
+        return;
       }
-      return;
+      AppLogger.info('Session already submitted on server, navigating to result screen');
     }
     ref.read(examProvider.notifier).markSubmitted();
     ScreenSecurity.disable();
@@ -63,14 +71,22 @@ class ExamSubmitHandler {
     try {
       await dio.post('/sessions/submit', data: {'session_id': sessionId});
     } catch (e) {
-      AppLogger.error('Submit failed', e);
-      _submitting = false;
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Submit gagal: ${e.toString()}'), backgroundColor: Theme.of(context).colorScheme.error),
-        );
+      final isAlreadySubmitted = e is DioException &&
+          (e.response?.statusCode == 400 &&
+              (e.response?.data?['message']?.toString().toLowerCase().contains('dikumpulkan') == true ||
+               e.response?.data?['message']?.toString().toLowerCase().contains('completed') == true));
+
+      if (!isAlreadySubmitted) {
+        AppLogger.error('Submit failed', e);
+        _submitting = false;
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Submit gagal: ${e.toString()}'), backgroundColor: Theme.of(context).colorScheme.error),
+          );
+        }
+        return;
       }
-      return;
+      AppLogger.info('Session already submitted on server, navigating to result screen');
     }
     ref.read(examProvider.notifier).markSubmitted();
     ScreenSecurity.disable();

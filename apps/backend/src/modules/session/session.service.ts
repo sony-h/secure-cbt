@@ -216,7 +216,7 @@ export class SessionService {
     if (!session) throw new NotFoundException('Session not found');
     if (session.student_id !== studentId) throw new ForbiddenException('Not your session');
     if (session.status === SessionStatus.SUBMITTED || session.status === SessionStatus.AUTO_SUBMITTED || session.status === SessionStatus.EXPIRED) {
-      throw new BadRequestException('Ujian sudah dikumpulkan');
+      return session;
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {

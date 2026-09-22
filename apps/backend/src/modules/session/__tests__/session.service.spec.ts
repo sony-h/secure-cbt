@@ -184,6 +184,21 @@ describe('SessionService', () => {
       expect(mockPrisma.$transaction).toHaveBeenCalled();
       expect(result.status).toBe('SUBMITTED');
     });
+
+    it('should return session idempotently if already submitted or auto-submitted', async () => {
+      const studentId = UUID();
+      const sessionId = UUID();
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId });
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        student_id: studentId,
+        status: SessionStatus.AUTO_SUBMITTED,
+      });
+
+      const result = await service.submit({ session_id: sessionId }, 'user-1');
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(result.status).toBe(SessionStatus.AUTO_SUBMITTED);
+    });
   });
 
   describe('autoSubmit()', () => {
