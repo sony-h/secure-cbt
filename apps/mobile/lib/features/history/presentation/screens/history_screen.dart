@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:secure_cbt_mobile/core/theme/subject_theme.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/utils/date_utils.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
@@ -61,6 +62,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         final totalScore = ((h['total_score'] ?? 0) as num).toDouble();
                         final passed = totalScore >= 60.0;
                         final submittedAt = h['submitted_at'] as String?;
+                        final examTitle = h['exam_title'] as String? ?? 'Ujian';
+                        final subjectName = h['subject_name'] as String? ?? '';
+
+                        final sTheme = SubjectTheme.fromSubject(name: subjectName, code: examTitle);
+
                         final dateStr = submittedAt != null
                             ? (() {
                                 try {
@@ -78,20 +84,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // Status Icon Box
+                                // Themed Subject Icon Box
                                 Container(
-                                  width: 44,
-                                  height: 44,
+                                  width: 46,
+                                  height: 46,
                                   decoration: BoxDecoration(
-                                    color: passed ? AppColors.successContainer : AppColors.warningContainer,
+                                    color: sTheme.backgroundWash,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: (passed ? AppColors.success : AppColors.warning).withValues(alpha: 0.3),
-                                    ),
+                                    border: Border.all(color: sTheme.border),
                                   ),
                                   child: Icon(
-                                    passed ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded,
-                                    color: passed ? AppColors.success : AppColors.warning,
+                                    sTheme.icon,
+                                    color: sTheme.primary,
                                     size: 22,
                                   ),
                                 ),
@@ -103,17 +107,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        h['exam_title'] ?? 'Ujian',
+                                        examTitle,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 14,
                                           letterSpacing: -0.2,
                                           color: AppColors.textPrimary,
                                         ),
-                                        maxLines: 2,
+                                        maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 3),
                                       Text(
                                         dateStr,
                                         style: const TextStyle(
@@ -163,7 +167,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                     Text(
                                       totalScore.toStringAsFixed(0),
                                       style: TextStyle(
-                                        fontWeight: FontWeight.w800,
+                                        fontWeight: FontWeight.w900,
                                         fontSize: 22,
                                         letterSpacing: -0.5,
                                         fontFeatures: const [FontFeature.tabularFigures()],

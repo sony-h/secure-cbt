@@ -5,6 +5,7 @@ import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
 import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
+import 'package:secure_cbt_mobile/core/widgets/confetti_celebration.dart';
 import 'package:secure_cbt_mobile/core/widgets/count_up_text.dart';
 import 'package:secure_cbt_mobile/core/widgets/status_pill.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/result_provider.dart';
@@ -51,7 +52,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       child: Scaffold(
         backgroundColor: AppColors.canvas,
         appBar: AppBar(
-          title: const Text('Hasil Ujian'),
+          title: const Text('Lembar Hasil Ujian'),
           automaticallyImplyLeading: false,
         ),
         body: SafeArea(
@@ -103,226 +104,244 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                         ),
                       ),
                     )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          AnimatedOpacity(
-                            opacity: _showContent ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 350),
+                  : Builder(
+                      builder: (context) {
+                        final totalScore = ((resultAsync.value?['total_score'] ?? 0.0) as num).toDouble();
+                        final passed = totalScore >= 60.0;
+                        final normalized = (totalScore / 100.0).clamp(0.0, 1.0);
+
+                        return ConfettiCelebration(
+                          play: passed,
+                          child: SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // Celebratory Success Emblem
-                                Container(
-                                  width: 76,
-                                  height: 76,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.successContainer,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: AppColors.success.withValues(alpha: 0.3), width: 2),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.success.withValues(alpha: 0.15),
-                                        blurRadius: 14,
-                                        offset: const Offset(0, 4),
+                                AnimatedOpacity(
+                                  opacity: _showContent ? 1.0 : 0.0,
+                                  duration: const Duration(milliseconds: 400),
+                                  child: Column(
+                                    children: [
+                                      // Celebratory Hero Badge
+                                      Container(
+                                        width: 84,
+                                        height: 84,
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: passed
+                                                ? [const Color(0xFF10B981), const Color(0xFF059669)]
+                                                : [const Color(0xFFF59E0B), const Color(0xFFD97706)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: (passed ? AppColors.success : AppColors.warning).withValues(alpha: 0.3),
+                                              blurRadius: 16,
+                                              offset: const Offset(0, 6),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Center(
+                                          child: Icon(
+                                            passed ? Icons.emoji_events_rounded : Icons.military_tech_rounded,
+                                            size: 46,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        passed ? 'Selamat, Ujian Selesai!' : 'Ujian Telah Terkumpul!',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -0.5,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        resultAsync.value?['exam_title'] ?? 'Ujian Selesai',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.primary,
+                                        ),
                                       ),
                                     ],
                                   ),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.check_circle_rounded,
-                                      size: 44,
-                                      color: AppColors.success,
-                                    ),
+                                ),
+
+                                const SizedBox(height: 28),
+
+                                // Radial Score Ring Card with Soft Glow
+                                AppCard(
+                                  padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+                                  child: Column(
+                                    children: [
+                                      SizedBox(
+                                        width: 160,
+                                        height: 160,
+                                        child: Stack(
+                                          fit: StackFit.expand,
+                                          children: [
+                                            // Soft ambient glow ring behind gauge
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: (passed ? AppColors.success : AppColors.warning).withValues(alpha: 0.12),
+                                                    blurRadius: 20,
+                                                    spreadRadius: 2,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const CircularProgressIndicator(
+                                              value: 1.0,
+                                              strokeWidth: 12,
+                                              backgroundColor: Colors.transparent,
+                                              valueColor: AlwaysStoppedAnimation(AppColors.surfaceSubtle),
+                                            ),
+                                            TweenAnimationBuilder<double>(
+                                              tween: Tween<double>(begin: 0, end: normalized),
+                                              duration: const Duration(milliseconds: 1200),
+                                              curve: Curves.easeOutCubic,
+                                              builder: (context, val, child) {
+                                                return CircularProgressIndicator(
+                                                  value: val,
+                                                  strokeWidth: 12,
+                                                  strokeCap: StrokeCap.round,
+                                                  backgroundColor: Colors.transparent,
+                                                  valueColor: AlwaysStoppedAnimation(
+                                                    passed ? AppColors.success : AppColors.warning,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            Center(
+                                              child: Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  CountUpText(
+                                                    end: totalScore,
+                                                    style: TextStyle(
+                                                      fontSize: 36,
+                                                      fontWeight: FontWeight.w900,
+                                                      letterSpacing: -1,
+                                                      color: passed ? AppColors.success : AppColors.warning,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  const Text(
+                                                    'Skor Akhir',
+                                                    style: TextStyle(
+                                                      fontSize: 11.5,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: AppColors.textMuted,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 22),
+                                      StatusPill.passOrFail(passed: passed),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: 16),
+
+                                const SizedBox(height: 22),
+
+                                // Summary Breakdown Section
                                 const Text(
-                                  'Ujian Berhasil Dikumpulkan!',
-                                  textAlign: TextAlign.center,
+                                  'Statistik Pengerjaan',
                                   style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.4,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.2,
                                     color: AppColors.textPrimary,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  resultAsync.value?['exam_title'] ?? 'Ujian Selesai',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 28),
-
-                          // Radial Score Gauge Card
-                          AppCard(
-                            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-                            child: Column(
-                              children: [
-                                Builder(
-                                  builder: (context) {
-                                    final totalScore = ((resultAsync.value?['total_score'] ?? 0.0) as num).toDouble();
-                                    final passed = totalScore >= 60.0;
-                                    final normalized = (totalScore / 100.0).clamp(0.0, 1.0);
-
-                                    return Column(
-                                      children: [
-                                        SizedBox(
-                                          width: 150,
-                                          height: 150,
-                                          child: Stack(
-                                            fit: StackFit.expand,
-                                            children: [
-                                              const CircularProgressIndicator(
-                                                value: 1.0,
-                                                strokeWidth: 12,
-                                                backgroundColor: Colors.transparent,
-                                                valueColor: AlwaysStoppedAnimation(AppColors.surfaceSubtle),
-                                              ),
-                                              TweenAnimationBuilder<double>(
-                                                tween: Tween<double>(begin: 0, end: normalized),
-                                                duration: const Duration(milliseconds: 1100),
-                                                curve: Curves.easeOutCubic,
-                                                builder: (context, val, child) {
-                                                  return CircularProgressIndicator(
-                                                    value: val,
-                                                    strokeWidth: 12,
-                                                    strokeCap: StrokeCap.round,
-                                                    backgroundColor: Colors.transparent,
-                                                    valueColor: AlwaysStoppedAnimation(
-                                                      passed ? AppColors.success : AppColors.warning,
-                                                    ),
-                                                  );
-                                                },
-                                              ),
-                                              Center(
-                                                child: Column(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    CountUpText(
-                                                      end: totalScore,
-                                                      style: TextStyle(
-                                                        fontSize: 34,
-                                                        fontWeight: FontWeight.w800,
-                                                        letterSpacing: -1,
-                                                        color: passed ? AppColors.success : AppColors.warning,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 2),
-                                                    const Text(
-                                                      'Nilai Akhir',
-                                                      style: TextStyle(
-                                                        fontSize: 11,
-                                                        fontWeight: FontWeight.w600,
-                                                        color: AppColors.textMuted,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                const SizedBox(height: 10),
+                                AppCard(
+                                  padding: const EdgeInsets.all(18),
+                                  child: Column(
+                                    children: [
+                                      _SummaryRow(
+                                        icon: Icons.check_circle_rounded,
+                                        iconColor: AppColors.success,
+                                        label: 'Jawaban Benar',
+                                        value: '${resultAsync.value?['correct_count'] ?? 0}',
+                                      ),
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 12),
+                                        child: Divider(height: 1, color: AppColors.border),
+                                      ),
+                                      _SummaryRow(
+                                        icon: Icons.cancel_rounded,
+                                        iconColor: AppColors.error,
+                                        label: 'Jawaban Salah',
+                                        value: '${resultAsync.value?['wrong_count'] ?? 0}',
+                                      ),
+                                      if (resultAsync.value?['essay_score'] != null) ...[
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(vertical: 12),
+                                          child: Divider(height: 1, color: AppColors.border),
                                         ),
-                                        const SizedBox(height: 20),
-                                        StatusPill.passOrFail(passed: passed),
+                                        _SummaryRow(
+                                          icon: Icons.edit_note_rounded,
+                                          iconColor: AppColors.primary,
+                                          label: 'Nilai Esai Guru',
+                                          value: ((resultAsync.value?['essay_score'] ?? 0.0) as num).toStringAsFixed(1),
+                                        ),
                                       ],
-                                    );
-                                  },
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(height: 32),
+
+                                // Back to Home Button
+                                BouncingButton(
+                                  onTap: _backToHome,
+                                  child: Container(
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [AppColors.primary, AppColors.primaryDark],
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                      ),
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: AppShadows.primaryButton,
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        'Kembali ke Beranda',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-
-                          const SizedBox(height: 22),
-
-                          // Summary Metrics Breakdown Card
-                          const Text(
-                            'Ringkasan Penilaian',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          AppCard(
-                            padding: const EdgeInsets.all(18),
-                            child: Column(
-                              children: [
-                                _SummaryRow(
-                                  icon: Icons.check_circle_rounded,
-                                  iconColor: AppColors.success,
-                                  label: 'Jawaban Benar',
-                                  value: '${resultAsync.value?['correct_count'] ?? 0}',
-                                ),
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                  child: Divider(height: 1, color: AppColors.border),
-                                ),
-                                _SummaryRow(
-                                  icon: Icons.cancel_rounded,
-                                  iconColor: AppColors.error,
-                                  label: 'Jawaban Salah',
-                                  value: '${resultAsync.value?['wrong_count'] ?? 0}',
-                                ),
-                                if (resultAsync.value?['essay_score'] != null) ...[
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 12),
-                                    child: Divider(height: 1, color: AppColors.border),
-                                  ),
-                                  _SummaryRow(
-                                    icon: Icons.edit_note_rounded,
-                                    iconColor: AppColors.primary,
-                                    label: 'Nilai Esai',
-                                    value: ((resultAsync.value?['essay_score'] ?? 0.0) as num).toStringAsFixed(1),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 32),
-
-                          // Back to Home Button
-                          BouncingButton(
-                            onTap: _backToHome,
-                            child: Container(
-                              height: 52,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [AppColors.primary, AppColors.primaryDark],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: AppShadows.primaryButton,
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  'Kembali ke Beranda',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
         ),
       ),
@@ -348,7 +367,7 @@ class _SummaryRow extends StatelessWidget {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
             color: iconColor.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),

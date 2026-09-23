@@ -1,4 +1,6 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
@@ -18,15 +20,26 @@ class TokenScreen extends ConsumerStatefulWidget {
   ConsumerState<TokenScreen> createState() => _TokenScreenState();
 }
 
-class _TokenScreenState extends ConsumerState<TokenScreen> {
+class _TokenScreenState extends ConsumerState<TokenScreen> with SingleTickerProviderStateMixin {
   final _tokenController = TextEditingController();
+  final _focusNode = FocusNode();
+  late final AnimationController _shakeController;
+  late final Animation<double> _shakeAnimation;
+
   bool _isLoading = false;
   bool _rulesAgreed = false;
-  bool _tokenFocused = false;
 
   @override
   void initState() {
     super.initState();
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _shakeAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = ref.read(authProvider);
       if (!auth.isAuthenticated) {
@@ -38,7 +51,14 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
   @override
   void dispose() {
     _tokenController.dispose();
+    _focusNode.dispose();
+    _shakeController.dispose();
     super.dispose();
+  }
+
+  void _triggerErrorShake() {
+    HapticFeedback.mediumImpact();
+    _shakeController.forward(from: 0.0);
   }
 
   Future<void> _startExam() async {
@@ -46,9 +66,10 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
 
     final token = _tokenController.text.trim().toUpperCase();
     if (token.isEmpty) {
+      _triggerErrorShake();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Masukkan token ujian terlebih dahulu'),
+          content: const Text('Silakan masukkan token ujian terlebih dahulu'),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -76,7 +97,8 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
         });
       }
     } on DioException catch (e) {
-      final message = e.response?.data?['message'] ?? 'Token tidak valid atau sudah kadaluarsa';
+      _triggerErrorShake();
+      final message = e.response?.data?['message'] ?? 'Token tidak valid atau sudah kedaluwarsa';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -88,6 +110,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
         );
       }
     } catch (e) {
+      _triggerErrorShake();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -105,7 +128,8 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canSubmit = !_isLoading && _rulesAgreed && _tokenController.text.trim().isNotEmpty;
+    final tokenText = _tokenController.text.toUpperCase();
+    final canSubmit = !_isLoading && _rulesAgreed && tokenText.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -118,66 +142,79 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Exam Header Card
+              // ── Exam Header Card ─────────────────────────────────
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: AppColors.border),
                   boxShadow: AppShadows.card,
                 ),
-                child: Column(
+                child: Row(
                   children: [
                     Container(
-                      width: 52,
-                      height: 52,
+                      width: 50,
+                      height: 50,
                       decoration: BoxDecoration(
-                        color: AppColors.primaryContainer,
-                        borderRadius: BorderRadius.circular(16),
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primary, AppColors.primaryDark],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
-                      child: const Icon(
-                        Icons.assignment_turned_in_rounded,
-                        size: 28,
-                        color: AppColors.primary,
-                      ),
+                      child: const Icon(Icons.vpn_key_rounded, color: Colors.white, size: 24),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.examTitle ?? 'Informasi Ujian',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Pastikan Anda berada di ruang ujian resmi sebelum memulai.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                        height: 1.4,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'UJIAN YANG DIPILIH',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.examTitle ?? 'Informasi Ujian',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.3,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 20),
 
-              // Rules Section
+              // ── Interactive Segmented Token Input Box ────────────
               const Text(
-                'Peraturan & Tata Tertib',
+                'Kode Akses / Token Ujian',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -185,12 +222,130 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
+
+              AnimatedBuilder(
+                animation: _shakeAnimation,
+                builder: (context, child) {
+                  final offset = sin(_shakeAnimation.value * pi * 4) * 8 * (1 - _shakeAnimation.value);
+                  return Transform.translate(
+                    offset: Offset(offset, 0),
+                    child: child,
+                  );
+                },
+                child: GestureDetector(
+                  onTap: () => _focusNode.requestFocus(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: _focusNode.hasFocus ? AppColors.primary : AppColors.border,
+                        width: _focusNode.hasFocus ? 1.5 : 1.0,
+                      ),
+                      boxShadow: _focusNode.hasFocus ? AppShadows.cardElevated : AppShadows.card,
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Segmented 8-char cells
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: List.generate(8, (index) {
+                            final char = index < tokenText.length ? tokenText[index] : '';
+                            final isCurrent = index == tokenText.length && _focusNode.hasFocus;
+                            final isFilled = index < tokenText.length;
+
+                            return Expanded(
+                              child: Container(
+                                height: 46,
+                                margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                                decoration: BoxDecoration(
+                                  color: isFilled
+                                      ? AppColors.primaryContainer
+                                      : isCurrent
+                                          ? AppColors.surface
+                                          : AppColors.surfaceSubtle,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isCurrent
+                                        ? AppColors.primary
+                                        : isFilled
+                                            ? AppColors.primaryLight.withValues(alpha: 0.5)
+                                            : AppColors.border,
+                                    width: isCurrent ? 2 : 1,
+                                  ),
+                                  boxShadow: isCurrent
+                                      ? [
+                                          BoxShadow(
+                                            color: AppColors.primary.withValues(alpha: 0.2),
+                                            blurRadius: 6,
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    char,
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      color: isFilled ? AppColors.primary : AppColors.textPrimary,
+                                      fontFeatures: const [FontFeature.tabularFigures()],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+
+                        // Invisible native TextField catching input
+                        Opacity(
+                          opacity: 0.0,
+                          child: TextField(
+                            controller: _tokenController,
+                            focusNode: _focusNode,
+                            maxLength: 8,
+                            textCapitalization: TextCapitalization.characters,
+                            keyboardType: TextInputType.text,
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            onChanged: (_) => setState(() {}),
+                            onSubmitted: (_) => _startExam(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 6),
+              const Text(
+                'Minta 8 digit token pengawas ujian kepada guru piket / pengawas di kelas.',
+                style: TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+              ),
+
+              const SizedBox(height: 22),
+
+              // ── Exam Rules Checklist ──────────────────────────────
+              const Text(
+                'Peraturan & Keamanan Ujian',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: AppColors.border),
                   boxShadow: AppShadows.card,
                 ),
@@ -207,14 +362,14 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                             height: 22,
                             decoration: BoxDecoration(
                               color: AppColors.primaryContainer,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(7),
                             ),
                             child: Center(
                               child: Text(
                                 '${i + 1}',
                                 style: const TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w800,
                                   color: AppColors.primary,
                                 ),
                               ),
@@ -225,7 +380,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                             child: Text(
                               _rules[i],
                               style: const TextStyle(
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 height: 1.45,
                                 color: AppColors.textSecondary,
                               ),
@@ -238,74 +393,16 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                 ),
               ),
 
-              const SizedBox(height: 22),
-
-              // Token Input Box
-              const Text(
-                'Masukkan Token Ujian',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Focus(
-                onFocusChange: (focused) => setState(() => _tokenFocused = focused),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: _tokenFocused ? AppColors.primary : AppColors.border,
-                      width: _tokenFocused ? 2 : 1,
-                    ),
-                    boxShadow: _tokenFocused ? AppShadows.cardElevated : AppShadows.card,
-                  ),
-                  child: TextFormField(
-                    controller: _tokenController,
-                    textAlign: TextAlign.center,
-                    textCapitalization: TextCapitalization.characters,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      letterSpacing: 8,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: 'XXXXXXXX',
-                      hintStyle: TextStyle(
-                        fontSize: 24,
-                        letterSpacing: 8,
-                        color: AppColors.textMuted,
-                      ),
-                      counterText: '',
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    maxLength: 8,
-                    onFieldSubmitted: (_) => _startExam(),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-              ),
-
               const SizedBox(height: 18),
 
-              // Agreement Checkbox
+              // ── Agreement Checkbox ────────────────────────────────
               BouncingButton(
                 onTap: () => setState(() => _rulesAgreed = !_rulesAgreed),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: _rulesAgreed ? AppColors.primaryContainer.withValues(alpha: 0.4) : AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
+                    color: _rulesAgreed ? AppColors.primaryContainer.withValues(alpha: 0.5) : AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: _rulesAgreed ? AppColors.primaryLight : AppColors.border,
                     ),
@@ -323,12 +420,11 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
-                          'Saya setuju dan mematuhi seluruh peraturan ujian di atas.',
+                          'Saya setuju dan mematuhi seluruh peraturan keamanan di atas.',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textPrimary,
-                            height: 1.35,
                           ),
                         ),
                       ),
@@ -339,7 +435,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
 
               const SizedBox(height: 24),
 
-              // Start Exam CTA
+              // ── Start Exam CTA ────────────────────────────────────
               BouncingButton(
                 onTap: canSubmit ? _startExam : null,
                 child: Container(
@@ -379,7 +475,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -389,9 +485,9 @@ class _TokenScreenState extends ConsumerState<TokenScreen> {
 }
 
 const _rules = [
-  'Dilarang keluar dari layar penuh atau meminimalkan aplikasi selama ujian.',
-  'Tangkapan layar (screenshot) dan perekaman layar otomatis diblokir.',
-  'Membuka aplikasi lain akan dicatat secara otomatis sebagai pelanggaran.',
-  'Jawaban Anda tersimpan otomatis (auto-save) ke server.',
-  'Jika batas pelanggaran tercapai, lembar ujian akan langsung dikumpulkan.',
+  'Dilarang meminimalkan aplikasi atau berpindah ke aplikasi lain selama ujian berlangsung.',
+  'Tangkapan layar (screenshot) dan perekaman layar otomatis diblokir oleh sistem.',
+  'Setiap indikasi kecurangan akan dicatat secara otomatis pada dasbor pengawas guru.',
+  'Jawaban Anda tersimpan otomatis (auto-save) ke server secara berkala.',
+  'Jika batas pelanggaran tercapai, lembar ujian akan langsung dikumpulkan secara otomatis.',
 ];
