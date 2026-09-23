@@ -603,3 +603,49 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 ### 5. Verification
 - `flutter analyze lib/`: **0 errors, 0 warnings**.
 - Backend test suite: **31/31 unit tests passing**.
+
+---
+
+## Phase 12 — Mobile UI/UX "Heroic Scholar" (Vibrant EdTech & Gamified) — COMPLETE
+
+**Target Aesthetic:** Heroic Scholar (Vibrant EdTech & Gamified, Light Mode Only)  
+**Date:** 2026-09-22
+
+### 1. Subject-Themed Visual System (`SubjectTheme`)
+- **Dynamic Subject Palette:**
+  - Matematika & Eksakta (`MTK`, `MATH`): Royal Violet (`#7C3AED`) & Orchid wash (`#F5F3FF`) dengan ikon kalkulator.
+  - Sains & Fisika / Kimia (`FIS`, `KIM`): Electric Cyan (`#0284C7`) & Deep Ocean wash (`#F0F9FF`) dengan ikon sains.
+  - Biologi & Alam (`BIO`, `IPA`): Forest Emerald (`#059669`) & Mint wash (`#ECFDF5`) dengan ikon daun/eco.
+  - Bahasa & Sastra (`BIN`, `BING`, `BJE`): Sunset Tangerine (`#EA580C`) & Amber wash (`#FFF7ED`) dengan ikon buku/bahasa.
+  - Sosial & Ekonomi (`EKO`, `GEO`, `SOS`, `PKN`): Crimson Rose (`#E11D48`) & Soft Coral wash (`#FFF1F2`) dengan ikon grafik/sosial.
+  - Pelajaran Umum / Default: Electric Indigo (`#4F46E5`) & Soft Indigo wash (`#EEF2FF`).
+- **Accent Stripe Cards:** Kartu ujian dilengkapi garis aksen vertikal 6px di sisi kiri sesuai warna mapelnya.
+
+### 2. Native Particle Celebration (`ConfettiCelebration`)
+- Partikel bintang dan pita konfeti berputar berbasis `CustomPainter` dan `AnimationController` murni yang meluncur otomatis saat siswa membuka layar hasil dan lulus KKM (>= 60). Tidak memerlukan library eksternal dan bebas jank pada 60fps.
+
+### 3. Screen Redesigns
+- **`HomeScreen`:**
+  - *Student Passport Card* bergradien indigo dengan ring avatar bercahaya dan badge status aktif.
+  * Tiga kartu metrik gamifikasi (Ujian Tuntas [Ungu], Rata-rata Skor [Emerald], Ujian Tersedia [Amber]).
+  * Banner hero ujian aktif berdenyut jika ada ujian yang sedang berlangsung.
+  * Kartu quote motivasi bergaya lencana bintang berkilau.
+  * Kartu ujian mendatang dengan warna tematik mapel dan status pill.
+- **`ExamsScreen` & `ExamDetailScreen`:**
+  - Carousel chip filter mapel yang adaptif mengikuti warna kelompok mapel saat dipilih.
+  - Section header dengan badge angka dan icon tematik.
+  - Hero card rincian ujian dan tombol CTA bergradien warna mapel terkait.
+- **`TokenScreen`:**
+  - Kotak token interaktif segmented 8-karakter dengan glowing border pada digit aktif.
+  - Animasi getar (*shake on error*) disertai haptic feedback saat input token salah.
+  - Checklist peraturan ujian dengan nomor lingkaran bergradien.
+- **`ResultScreen`:**
+  - Hero badge piala/lencana kelulusan.
+  - Lingkaran radial gauge bercahaya (*ambient glow ring*) dengan teks skor animasi berhitung cepat (*CountUpText*).
+  - Integrasi efek selebrasi partikel konfeti di latar belakang.
+- **`HistoryScreen`:**
+  - Kartu riwayat ujian dengan icon box dan aksen warna mapel dari `SubjectTheme`.
+
+### 4. Verification
+- `flutter analyze lib/`: **0 errors, 0 warnings**.
+- Backend test suite: **31/31 unit tests passing**.
