@@ -649,3 +649,35 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 ### 4. Verification
 - `flutter analyze lib/`: **0 errors, 0 warnings**.
 - Backend test suite: **31/31 unit tests passing**.
+
+---
+
+## Phase 13 — Production VPS Readiness & PM2 Monorepo Configuration — COMPLETE
+
+**Target Platform:** VPS Linux (Ubuntu / Debian, 4 vCPU & 12 GB RAM)  
+**Architecture:** Hybrid Production (Docker Infra + PM2 Monorepo + Nginx Reverse Proxy)  
+**Date:** 2026-09-30
+
+### 1. Process Management & Isolation
+- **`ecosystem.config.cjs`**: Root PM2 configuration managing `secure-cbt-backend` (port 3000) and `secure-cbt-dashboard` (port 3001) with memory restart caps (1200MB) and graceful restart hooks.
+- **`docker-compose.prod.yml`**: Production Docker Compose configuration isolating PostgreSQL, Redis 7 (with password authentication), and MinIO. All ports locked exclusively to `127.0.0.1` to prevent public internet scanning or exploits.
+- **`.env.prod.infra.example`**: Root template for production database & cache credentials.
+
+### 2. Backend Production Hardening
+- **Redis Password Support (`queue.module.ts`)**: Added conditional `password` support to BullMQ connection for protected Redis instances.
+- **Dynamic Multi-Origin CORS (`main.ts` & `monitoring.gateway.ts`)**: `CORS_ORIGIN` and `SOCKET_IO_CORS_ORIGIN` now support comma-separated origins, allowing both web domains and API domains simultaneously.
+- **`apps/backend/.env.production.example`**: Complete production environment template with JWT secret instructions and production ports.
+
+### 3. Dashboard Production Setup
+- **`apps/dashboard/.env.production.example`**: Template for inlining `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SOCKET_URL` during build.
+
+### 4. Nginx Reverse Proxy & Automation Scripts
+- **`deploy/nginx/secure-cbt.conf`**: Production Nginx configuration for `cbt.domainanda.com` (port 3001) and `api.domainanda.com` (port 3000) with full Socket.io WebSocket support (`Upgrade`, `Connection`) and 3600s timeout for live exam sessions.
+- **`deploy/setup-vps.sh`**: One-shot bash script to provision a fresh Ubuntu/Debian VPS (Docker, Node 22, pnpm, PM2, Nginx, UFW).
+- **`deploy/update.sh`**: One-click zero-downtime deployment script (`git pull` -> `pnpm install` -> `prisma migrate deploy` -> `pnpm run build` -> `pm2 reload`).
+- **`deploy/README_VPS.md`**: Comprehensive step-by-step Indonesian guide for deploying to production from scratch.
+
+### 5. Verification
+- Backend unit tests: **31/31 unit tests passing**.
+- Backend build: **zero compilation errors** (`nest build`).
+- Dashboard build: **zero compilation errors** (`next build`).

@@ -28,8 +28,14 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
   app.use(cookieParser());
+
+  const corsEnv = process.env.CORS_ORIGIN || 'http://localhost:3001';
+  const allowedOrigins = corsEnv.includes(',')
+    ? corsEnv.split(',').map((o) => o.trim())
+    : corsEnv;
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
+    origin: allowedOrigins,
     credentials: true,
   });
 

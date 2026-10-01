@@ -7,8 +7,11 @@ import { QueueNames } from '@secure-cbt/shared';
   imports: [
     BullModule.forRoot({
       connection: {
-        host: process.env.BULLMQ_REDIS_HOST || 'localhost',
-        port: parseInt(process.env.BULLMQ_REDIS_PORT || '6379', 10),
+        host: process.env.BULLMQ_REDIS_HOST || process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.BULLMQ_REDIS_PORT || process.env.REDIS_PORT || '6379', 10),
+        ...(process.env.REDIS_PASSWORD || process.env.BULLMQ_REDIS_PASSWORD
+          ? { password: process.env.REDIS_PASSWORD || process.env.BULLMQ_REDIS_PASSWORD }
+          : {}),
       },
       defaultJobOptions: {
         attempts: 3,

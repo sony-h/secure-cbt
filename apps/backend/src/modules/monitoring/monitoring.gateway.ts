@@ -12,10 +12,16 @@ import { Logger } from '@nestjs/common';
 import { SocketEvent } from '@secure-cbt/shared';
 import { MonitoringService } from './monitoring.service';
 
+const getSocketOrigins = () => {
+  const envOrigin = process.env.SOCKET_IO_CORS_ORIGIN || process.env.CORS_ORIGIN;
+  if (!envOrigin || envOrigin === '*') return true;
+  return envOrigin.includes(',') ? envOrigin.split(',').map((o) => o.trim()) : envOrigin;
+};
+
 @WebSocketGateway({
   namespace: '/monitoring',
   cors: {
-    origin: process.env.SOCKET_IO_CORS_ORIGIN || 'http://localhost:3001',
+    origin: getSocketOrigins(),
     credentials: true,
   },
   transports: ['websocket', 'polling'],
