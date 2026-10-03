@@ -715,3 +715,31 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - Live production health check: `https://api.sonyhartono.web.id/api/v1/health` (HTTP 200 OK).
 - Seeded student authentication: `202501001` / `202501001` verified directly against production database.
 - Exam retrieval: Confirmed published exams are live and accessible for students.
+
+---
+
+## Phase 15 — Dashboard Data Consistency & Monitoring Prescience Polish — COMPLETE
+
+**Target Platform:** Web Dashboard (Next.js) & Backend Monitoring API (NestJS)  
+**Date:** 2026-10-03
+
+### 1. Monitoring Connection & Signal Overhaul
+- **UUID Mapping Fix**: Matched `connectedStudents` against `session.student_user_id` instead of session UUID.
+- **Connection Presence Enrichment**: Injected `MonitoringGateway` into `MonitoringController.getExamMonitoring()` to return real-time `is_connected` state on every REST poll.
+- **Initial Room Presence Event**: Added `connected.students` emit when teachers connect to `exam:{examId}` so initial active sessions show green signal immediately.
+- **Safe Socket Disconnect**: Added active socket check in `handleDisconnect` to prevent race conditions during rapid student reconnects.
+- **Graceful Submitted State**: Replaced misleading red `WifiOff` icon with clean `<CheckCircle className="text-primary" />` for students who have successfully submitted their exams.
+- **Real-Time Progress Event**: Added listener for `progress.updated` to invalidate monitoring query immediately when answers are saved.
+- **Socket URL Resolution**: Prioritized `NEXT_PUBLIC_SOCKET_URL` before falling back to `NEXT_PUBLIC_API_URL`.
+
+### 2. Question Bank & Pagination Ceiling Fixes
+- **Pagination Ceiling Raised**: Increased max `perPage` in `pagination.helper.ts` from 100 to 1000.
+- **Matematika Questions Restored**: Updated `questionBankApi.getQuestions({ per_page: 500 })` in `questions/page.tsx` and `exams/page.tsx`, ensuring all 30 seeded questions (including Math questions at indices 21-30) load and filter correctly.
+- **True/False UX Automation**: Added automatic option initialization in `QuestionModal` (`Benar` & `Salah`) when switching question type to `TRUE_FALSE`, hiding add/delete option buttons.
+
+### 3. Cross-Page Data Completeness & Resilience
+- **Students Table**: Fetches with `{ per_page: 500 }`, allowing all 60 students across all classes to render and filter accurately.
+- **Teachers & Exams Tables**: Added `{ per_page: 200 }` to prevent list clipping.
+- **Report Session Mapping**: Added `session_id: s.id` in `report.service.ts` and mapped `s.session_id || s.student_id` in `reports/page.tsx`.
+- **Academic Mutation Resilience**: Added `onError` toast handlers across all 10 mutation actions in `academic/page.tsx`.
+- **Test Suite**: 31 unit tests passing, 0 TypeScript errors across backend and dashboard.
