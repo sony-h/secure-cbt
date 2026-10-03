@@ -3,6 +3,7 @@ import 'package:dio_smart_retry/dio_smart_retry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
+import 'package:secure_cbt_mobile/core/network/token_refresh_coordinator.dart';
 
 const _apiHost = String.fromEnvironment(
   'API_URL',
@@ -14,6 +15,11 @@ final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
   return const FlutterSecureStorage();
 });
 
+final tokenRefreshCoordinatorProvider = Provider<TokenRefreshCoordinator>((ref) {
+  final storage = ref.watch(secureStorageProvider);
+  return TokenRefreshCoordinator(storage, _baseUrl);
+});
+
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
     baseUrl: _baseUrl,
@@ -21,6 +27,9 @@ final dioProvider = Provider<Dio>((ref) {
     receiveTimeout: const Duration(seconds: 10),
     headers: {'Content-Type': 'application/json'},
   ));
+
+  final storage = ref.watch(secureStorageProvider);
+  final coordinator = ref.watch(tokenRefreshCoordinatorProvider);
 
   // Order: Retry (closest to adapter) → Auth → Log (outermost)
   dio.interceptors.addAll([
@@ -36,7 +45,6 @@ final dioProvider = Provider<Dio>((ref) {
     ),
     InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final storage = ref.read(secureStorageProvider);
         final token = await storage.read(key: 'access_token');
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
@@ -44,30 +52,67 @@ final dioProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
       onError: (error, handler) async {
-        if (error.response?.statusCode == 401) {
-          final storage = ref.read(secureStorageProvider);
-          final refreshToken = await storage.read(key: 'refresh_token');
-          if (refreshToken != null) {
-            try {
-              final refreshDio = Dio(BaseOptions(baseUrl: _baseUrl));
-              final response = await refreshDio.post('/auth/refresh', data: {
-                'refresh_token': refreshToken,
-              });
-              final newAccess = response.data['data']['access_token'];
-              final newRefresh = response.data['data']['refresh_token'];
-              await storage.write(key: 'access_token', value: newAccess);
-              await storage.write(key: 'refresh_token', value: newRefresh);
+        final response = error.response;
+        final requestOptions = error.requestOptions;
 
-              final opts = error.requestOptions;
-              opts.headers['Authorization'] = 'Bearer $newAccess';
-              final retryResponse = await dio.fetch(opts);
-              return handler.resolve(retryResponse);
-            } catch (e) {
-              await storage.deleteAll();
-            }
+        // 1. Guard against non-401, already-retried, or auth endpoints
+        if (response?.statusCode != 401 ||
+            requestOptions.extra['_retry'] == true ||
+            requestOptions.path.contains('/auth/login') ||
+            requestOptions.path.contains('/auth/refresh')) {
+          return handler.next(error);
+        }
+
+        requestOptions.extra['_retry'] = true;
+
+        // 2. Fast-path: Check if another request already refreshed the access token
+        final staleAuth = requestOptions.headers['Authorization'] as String?;
+        final currentToken = await storage.read(key: 'access_token');
+        if (currentToken != null && 'Bearer $currentToken' != staleAuth) {
+          AppLogger.info('Token already refreshed by concurrent request, retrying');
+          requestOptions.headers['Authorization'] = 'Bearer $currentToken';
+          try {
+            final retryResponse = await dio.fetch(requestOptions);
+            return handler.resolve(retryResponse);
+          } on DioException catch (retryErr) {
+            return handler.next(retryErr);
           }
         }
-        handler.next(error);
+
+        // 3. Ensure refresh token exists before attempting refresh
+        final refreshToken = await storage.read(key: 'refresh_token');
+        if (refreshToken == null || refreshToken.isEmpty) {
+          AppLogger.warn('No refresh token available, clearing session');
+          await storage.deleteAll();
+          return handler.next(error);
+        }
+
+        // 4. Single-flight token refresh
+        try {
+          final newAccessToken = await coordinator.refreshAccessToken();
+          requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
+          final retryResponse = await dio.fetch(requestOptions);
+          return handler.resolve(retryResponse);
+        } catch (refreshErr) {
+          // 5. On refresh failure: re-read storage first!
+          // If another request or background task succeeded, do NOT wipe session
+          final latestToken = await storage.read(key: 'access_token');
+          if (latestToken != null && 'Bearer $latestToken' != staleAuth) {
+            AppLogger.info('Refresh failed but valid token found in storage, retrying');
+            requestOptions.headers['Authorization'] = 'Bearer $latestToken';
+            try {
+              final retryResponse = await dio.fetch(requestOptions);
+              return handler.resolve(retryResponse);
+            } on DioException catch (retryErr) {
+              return handler.next(retryErr);
+            }
+          }
+
+          // 6. Only wipe storage when session is genuinely dead
+          AppLogger.error('Session is dead after failed refresh, wiping storage', refreshErr);
+          await storage.deleteAll();
+          return handler.next(error);
+        }
       },
     ),
     LogInterceptor(

@@ -1,9 +1,9 @@
 # Progress Note: Secure CBT Platform
 
-**Current Phase:** Phase 10 - Post-Audit Hardening & Security Fixes - COMPLETE
+**Current Phase:** Phase 14 - Mobile Production Release & Token-Refresh Hardening - COMPLETE
 **Target Platform:** Indonesian High Schools (SMA/SMK)
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)
-**Last Updated:** 2026-06-30
+**Last Updated:** 2026-10-03
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -681,3 +681,37 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - Backend unit tests: **31/31 unit tests passing**.
 - Backend build: **zero compilation errors** (`nest build`).
 - Dashboard build: **zero compilation errors** (`next build`).
+
+---
+
+## Phase 14 — Mobile Production Release & Token-Refresh Hardening — COMPLETE
+
+**Target Platform:** Android Physical Devices & Emulators  
+**Production Server:** `https://api.sonyhartono.web.id` (API) & `https://cbt.sonyhartono.web.id` (Dashboard)  
+**Date:** 2026-10-03
+
+### 1. Token-Refresh Race Condition Elimination (`dio_client.dart`)
+- **Single-Flight Coordination (`TokenRefreshCoordinator`)**: Parallel 401 errors mid-exam now coalesce into a single shared `/auth/refresh` HTTP call. Prevents the second concurrent request from invalidating the newly rotated token.
+- **Fast-Path Verification**: Stale Authorization headers are compared against the active token in `FlutterSecureStorage`. If a concurrent request already updated storage, requests retry immediately without making redundant refresh calls.
+- **Fail-Safe Session Protection**: When a refresh attempt fails, storage is re-evaluated first. If an updated token is discovered, the session is preserved and retried. `storage.deleteAll()` is restricted strictly to genuinely dead sessions.
+- **Infinite Loop Guards**: Added `_retry = true` marker on `RequestOptions` and explicitly exempted `/auth/login` and `/auth/refresh` endpoints from interceptor cycles.
+- **Unit Testing**: Added `test/core/network/token_refresh_coordinator_test.dart` verifying single-flight coalescing and error handling (100% pass).
+
+### 2. Versioning & Release Signing Configuration
+- **Version Bump**: `apps/mobile/pubspec.yaml` updated to version `1.0.1+2`.
+- **Flexible Keystore Integration (`build.gradle.kts`)**: Configured Gradle Kotlin DSL to load `key.properties` for production release signing when available, with automatic fallback to debug signing for effortless sideload/testing.
+- **Credential Protection**: Added `key.properties`, `*.jks`, and `*.keystore` patterns to `apps/mobile/.gitignore` and provided `key.properties.example` template.
+- **Smoke Testing**: Replaced obsolete counter template in `test/widget_test.dart` with clean `SecureCbtApp` smoke test.
+
+### 3. Production Release APK Artifact
+- **Compiled Output**: Successfully compiled release APK via:
+  ```powershell
+  flutter build apk --release --dart-define=API_URL=https://api.sonyhartono.web.id
+  ```
+- **Generated File**: `apps/mobile/build/app/outputs/flutter-apk/app-release.apk` (57.7 MB).
+- **Optimization**: Tuned `gradle.properties` JVM heap allocation to prevent AAPT2 memory exhaustion on Windows hosts.
+
+### 4. Live Verification Against Production Server
+- Live production health check: `https://api.sonyhartono.web.id/api/v1/health` (HTTP 200 OK).
+- Seeded student authentication: `202501001` / `202501001` verified directly against production database.
+- Exam retrieval: Confirmed published exams are live and accessible for students.
