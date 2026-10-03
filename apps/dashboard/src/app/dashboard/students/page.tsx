@@ -120,7 +120,7 @@ function StudentsPageContent() {
 
   const { data: students, isLoading } = useQuery({
     queryKey: ['students'],
-    queryFn: async () => { const res = await studentApi.getAll(); return res.data.data; },
+    queryFn: async () => { const res = await studentApi.getAll({ per_page: 500 }); return res.data.data; },
   });
 
   const { data: classes } = useQuery({

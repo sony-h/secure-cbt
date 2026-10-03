@@ -58,7 +58,7 @@ function ReportsPageContent() {
       const { data } = await reportApi.getExamReport(selectedExam, params);
       const raw = data.data;
       return ((raw?.students || []) as any[]).map((s: any) => ({
-        session_id: s.student_id,
+        session_id: s.session_id || s.student_id,
         student: { nis: s.nis, full_name: s.student_name, class_name: s.class_name },
         total_score: s.score, correct_count: s.correct_count,
         wrong_count: s.wrong_count, essay_score: s.essay_score ?? null,

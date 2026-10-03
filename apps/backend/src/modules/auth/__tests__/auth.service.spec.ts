@@ -23,7 +23,13 @@ function createMockPrisma() {
     user: { findFirst: vi.fn(), findUnique: vi.fn() },
     student: { findUnique: vi.fn() },
     teacher: { findUnique: vi.fn() },
-    refreshToken: { findUnique: vi.fn(), deleteMany: vi.fn(), create: vi.fn(), update: vi.fn() },
+    refreshToken: {
+      findUnique: vi.fn(),
+      deleteMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    },
     $transaction: vi.fn((fn: any) => fn(mock)),
   };
   return mock;
@@ -89,7 +95,7 @@ describe('AuthService', () => {
       mockPrisma.student.findUnique.mockResolvedValue({ full_name: 'Test Student', nis: '12345', class: { name: 'X MIPA 1' } });
 
       const result = await service.refresh({ refresh_token: 'valid-token' });
-      expect(mockPrisma.refreshToken.update).toHaveBeenCalled();
+      expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalled();
       expect(result.access_token).toBe('mock-token');
     });
   });

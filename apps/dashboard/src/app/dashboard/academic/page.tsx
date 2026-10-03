@@ -172,42 +172,52 @@ function AcademicPageContent() {
   const createYearMutation = useMutation({
     mutationFn: (data: { name: string; is_active: boolean }) => academicApi.createYear(data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['academic-years'] }); toast.success('Tahun ajaran ditambahkan'); setYearOpen(false); },
+    onError: (err: any) => { toast.error(err?.response?.data?.message || 'Gagal menambahkan tahun ajaran'); },
   });
   const deleteYearMutation = useMutation({
     mutationFn: (id: string) => academicApi.deleteYear(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['academic-years'] }); toast.success('Tahun ajaran dihapus'); },
+    onError: (err: any) => { toast.error(err?.response?.data?.message || 'Gagal menghapus tahun ajaran'); },
   });
   const updateYearMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: string; name: string; is_active: boolean }) => academicApi.updateYear(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['academic-years'] }); toast.success('Tahun ajaran diperbarui'); setYearOpen(false); setEditingYear(null); },
+    onError: (err: any) => { toast.error(err?.response?.data?.message || 'Gagal memperbarui tahun ajaran'); },
   });
   const createMajorMutation = useMutation({
     mutationFn: (dto: { name: string; code: string }) => academicApi.createMajor(dto),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['majors'] }); toast.success('Jurusan ditambahkan'); setMajorOpen(false); },
+    onError: (err: any) => { toast.error(err?.response?.data?.message || 'Gagal menambahkan jurusan'); },
   });
   const deleteMajorMutation = useMutation({
     mutationFn: (id: string) => academicApi.deleteMajor(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['majors'] }); toast.success('Jurusan dihapus'); },
+    onError: (err: any) => { toast.error(err?.response?.data?.message || 'Gagal menghapus jurusan'); },
   });
   const updateMajorMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: string; name: string; code: string }) => academicApi.updateMajor(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['majors'] }); toast.success('Jurusan diperbarui'); setMajorOpen(false); setEditingMajor(null); },
+    onError: (err: any) => { toast.error(err?.response?.data?.message || 'Gagal memperbarui jurusan'); },
   });
   const saveClassMutation = useMutation({
     mutationFn: (dto: any) => editingClassId ? academicApi.updateClass(editingClassId, dto) : academicApi.createClass(dto),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['classes'] }); toast.success(editingClassId ? 'Kelas diperbarui' : 'Kelas ditambahkan'); setClassOpen(false); setEditingClassId(null); setClassForm(emptyClassForm); },
+    onError: (err: any) => { toast.error(err?.response?.data?.message || 'Gagal menyimpan data kelas'); },
   });
   const deleteClassMutation = useMutation({
     mutationFn: (id: string) => academicApi.deleteClass(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['classes'] }); toast.success('Kelas dihapus'); },
+    onError: (err: any) => { toast.error(err?.response?.data?.message || 'Gagal menghapus kelas'); },
   });
   const saveSubjectMutation = useMutation({
     mutationFn: (dto: any) => editingSubjectId ? academicApi.updateSubject(editingSubjectId, dto) : academicApi.createSubject(dto),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['subjects'] }); toast.success(editingSubjectId ? 'Mapel diperbarui' : 'Mapel ditambahkan'); setSubjectOpen(false); setEditingSubjectId(null); setSubjectForm(emptySubjectForm); },
+    onError: (err: any) => { toast.error(err?.response?.data?.message || 'Gagal menyimpan data mapel'); },
   });
   const deleteSubjectMutation = useMutation({
     mutationFn: (id: string) => academicApi.deleteSubject(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['subjects'] }); toast.success('Mapel dihapus'); },
+    onError: (err: any) => { toast.error(err?.response?.data?.message || 'Gagal menghapus mapel'); },
   });
 
   const handleSaveClass = () => {

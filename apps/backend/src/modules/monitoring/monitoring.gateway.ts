@@ -45,6 +45,12 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
 
     if (typeof examId === 'string' && examId.length > 0) {
       client.join(`exam:${examId}`);
+
+      if (role === 'teacher') {
+        // Send currently connected student user IDs to this teacher
+        const connectedStudentIds = Array.from(this.studentSockets.keys());
+        client.emit('connected.students', { examId, studentIds: connectedStudentIds });
+      }
     }
   }
 
@@ -53,7 +59,10 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
     this.logger.log(`Client disconnected: ${client.id} (role: ${role}, userId: ${userId})`);
 
     if (role === 'student' && typeof userId === 'string') {
-      this.studentSockets.delete(userId);
+      // Only delete if the disconnected socket is the active one (prevent race on rapid reconnect)
+      if (this.studentSockets.get(userId) === client.id) {
+        this.studentSockets.delete(userId);
+      }
 
       if (typeof examId === 'string') {
         this.server.to(`exam:${examId}`).emit(SocketEvent.STUDENT_DISCONNECTED, {
@@ -103,6 +112,9 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() data: { studentId: string; examId: string; studentName?: string; deviceId?: string },
   ): void {
     const { examId, studentId, studentName, deviceId } = data;
+    if (studentId) {
+      this.studentSockets.set(studentId, client.id);
+    }
     if (examId) {
       this.server.to(`exam:${examId}`).emit(SocketEvent.STUDENT_CONNECTED, {
         studentId,

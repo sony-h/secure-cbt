@@ -105,7 +105,21 @@ export function QuestionModal({
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Tipe Soal</Label>
-            <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+            <Select
+              value={form.type}
+              onValueChange={(v) => {
+                let newOptions = form.options;
+                if (v === 'TRUE_FALSE') {
+                  newOptions = [
+                    { content: 'Benar', is_correct: true },
+                    { content: 'Salah', is_correct: false },
+                  ];
+                } else if (form.type === 'TRUE_FALSE' && v !== 'TRUE_FALSE') {
+                  newOptions = makeEmptyOptions(5);
+                }
+                setForm({ ...form, type: v, options: newOptions });
+              }}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {questionTypes.map((t) => (
@@ -174,39 +188,43 @@ export function QuestionModal({
                     }}
                   />
                 <label htmlFor={`correct-${idx}`} className="flex items-center gap-1 text-sm cursor-pointer shrink-0">Benar</label>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0"
-                  disabled={form.options.length <= 2}
-                  onClick={() => {
-                    if (form.options.length <= 2) return;
-                    const newOpts = form.options.filter((_, i) => i !== idx);
-                    const hadCorrect = form.options.some((o, i) => i !== idx && o.is_correct);
-                    if (!hadCorrect && opt.is_correct) {
-                      const first = newOpts[0]!;
-                      newOpts[0] = { content: first.content, is_correct: true };
-                    }
-                    setForm({ ...form, options: newOpts });
-                  }}
-                  title="Hapus opsi"
-                >
-                  <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                </Button>
+                {form.type !== 'TRUE_FALSE' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0"
+                    disabled={form.options.length <= 2}
+                    onClick={() => {
+                      if (form.options.length <= 2) return;
+                      const newOpts = form.options.filter((_, i) => i !== idx);
+                      const hadCorrect = form.options.some((o, i) => i !== idx && o.is_correct);
+                      if (!hadCorrect && opt.is_correct) {
+                        const first = newOpts[0]!;
+                        newOpts[0] = { content: first.content, is_correct: true };
+                      }
+                      setForm({ ...form, options: newOpts });
+                    }}
+                    title="Hapus opsi"
+                  >
+                    <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                  </Button>
+                )}
               </div>
             ))}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              disabled={form.options.length >= 26}
-              onClick={() => {
-                setForm({ ...form, options: [...form.options, { content: '', is_correct: false }] });
-              }}
-            >
-              <Plus className="mr-1 h-3 w-3" />
-              Tambah Opsi ({form.options.length}/26)
-            </Button>
+            {form.type !== 'TRUE_FALSE' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                disabled={form.options.length >= 26}
+                onClick={() => {
+                  setForm({ ...form, options: [...form.options, { content: '', is_correct: false }] });
+                }}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Tambah Opsi ({form.options.length}/26)
+              </Button>
+            )}
           </div>
         )}
 

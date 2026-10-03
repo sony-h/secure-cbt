@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { examApi, monitoringApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
@@ -33,6 +33,7 @@ interface StudentSession {
   remaining_time_seconds: number | null;
   progress?: number;
   student_user_id?: string;
+  is_connected?: boolean;
 }
 
 interface SessionLog {
@@ -44,6 +45,7 @@ interface SessionLog {
 
 function MonitoringPageContent() {
   useRoleGuard([UserRole.ADMIN, UserRole.TEACHER]);
+  const queryClient = useQueryClient();
 
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [connectedStudents, setConnectedStudents] = useState<Set<string>>(new Set());
@@ -79,6 +81,7 @@ function MonitoringPageContent() {
           remaining_time_seconds: s.remaining_time_seconds,
           progress: s.progress?.total > 0 ? s.progress.answered / s.progress.total : 0,
           student_user_id: s.student_user_id,
+          is_connected: s.is_connected,
         })),
       };
     },
@@ -103,6 +106,10 @@ function MonitoringPageContent() {
       const sess = sessionData.find((s) => s.id === data.sessionId);
       if (sess) return sess.student.full_name;
     }
+    if (data.studentId) {
+      const sess = sessionData.find((s) => s.student_user_id === data.studentId || s.id === data.studentId);
+      if (sess) return sess.student.full_name;
+    }
     return data.studentId || 'Unknown';
   }
 
@@ -110,25 +117,47 @@ function MonitoringPageContent() {
     if (!selectedExamId) return;
 
     const token = localStorage.getItem('access_token');
-    const SOCKET_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace('/api/v1', '');
+    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace('/api/v1', '');
     const socket = io(`${SOCKET_URL}/monitoring`, {
       auth: { token },
       query: { role: 'teacher', examId: selectedExamId },
       transports: ['websocket'],
     });
 
+    socket.on('connected.students', (data: { examId: string; studentIds: string[] }) => {
+      if (data.studentIds && Array.isArray(data.studentIds)) {
+        setConnectedStudents((prev) => {
+          const next = new Set(prev);
+          data.studentIds.forEach((id) => next.add(id));
+          return next;
+        });
+      }
+    });
+
     socket.on('student.connected', (data: { studentId: string; studentName?: string; sessionId?: string }) => {
       const name = resolveStudentName(data);
-      setConnectedStudents((prev) => new Set(prev).add(data.studentId));
+      setConnectedStudents((prev) => {
+        const next = new Set(prev);
+        if (data.studentId) next.add(data.studentId);
+        if (data.sessionId) next.add(data.sessionId);
+        return next;
+      });
       toast.info(`Siswa terhubung: ${name}`);
     });
 
-    socket.on('student.disconnected', (data: { studentId: string }) => {
+    socket.on('student.disconnected', (data: { studentId: string; sessionId?: string }) => {
       const name = resolveStudentName({ studentId: data.studentId });
       setConnectedStudents((prev) => {
-        const next = new Set(prev); next.delete(data.studentId); return next;
+        const next = new Set(prev);
+        if (data.studentId) next.delete(data.studentId);
+        if (data.sessionId) next.delete(data.sessionId);
+        return next;
       });
       toast.warning(`Siswa terputus: ${name}`);
+    });
+
+    socket.on('progress.updated', (data: { sessionId: string; questionId?: string }) => {
+      queryClient.invalidateQueries({ queryKey: ['monitoring', selectedExamId] });
     });
 
     socket.on('exam.submitted', (data: { sessionId: string; studentId: string; studentName?: string }) => {
@@ -148,11 +177,27 @@ function MonitoringPageContent() {
   }, [selectedExamId]);
 
   useEffect(() => {
-    if (monitoringData?.sessions) setSessionData(monitoringData.sessions);
+    if (monitoringData?.sessions) {
+      setSessionData(monitoringData.sessions);
+      setConnectedStudents((prev) => {
+        const next = new Set(prev);
+        for (const s of monitoringData.sessions) {
+          if (s.is_connected) {
+            if (s.student_user_id) next.add(s.student_user_id);
+            next.add(s.id);
+          }
+        }
+        return next;
+      });
+    }
   }, [monitoringData]);
 
   const totalStudents = sessionData.length;
-  const activeCount = sessionData.filter((s) => s.status === 'ACTIVE').length;
+  const activeCount = sessionData.filter((s) => {
+    const isCompleted = s.status === 'SUBMITTED' || s.status === 'AUTO_SUBMITTED';
+    if (isCompleted) return false;
+    return s.is_connected === true || (s.student_user_id ? connectedStudents.has(s.student_user_id) : false) || connectedStudents.has(s.id);
+  }).length;
   const submittedCount = sessionData.filter((s) => s.status === 'SUBMITTED' || s.status === 'AUTO_SUBMITTED').length;
   const warnings = sessionData.filter((s) => s.warning_count > 0).length;
 
@@ -175,7 +220,7 @@ function MonitoringPageContent() {
         ) : (
           <>
             <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Users className="h-5 w-5 text-muted-foreground" /><div><p className="text-xs text-muted-foreground">Total Peserta</p><p className="text-2xl font-bold">{totalStudents}</p></div></div></CardContent></Card>
-            <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Wifi className="h-5 w-5 text-green-600" /><div><p className="text-xs text-muted-foreground">Aktif</p><p className="text-2xl font-bold">{activeCount}</p></div></div></CardContent></Card>
+            <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Wifi className="h-5 w-5 text-green-600" /><div><p className="text-xs text-muted-foreground">Aktif Terhubung</p><p className="text-2xl font-bold">{activeCount}</p></div></div></CardContent></Card>
             <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><CheckCircle className="h-5 w-5 text-primary" /><div><p className="text-xs text-muted-foreground">Selesai</p><p className="text-2xl font-bold">{submittedCount}</p></div></div></CardContent></Card>
             <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><AlertTriangle className="h-5 w-5 text-destructive" /><div><p className="text-xs text-muted-foreground">Peringatan</p><p className="text-2xl font-bold">{warnings}</p></div></div></CardContent></Card>
           </>
@@ -227,7 +272,12 @@ function MonitoringPageContent() {
             ) : (
               <div className="space-y-3 max-h-[400px] overflow-y-auto">
                 {sessionData.map((session) => {
-                  const isConnected = connectedStudents.has(session.id);
+                  const isCompleted = session.status === 'SUBMITTED' || session.status === 'AUTO_SUBMITTED';
+                  const isConnected = !isCompleted && (
+                    session.is_connected === true ||
+                    (session.student_user_id ? connectedStudents.has(session.student_user_id) : false) ||
+                    connectedStudents.has(session.id)
+                  );
                   const isExpanded = session.id === selectedSession;
                   return (
                     <div
@@ -237,7 +287,13 @@ function MonitoringPageContent() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          {isConnected ? <Wifi className="h-4 w-4 text-green-600" /> : <WifiOff className="h-4 w-4 text-destructive" />}
+                          {isCompleted ? (
+                            <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+                          ) : isConnected ? (
+                            <Wifi className="h-4 w-4 text-green-600 shrink-0" />
+                          ) : (
+                            <WifiOff className="h-4 w-4 text-amber-500 shrink-0" />
+                          )}
                           <div>
                             <p className="text-sm font-medium">{session.student?.full_name || 'Unknown'}</p>
                             <p className="text-xs text-muted-foreground">{session.student?.nis} &middot; {session.student?.class?.name}</p>
@@ -245,7 +301,15 @@ function MonitoringPageContent() {
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-2 mr-1">
-                            {session.status === 'ACTIVE' ? <Badge variant="success">Aktif</Badge> : session.status === 'SUBMITTED' ? <Badge variant="default">Selesai</Badge> : <Badge variant="warning">{session.status}</Badge>}
+                            {session.status === 'ACTIVE' ? (
+                              <Badge variant={isConnected ? 'success' : 'warning'}>
+                                {isConnected ? 'Aktif' : 'Terputus'}
+                              </Badge>
+                            ) : session.status === 'SUBMITTED' ? (
+                              <Badge variant="default">Selesai</Badge>
+                            ) : (
+                              <Badge variant="warning">{session.status}</Badge>
+                            )}
                             {session.warning_count > 0 && (
                               <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />{session.warning_count}</Badge>
                             )}

@@ -111,7 +111,7 @@ function TeachersPageContent() {
 
   const { data: teachers, isLoading } = useQuery({
     queryKey: ['teachers'],
-    queryFn: async () => { const res = await teacherApi.getAll(); return res.data.data; },
+    queryFn: async () => { const res = await teacherApi.getAll({ per_page: 200 }); return res.data.data; },
   });
 
   const { data: subjects } = useQuery({

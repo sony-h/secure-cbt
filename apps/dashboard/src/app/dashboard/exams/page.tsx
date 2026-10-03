@@ -80,14 +80,14 @@ function ExamsPageContent() {
   const { data: questions } = useQuery({
     queryKey: ['all-questions'],
     queryFn: async () => {
-      const { data } = await questionBankApi.getQuestions({ per_page: 200 });
+      const { data } = await questionBankApi.getQuestions({ per_page: 500 });
       return data.data as Question[];
     },
   });
 
   const { data: exams, isLoading } = useQuery({
     queryKey: ['exams'],
-    queryFn: async () => { const { data } = await examApi.getAll(); return data.data as Exam[]; },
+    queryFn: async () => { const { data } = await examApi.getAll({ per_page: 200 }); return data.data as Exam[]; },
   });
 
   const saveMutation = useMutation({

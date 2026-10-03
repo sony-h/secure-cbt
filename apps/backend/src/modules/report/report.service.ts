@@ -29,6 +29,7 @@ export class ReportService {
     const students = sessions
       .filter((s) => s.score)
       .map((s) => ({
+        session_id: s.id,
         student_id: s.student_id,
         student_name: s.student.full_name,
         nis: s.student.nis,

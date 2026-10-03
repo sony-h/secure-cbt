@@ -74,7 +74,7 @@ function QuestionsPageContent() {
 
   const { data: questions, isLoading } = useQuery({
     queryKey: ['questions'],
-    queryFn: async () => { const { data } = await questionBankApi.getQuestions(); return data.data as Question[]; },
+    queryFn: async () => { const { data } = await questionBankApi.getQuestions({ per_page: 500 }); return data.data as Question[]; },
   });
 
   const createBankMutation = useMutation({
