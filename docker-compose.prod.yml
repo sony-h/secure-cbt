@@ -65,32 +65,39 @@ services:
       timeout: 3s
       retries: 5
 
-  # ── MinIO (S3-compatible storage) ──────────────────────────
-  minio:
-    image: minio/minio:latest
-    container_name: secure-cbt-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-cbt_minio_admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
-    ports:
-      - '127.0.0.1:9000:9000'
-      - '127.0.0.1:9001:9001'
-    volumes:
-      - minio_prod_data:/data
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '1.0'
-    healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
-      interval: 5s
-      timeout: 5s
-      retries: 5
+  # ── MinIO (S3-compatible storage) — DISABLED 2026-10-03 ──────
+  # MinIO deleted its community Docker images (Docker Hub + quay.io +
+  # ghcr.io + dl.min.io binaries all unavailable as of Sep 2026), and
+  # the app has no MinIO code paths yet (asset uploads = Phase 14,
+  # not implemented). No concrete requirement → disabled until an
+  # S3-compatible backend is chosen. Re-enable with a working image
+  # when Phase 14 lands.
+  #
+  # minio:
+  #   image: minio/minio:latest
+  #   container_name: secure-cbt-minio
+  #   restart: unless-stopped
+  #   command: server /data --console-address ":9001"
+  #   environment:
+  #     MINIO_ROOT_USER: ${MINIO_ROOT_USER:-cbt_minio_admin}
+  #     MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
+  #   ports:
+  #     - '127.0.0.1:9000:9000'
+  #     - '127.0.0.1:9001:9001'
+  #   volumes:
+  #     - minio_prod_data:/data
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 1G
+  #         cpus: '1.0'
+  #   healthcheck:
+  #     test: ['CMD', 'mc', 'ready', 'local']
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
 
 volumes:
   postgres_prod_data:
   redis_prod_data:
-  minio_prod_data:
+  # minio_prod_data:   # disabled with the minio service (see above)
