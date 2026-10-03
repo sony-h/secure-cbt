@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
+import { ZodError } from 'zod';
 import { ApiErrorResponse, ValidationError } from '@secure-cbt/shared';
 
 @Catch()
@@ -70,6 +71,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     else if (exception instanceof Prisma.PrismaClientValidationError) {
       status = HttpStatus.BAD_REQUEST;
       message = 'Invalid data provided';
+    }
+    // Handle Zod schema validation errors (schemas parsed inside services)
+    else if (exception instanceof ZodError) {
+      status = HttpStatus.BAD_REQUEST;
+      message = 'Validation failed';
+      errors = exception.issues.map((issue) => ({
+        field: issue.path.join('.') || 'body',
+        message: issue.message,
+      }));
     }
     // Unknown errors
     else if (exception instanceof Error) {

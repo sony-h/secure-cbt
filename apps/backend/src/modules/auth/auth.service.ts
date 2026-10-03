@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   LoginInput,
@@ -44,6 +45,7 @@ export class AuthService {
     const refresh_token = this.jwtService.sign(payload, {
       secret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret',
       expiresIn: '7d',
+      jwtid: randomUUID(),
     });
 
     return await this.prisma.$transaction(async (tx) => {
@@ -87,13 +89,18 @@ export class AuthService {
     const new_refresh_token = this.jwtService.sign(payload, {
       secret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret',
       expiresIn: '7d',
+      jwtid: randomUUID(),
     });
 
-    // Rotate refresh token
-    await this.prisma.refreshToken.update({
-      where: { id: stored.id },
+    // Rotate refresh token — atomic compare-and-swap: only the request that still
+    // holds the current token can rotate it; concurrent losers get a clean 401.
+    const rotated = await this.prisma.refreshToken.updateMany({
+      where: { id: stored.id, token: refresh_token },
       data: { token: new_refresh_token, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
     });
+    if (rotated.count !== 1) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
 
     const profile = await this.resolveProfileData(user);
 

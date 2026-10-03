@@ -1,3 +1,6 @@
+// Load .env BEFORE any other module evaluates so every module reads the real
+// configuration at bootstrap (JwtModule, QueueModule, etc.).
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
