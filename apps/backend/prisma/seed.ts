@@ -91,7 +91,7 @@ async function seed() {
     // ── 2. Default settings ────────────────────────────────
     logger.log('Creating default settings...');
     await prisma.setting.create({
-      data: { warning_limit: 3, auto_submit_enabled: true, fullscreen_required: true, lock_task_mode: false, autosave_interval: 5, session_timeout: 30 },
+      data: { id: 'global', warning_limit: 3, auto_submit_enabled: true, fullscreen_required: true, lock_task_mode: false, autosave_interval: 5, session_timeout: 30 },
     });
 
     // ── 3. Users (Admin + Operator) ─────────────────────────

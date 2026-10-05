@@ -484,7 +484,7 @@ model Score {
 // ── settings (single-row) ────────────────────────────────────────
 
 model Setting {
-  id                  String   @id @default(uuid()) @db.Uuid
+  id                  String   @id
   warning_limit       Int      @default(3)
   auto_submit_enabled Boolean  @default(true)
   fullscreen_required Boolean  @default(true)
