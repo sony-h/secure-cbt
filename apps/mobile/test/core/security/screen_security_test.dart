@@ -25,18 +25,36 @@ void main() {
       expect(emittedValues, [true, false]);
       await subscription.cancel();
     });
+
+    test('onWindowFocusChanged broadcasts updates', () async {
+      final emittedValues = <bool>[];
+      final subscription = ScreenSecurity.onWindowFocusChanged.listen((hasFocus) {
+        emittedValues.add(hasFocus);
+      });
+
+      ScreenSecurity.notifyWindowFocusChanged(false);
+      ScreenSecurity.notifyWindowFocusChanged(true);
+
+      await Future.delayed(const Duration(milliseconds: 10));
+
+      expect(emittedValues, [false, true]);
+      await subscription.cancel();
+    });
   });
 
-  group('ExamState isDualScreenBlocked', () {
+  group('ExamState isDualScreenBlocked and isFocusLostBlocked', () {
     test('defaults to false and copyWith updates correctly', () {
       const state = ExamState();
       expect(state.isDualScreenBlocked, isFalse);
+      expect(state.isFocusLostBlocked, isFalse);
 
-      final updated = state.copyWith(isDualScreenBlocked: true);
+      final updated = state.copyWith(isDualScreenBlocked: true, isFocusLostBlocked: true);
       expect(updated.isDualScreenBlocked, isTrue);
+      expect(updated.isFocusLostBlocked, isTrue);
 
-      final reverted = updated.copyWith(isDualScreenBlocked: false);
+      final reverted = updated.copyWith(isDualScreenBlocked: false, isFocusLostBlocked: false);
       expect(reverted.isDualScreenBlocked, isFalse);
+      expect(reverted.isFocusLostBlocked, isFalse);
     });
   });
 
@@ -68,6 +86,64 @@ void main() {
       // Setting to false clears blocked state
       notifier.setDualScreenBlocked(false);
       expect(notifier.state.isDualScreenBlocked, isFalse);
+      expect(notifier.state.warningCount, 1);
+    });
+  });
+
+  group('ExamNotifier setWindowFocus', () {
+    late MockLocalDatabase mockDb;
+    late ExamNotifier notifier;
+
+    setUp(() {
+      mockDb = MockLocalDatabase();
+      notifier = ExamNotifier(mockDb);
+    });
+
+    test('focus lost immediately blocks state and cancels without violation if restored before 1000ms', () async {
+      final violations = <String>[];
+      notifier.setOnViolation((event, count, sessionId) {
+        violations.add(event);
+      });
+
+      notifier.setWindowFocus(false);
+
+      expect(notifier.state.isFocusLostBlocked, isTrue);
+      expect(notifier.state.warningCount, 0);
+
+      // Fast restore before 1000ms grace period expires
+      await Future.delayed(const Duration(milliseconds: 200));
+      notifier.setWindowFocus(true);
+
+      expect(notifier.state.isFocusLostBlocked, isFalse);
+
+      // Wait past the 1000ms mark to ensure no delayed violation was fired
+      await Future.delayed(const Duration(milliseconds: 900));
+
+      expect(notifier.state.warningCount, 0);
+      expect(violations, isEmpty);
+    });
+
+    test('focus lost past 1000ms logs STATUS_BAR_EXPANDED violation and increments warnings', () async {
+      final violations = <String>[];
+      notifier.setOnViolation((event, count, sessionId) {
+        violations.add(event);
+      });
+
+      notifier.setWindowFocus(false);
+
+      expect(notifier.state.isFocusLostBlocked, isTrue);
+      expect(notifier.state.warningCount, 0);
+
+      // Wait beyond the 1000ms grace period
+      await Future.delayed(const Duration(milliseconds: 1100));
+
+      expect(notifier.state.isFocusLostBlocked, isTrue);
+      expect(notifier.state.warningCount, 1);
+      expect(violations, ['STATUS_BAR_EXPANDED']);
+
+      // Restoring focus clears the blocked curtain but retains warning
+      notifier.setWindowFocus(true);
+      expect(notifier.state.isFocusLostBlocked, isFalse);
       expect(notifier.state.warningCount, 1);
     });
   });

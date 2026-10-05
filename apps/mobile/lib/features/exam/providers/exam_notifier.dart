@@ -9,6 +9,7 @@ import 'package:secure_cbt_mobile/features/exam/providers/exam_state.dart';
 class ExamNotifier extends StateNotifier<ExamState> {
   Timer? _autosaveTimer;
   Timer? _timer;
+  Timer? _focusGraceTimer;
   Dio? _dio;
   void Function()? _onForceSubmit;
   void Function(String questionId)? _onAnswerSaved;
@@ -27,6 +28,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
   ) async {
     _timer?.cancel();
     _autosaveTimer?.cancel();
+    _focusGraceTimer?.cancel();
     state = state.copyWith(
       isLoading: true,
       sessionId: sessionId,
@@ -41,6 +43,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
       isSubmitted: false,
       isFullscreen: true,
       isDualScreenBlocked: false,
+      isFocusLostBlocked: false,
     );
     state = state.copyWith(isLoading: false);
     _dio = dio;
@@ -75,6 +78,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
   }
 
   void resumeTimer() {
+    if (state.isDualScreenBlocked || state.isFocusLostBlocked) return;
     if (!_timerPaused) return;
     _timerPaused = false;
     _startTimer();
@@ -98,6 +102,28 @@ class ExamNotifier extends StateNotifier<ExamState> {
       pauseTimer();
       logViolation('SPLIT_SCREEN');
     } else {
+      resumeTimer();
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    }
+  }
+
+  void setWindowFocus(bool hasFocus) {
+    if (state.isSubmitted) return;
+
+    if (!hasFocus) {
+      if (state.isFocusLostBlocked) return;
+      state = state.copyWith(isFocusLostBlocked: true);
+      pauseTimer();
+
+      _focusGraceTimer?.cancel();
+      _focusGraceTimer = Timer(const Duration(milliseconds: 1000), () {
+        if (!state.isFocusLostBlocked || state.isSubmitted) return;
+        logViolation('STATUS_BAR_EXPANDED');
+      });
+    } else {
+      _focusGraceTimer?.cancel();
+      if (!state.isFocusLostBlocked) return;
+      state = state.copyWith(isFocusLostBlocked: false);
       resumeTimer();
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     }
@@ -241,6 +267,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
   void dispose() {
     _timer?.cancel();
     _autosaveTimer?.cancel();
+    _focusGraceTimer?.cancel();
     exitFullscreen();
     super.dispose();
   }

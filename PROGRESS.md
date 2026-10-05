@@ -1,6 +1,6 @@
 # Progress Note: Secure CBT Platform
 
-**Current Phase:** Phase 16 - Multi-Window & Split-Screen Anti-Cheat Prevention - COMPLETE
+**Current Phase:** Phase 17 - Notification Panel & Status Bar Drag Anti-Cheat Prevention - COMPLETE
 **Target Platform:** Indonesian High Schools (SMA/SMK)
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)
 **Last Updated:** 2026-10-05
@@ -779,5 +779,44 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 ### 6. Automated Testing
 - Added unit tests in `apps/mobile/test/core/security/screen_security_test.dart` verifying stream broadcast, state management, and `SPLIT_SCREEN` violation logging.
 - `flutter test`: 6/6 tests passing.
+- `flutter analyze lib/ test/`: 0 errors, 0 warnings.
+- Backend unit tests: 31/31 passing.
+
+---
+
+## Phase 17 — Notification Panel & Status Bar Drag Anti-Cheat Prevention — COMPLETE
+
+**Target Platform:** Android Mobile App (`apps/mobile`)  
+**Security Standard:** Zero-Peek Window Focus Guard with 1000ms Grace Period  
+**Date:** 2026-10-05
+
+### 1. Shared Domain Schema (`packages/shared`)
+- Added `STATUS_BAR_EXPANDED = 'STATUS_BAR_EXPANDED'` to the `ViolationEvent` enum.
+
+### 2. Native Window Focus Detection (`MainActivity.kt`)
+- Overrode `onWindowFocusChanged(hasFocus: Boolean)` in `MainActivity`.
+- Streams instant native window focus state transitions to Flutter via `securityChannel?.invokeMethod("onWindowFocusChanged", hasFocus)`.
+
+### 3. ScreenSecurity Focus Stream (`screen_security.dart`)
+- Added `_windowFocusController` broadcast stream and `ScreenSecurity.onWindowFocusChanged`.
+- Handled `'onWindowFocusChanged'` in MethodChannel dispatch.
+- Added `ScreenSecurity.notifyWindowFocusChanged(bool)` test utility.
+
+### 4. Exam State & 1000ms Grace Period Pipeline (`exam_state.dart` & `exam_notifier.dart`)
+- Added `isFocusLostBlocked` flag to `ExamState`.
+- Implemented `ExamNotifier.setWindowFocus(bool hasFocus)`:
+  - When focus is lost (`hasFocus == false`): Immediately sets `isFocusLostBlocked = true`, pauses exam timer, and initiates a 1000ms grace timer.
+  - If focus is restored within 1000ms (accidental swipe dismissed): Cancels the grace timer, unblocks the question view, resumes timer, and restores `immersiveSticky` without penalty.
+  - If shade remains open past 1000ms: Increments `warningCount`, logs `STATUS_BAR_EXPANDED` violation, dispatches WebSocket warning to the teacher monitoring dashboard, and triggers auto-submit if threshold is reached.
+
+### 5. Instant Anti-Peek Curtain Overlay (`_FocusLostBlockedOverlay` in `exam_screen.dart`)
+- Instantly replaces exam questions with a blocking curtain when `isFocusLostBlocked == true`.
+- Hides `bottomNavigationBar` so answers cannot be selected while focus is lost.
+- Displays instructional prompt to swipe back up and the live violation strike count.
+- Subscribes to `ScreenSecurity.onWindowFocusChanged` on session load and cleans up on dispose.
+
+### 6. Automated Testing & Verification
+- Unit tests added to `screen_security_test.dart` testing focus broadcast, immediate blocking, cancel on fast restore (< 1000ms), and `STATUS_BAR_EXPANDED` strike on sustained drag (> 1000ms).
+- `flutter test`: 9/9 tests passing.
 - `flutter analyze lib/ test/`: 0 errors, 0 warnings.
 - Backend unit tests: 31/31 passing.

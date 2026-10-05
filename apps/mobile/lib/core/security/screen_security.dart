@@ -27,6 +27,13 @@ class ScreenSecurity {
     return _multiWindowController.stream;
   }
 
+  /// Stream controller for window focus changes (notification panel / status bar pulled down).
+  static final _windowFocusController = StreamController<bool>.broadcast();
+  static Stream<bool> get onWindowFocusChanged {
+    _ensureMethodCallHandler();
+    return _windowFocusController.stream;
+  }
+
   static bool _handlerInitialized = false;
 
   static void _ensureMethodCallHandler() {
@@ -37,6 +44,10 @@ class ScreenSecurity {
         case 'onMultiWindowChanged':
           final isMulti = call.arguments as bool? ?? false;
           _multiWindowController.add(isMulti);
+          break;
+        case 'onWindowFocusChanged':
+          final hasFocus = call.arguments as bool? ?? true;
+          _windowFocusController.add(hasFocus);
           break;
         case 'onScreenshotCaptured':
           _screenshotController.add(null);
@@ -90,8 +101,14 @@ class ScreenSecurity {
     _multiWindowController.add(isMultiWindow);
   }
 
+  @visibleForTesting
+  static void notifyWindowFocusChanged(bool hasFocus) {
+    _windowFocusController.add(hasFocus);
+  }
+
   static void dispose() {
     _screenshotController.close();
     _multiWindowController.close();
+    _windowFocusController.close();
   }
 }

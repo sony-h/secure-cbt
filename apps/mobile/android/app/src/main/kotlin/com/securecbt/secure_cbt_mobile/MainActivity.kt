@@ -57,4 +57,9 @@ class MainActivity : FlutterActivity() {
         super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
         securityChannel?.invokeMethod("onMultiWindowChanged", isInMultiWindowMode)
     }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        securityChannel?.invokeMethod("onWindowFocusChanged", hasFocus)
+    }
 }
