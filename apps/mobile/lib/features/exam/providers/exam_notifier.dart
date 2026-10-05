@@ -40,6 +40,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
       showSaveIndicator: false,
       isSubmitted: false,
       isFullscreen: true,
+      isDualScreenBlocked: false,
     );
     state = state.copyWith(isLoading: false);
     _dio = dio;
@@ -85,6 +86,21 @@ class ExamNotifier extends StateNotifier<ExamState> {
 
   void setCurrentIndex(int index) {
     state = state.copyWith(currentIndex: index);
+  }
+
+  void setDualScreenBlocked(bool blocked) {
+    if (state.isSubmitted) return;
+    if (state.isDualScreenBlocked == blocked) return;
+
+    state = state.copyWith(isDualScreenBlocked: blocked);
+
+    if (blocked) {
+      pauseTimer();
+      logViolation('SPLIT_SCREEN');
+    } else {
+      resumeTimer();
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    }
   }
 
   Future<void> saveAnswer({

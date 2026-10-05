@@ -13,6 +13,7 @@ class ExamState {
   final bool showSaveIndicator;
   final DateTime? lastSavedAt;
   final Set<String> flagged;
+  final bool isDualScreenBlocked;
 
   const ExamState({
     this.isLoading = false,
@@ -29,6 +30,7 @@ class ExamState {
     this.showSaveIndicator = false,
     this.lastSavedAt,
     this.flagged = const {},
+    this.isDualScreenBlocked = false,
   });
 
   ExamState copyWith({
@@ -46,6 +48,7 @@ class ExamState {
     bool? showSaveIndicator,
     DateTime? lastSavedAt,
     Set<String>? flagged,
+    bool? isDualScreenBlocked,
   }) {
     return ExamState(
       isLoading: isLoading ?? this.isLoading,
@@ -62,6 +65,7 @@ class ExamState {
       showSaveIndicator: showSaveIndicator ?? this.showSaveIndicator,
       lastSavedAt: lastSavedAt ?? this.lastSavedAt,
       flagged: flagged ?? this.flagged,
+      isDualScreenBlocked: isDualScreenBlocked ?? this.isDualScreenBlocked,
     );
   }
 }

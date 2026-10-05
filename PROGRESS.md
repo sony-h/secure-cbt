@@ -1,9 +1,9 @@
 # Progress Note: Secure CBT Platform
 
-**Current Phase:** Phase 14 - Mobile Production Release & Token-Refresh Hardening - COMPLETE
+**Current Phase:** Phase 16 - Multi-Window & Split-Screen Anti-Cheat Prevention - COMPLETE
 **Target Platform:** Indonesian High Schools (SMA/SMK)
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-05
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -743,3 +743,41 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - **Report Session Mapping**: Added `session_id: s.id` in `report.service.ts` and mapped `s.session_id || s.student_id` in `reports/page.tsx`.
 - **Academic Mutation Resilience**: Added `onError` toast handlers across all 10 mutation actions in `academic/page.tsx`.
 - **Test Suite**: 31 unit tests passing, 0 TypeScript errors across backend and dashboard.
+
+---
+
+## Phase 16 — Multi-Window & Split-Screen Anti-Cheat Prevention — COMPLETE
+
+**Target Platform:** Android Mobile App (`apps/mobile`)  
+**Security Standard:** Banking-Grade Screen Isolation  
+**Date:** 2026-10-05
+
+### 1. OS-Level Manifest Restriction (`AndroidManifest.xml`)
+- Added `android:resizeableActivity="false"` on `MainActivity`.
+- Directly disables standard Android system split-screen and multi-window features in the app switcher / recent apps menu.
+
+### 2. Native Multi-Window Detection & Lifecycle Callbacks (`MainActivity.kt`)
+- Added `isMultiWindowMode` handler on `com.securecbt.mobile/security` MethodChannel using Android's `Activity.isInMultiWindowMode` (API 24+).
+- Overrode `onMultiWindowModeChanged` to instantly push native window state changes to Flutter via `onMultiWindowChanged` method invocations.
+
+### 3. ScreenSecurity Multi-Window Channel (`screen_security.dart`)
+- Added `ScreenSecurity.isMultiWindowMode()` for synchronous startup verification.
+- Added `ScreenSecurity.onMultiWindowChanged` broadcast stream for instant background split-screen detection.
+
+### 4. Exam State & Violation Pipeline Integration (`exam_state.dart` & `exam_notifier.dart`)
+- Added `isDualScreenBlocked` property to `ExamState`.
+- Implemented `ExamNotifier.setDualScreenBlocked(bool blocked)`:
+  - When `blocked == true`: Immediately pauses exam timer, logs `SPLIT_SCREEN` violation, emits real-time WebSocket `warning.triggered` alert to teacher monitoring dashboard, and triggers auto-submit if warning threshold is reached.
+  - When `blocked == false`: Resumes timer and restores `SystemUiMode.immersiveSticky` fullscreen mode.
+
+### 5. Full-Screen Anti-Peek Blocker Overlay (`_DualScreenBlockedOverlay` in `exam_screen.dart`)
+- Completely obscures exam questions and answers with a solid blocking screen when split-screen or floating window is active.
+- Hides bottom navigation bar to block any answer interaction while split.
+- Displays explicit instructions to close other apps and return to single fullscreen mode, along with the current violation count badge.
+- Listens to `ScreenSecurity.onMultiWindowChanged` and performs initial check during `_loadSessionData()`.
+
+### 6. Automated Testing
+- Added unit tests in `apps/mobile/test/core/security/screen_security_test.dart` verifying stream broadcast, state management, and `SPLIT_SCREEN` violation logging.
+- `flutter test`: 6/6 tests passing.
+- `flutter analyze lib/ test/`: 0 errors, 0 warnings.
+- Backend unit tests: 31/31 passing.

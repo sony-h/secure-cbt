@@ -3,10 +3,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-/// Manages screen security (screenshot prevention) for exam sessions.
+/// Manages screen security (screenshot prevention & multi-window detection) for exam sessions.
 ///
-/// Android: Uses FLAG_SECURE via MethodChannel to block screenshots/recordings.
-///   Enable on exam start, disable on exam end.
+/// Android:
+///   - Uses FLAG_SECURE via MethodChannel to block screenshots/recordings.
+///   - Detects split-screen and floating pop-up window modes (isInMultiWindowMode).
 ///
 /// iOS: Screenshot prevention is not natively supported by iOS.
 ///   When iOS platform is added, implement screenshot detection via
@@ -19,8 +20,34 @@ class ScreenSecurity {
   static final _screenshotController = StreamController<void>.broadcast();
   static Stream<void> get onScreenshotCaptured => _screenshotController.stream;
 
+  /// Stream controller for multi-window / split-screen changes.
+  static final _multiWindowController = StreamController<bool>.broadcast();
+  static Stream<bool> get onMultiWindowChanged {
+    _ensureMethodCallHandler();
+    return _multiWindowController.stream;
+  }
+
+  static bool _handlerInitialized = false;
+
+  static void _ensureMethodCallHandler() {
+    if (_handlerInitialized) return;
+    _handlerInitialized = true;
+    _channel.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case 'onMultiWindowChanged':
+          final isMulti = call.arguments as bool? ?? false;
+          _multiWindowController.add(isMulti);
+          break;
+        case 'onScreenshotCaptured':
+          _screenshotController.add(null);
+          break;
+      }
+    });
+  }
+
   static Future<void> enable() async {
     if (!Platform.isAndroid) return;
+    _ensureMethodCallHandler();
     try {
       await _channel.invokeMethod('enableSecureScreen');
     } on MissingPluginException {
@@ -37,6 +64,20 @@ class ScreenSecurity {
     }
   }
 
+  /// Checks if the activity is currently in split-screen / multi-window mode.
+  static Future<bool> isMultiWindowMode() async {
+    if (!Platform.isAndroid) return false;
+    _ensureMethodCallHandler();
+    try {
+      final res = await _channel.invokeMethod<bool>('isMultiWindowMode');
+      return res ?? false;
+    } on MissingPluginException {
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Called by iOS native code when a screenshot is detected.
   /// Reserved for future iOS setup — wire to AppDelegate.swift when added.
   @visibleForTesting
@@ -44,7 +85,13 @@ class ScreenSecurity {
     _screenshotController.add(null);
   }
 
+  @visibleForTesting
+  static void notifyMultiWindowChanged(bool isMultiWindow) {
+    _multiWindowController.add(isMultiWindow);
+  }
+
   static void dispose() {
     _screenshotController.close();
+    _multiWindowController.close();
   }
 }

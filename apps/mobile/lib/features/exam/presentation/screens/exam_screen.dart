@@ -10,6 +10,7 @@ import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/core/network/socket_client.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/exam_provider.dart';
+import 'package:secure_cbt_mobile/features/exam/providers/exam_state.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/exam_app_bar.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/exam_question_card.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/exam_bottom_bar.dart';
@@ -41,6 +42,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
   late PageController _pageController;
   ExamSubmitHandler? _submitHandler;
   ExamViolationHandler? _violationHandler;
+  StreamSubscription<bool>? _multiWindowSubscription;
 
   @override
   void initState() {
@@ -53,6 +55,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
 
   @override
   void dispose() {
+    _multiWindowSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
     ref.read(monitoringSocketProvider).disconnect();
@@ -83,6 +86,8 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         return;
       }
 
+      if (!mounted) return;
+
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       SystemChrome.setPreferredOrientations([
         DeviceOrientation.portraitUp,
@@ -110,9 +115,23 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         });
       }
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         WidgetsBinding.instance.addObserver(this);
+
+        // Listen for realtime multi-window / split-screen changes
+        _multiWindowSubscription?.cancel();
+        _multiWindowSubscription = ScreenSecurity.onMultiWindowChanged.listen((isMulti) {
+          if (!mounted) return;
+          ref.read(examProvider.notifier).setDualScreenBlocked(isMulti);
+        });
+
+        // Initial multi-window check
+        final isMulti = await ScreenSecurity.isMultiWindowMode();
+        if (isMulti && mounted) {
+          ref.read(examProvider.notifier).setDualScreenBlocked(true);
+        }
+
         Future.delayed(const Duration(milliseconds: 1500), () {
           if (mounted) _violationHandler?.enable();
         });
@@ -185,38 +204,40 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       child: Scaffold(
         backgroundColor: AppColors.canvas,
         appBar: ExamAppBar(title: widget.examTitle, examState: examState),
-        body: examState.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : examState.questions.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.assignment_late, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
-                        const SizedBox(height: 16),
-                        const Text('Tidak ada soal tersedia'),
-                      ],
-                    ),
-                  )
-                : PageView.builder(
-                    controller: _pageController,
-                    itemCount: examState.questions.length,
-                    onPageChanged: (i) => ref.read(examProvider.notifier).setCurrentIndex(i),
-                    itemBuilder: (context, index) => ExamQuestionCard(
-                      question: examState.questions[index],
-                      examState: examState,
-                      index: index,
-                      onSaveAnswer: (qId, answer) {
-                        ref.read(examProvider.notifier).saveAnswer(
-                          questionId: qId, answer: answer, dio: _dio, onSaved: () {},
-                        );
-                      },
-                      onToggleFlag: (qId) {
-                        ref.read(examProvider.notifier).toggleFlag(qId);
-                      },
-                    ),
-                  ),
-        bottomNavigationBar: (examState.isLoading || examState.questions.isEmpty)
+        body: examState.isDualScreenBlocked
+            ? _DualScreenBlockedOverlay(examState: examState)
+            : examState.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : examState.questions.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.assignment_late, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+                            const SizedBox(height: 16),
+                            const Text('Tidak ada soal tersedia'),
+                          ],
+                        ),
+                      )
+                    : PageView.builder(
+                        controller: _pageController,
+                        itemCount: examState.questions.length,
+                        onPageChanged: (i) => ref.read(examProvider.notifier).setCurrentIndex(i),
+                        itemBuilder: (context, index) => ExamQuestionCard(
+                          question: examState.questions[index],
+                          examState: examState,
+                          index: index,
+                          onSaveAnswer: (qId, answer) {
+                            ref.read(examProvider.notifier).saveAnswer(
+                              questionId: qId, answer: answer, dio: _dio, onSaved: () {},
+                            );
+                          },
+                          onToggleFlag: (qId) {
+                            ref.read(examProvider.notifier).toggleFlag(qId);
+                          },
+                        ),
+                      ),
+        bottomNavigationBar: (examState.isDualScreenBlocked || examState.isLoading || examState.questions.isEmpty)
             ? null
             : ExamBottomBar(
                 total: examState.questions.length,
@@ -241,6 +262,135 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                     : null,
                 onOpenPalette: _openPalette,
               ),
+      ),
+    );
+  }
+}
+
+class _DualScreenBlockedOverlay extends StatelessWidget {
+  final ExamState examState;
+
+  const _DualScreenBlockedOverlay({required this.examState});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.canvas,
+      width: double.infinity,
+      height: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Warning Emblem
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.errorContainer,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.error.withValues(alpha: 0.15),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.splitscreen_rounded,
+                    size: 40,
+                    color: AppColors.error,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title
+              const Text(
+                'Layar Terpisah / Pop-Up Terdeteksi!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Description
+              const Text(
+                'Aplikasi Secure CBT melarang penggunaan mode layar terpisah (split-screen) atau jendela mengambang demi menjaga integritas ujian.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Action Guidance Box
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: AppShadows.card,
+                ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.fullscreen_rounded,
+                      color: AppColors.primary,
+                      size: 22,
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Tutup aplikasi lain dan kembalikan ke satu layar penuh untuk melanjutkan.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Violation count badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.errorContainer,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  'Peringatan Pelanggaran: ${examState.warningCount}/${examState.warningLimit}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.error,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
