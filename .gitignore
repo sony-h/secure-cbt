@@ -59,3 +59,6 @@ ios/build/
 
 # Build artifacts from E2E tests
 apps/backend/test/dist/
+
+# Local upload storage (backend local-storage driver writes question media here)
+apps/backend/storage/
