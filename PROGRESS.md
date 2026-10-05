@@ -1,6 +1,6 @@
 # Progress Note: Secure CBT Platform
 
-**Current Phase:** Phase 17 - Notification Panel & Status Bar Drag Anti-Cheat Prevention - COMPLETE
+**Current Phase:** Phase 18 - Question Studio, Visual Math Keyboard & Media System - COMPLETE
 **Target Platform:** Indonesian High Schools (SMA/SMK)
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)
 **Last Updated:** 2026-10-05
@@ -820,3 +820,47 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - `flutter test`: 9/9 tests passing.
 - `flutter analyze lib/ test/`: 0 errors, 0 warnings.
 - Backend unit tests: 31/31 passing.
+
+---
+
+## Phase 18 — Question Studio, Visual Math Keyboard & Media System — COMPLETE
+
+**Target Platform:** Full-Stack (Backend + Dashboard + Mobile)  
+**Date:** 2026-10-05
+
+### 1. Database & Shared Domain Schema
+- Added `image_url` column (`TEXT`) to `Question` and `QuestionOption` models in Prisma schema (`schema.prisma`).
+- Created migration `20261005000000_add_question_image_url`.
+- Updated Zod validation schemas in `packages/shared/src/schemas/question.schema.ts` supporting optional `image_url` on questions and options, and relaxed option requirements for `ESSAY` type questions.
+
+### 2. Backend Multi-Storage Module & Uploads
+- Created `StorageModule` and `IStorageService` interface supporting both `LocalStorageService` (default disk storage with zero RAM overhead) and `S3StorageService` (AWS S3, Cloudflare R2, MinIO).
+- Added `UploadsController` (`POST /api/v1/uploads/image`) with `sharp` WebP image compression (max 1600px width, 80% quality, saving ~70% bandwidth) and MIME type validation.
+- Configured `@nestjs/serve-static` to serve `/uploads` locally from `storage/uploads/`.
+- Updated `QuestionBankService` to persist `image_url` for questions and option cards.
+- Added unit tests in `apps/backend/src/modules/storage/__tests__/local-storage.service.spec.ts`.
+
+### 3. Dashboard Visual Math & Equation Builder
+- Installed `katex` in `apps/dashboard` and configured KaTeX stylesheets.
+- Built reusable `MathRenderer` component (`math-renderer.tsx`) rendering inline `$math$` and block `$$math$$` formulas safely with error boundaries.
+- Built interactive visual `EquationBuilderModal` (`equation-builder-modal.tsx`) with 4 tabbed math categories (Aritmatika, Aljabar/Kalkulus, Trigonometri/Log, Sains/Kimia) with live KaTeX visual canvas.
+
+### 4. Dedicated Question Studio Page (`/dashboard/questions/new` & `[id]/edit`)
+- Replaced cramped popup dialog with a responsive full-viewport studio experience (`QuestionStudio`).
+- **Desktop Layout:** Left column for editor (Metadata, Question textarea, Visual Equation button, Image Dropzone, Option cards with per-option math & image buttons, Explanation box); Right column with sticky simulated student mobile phone (`QuestionPhonePreview`).
+- **Mobile/Tablet Layout:** Single-column layout with top segmented toggle (`[Editor Soal]` / `[Pratinjau Siswa]`) preventing keyboard clutter.
+- Built `ImageDropzone` supporting click-to-browse, drag-and-drop, and clipboard paste (`Ctrl+V`).
+- Upgraded `/dashboard/questions` list with `MathRenderer` and diagram indicator badges.
+
+### 5. Mobile App KaTeX Rendering & Offline Diagram Lightbox
+- Added `flutter_math_fork: ^0.7.2` and `cached_network_image: ^3.3.1` to `apps/mobile`.
+- Built `RichExamText` (`rich_exam_text.dart`) for native 60fps vector KaTeX rendering of inline and block math.
+- Enhanced `ExamQuestionCard` to render diagrams and diagrams on options with interactive pinch-to-zoom full-screen lightboxes (`InteractiveViewer`).
+- Added offline pre-caching (`_precacheExamImages`) in `exam_screen.dart` caching all diagrams to device memory and disk upon session load for offline network resilience.
+
+### 6. Automated Testing & Verification
+- Mobile unit tests: 12/12 passing (`flutter test`).
+- Mobile static analysis: 0 errors, 0 warnings (`flutter analyze lib/ test/`).
+- Backend unit tests: 33/33 passing (`vitest run`).
+- Backend typecheck: 0 errors (`tsc --noEmit`).
+- Dashboard typecheck & production build: 0 errors (`next build` compiled all 16 routes).

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
@@ -117,6 +118,8 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         });
       }
 
+      _precacheExamImages(questions);
+
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         WidgetsBinding.instance.addObserver(this);
@@ -171,6 +174,28 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     _violationHandler?.handleLifecycleChange(state);
+  }
+
+  void _precacheExamImages(List<Map<String, dynamic>> questions) {
+    for (final q in questions) {
+      final qData = q['question'] as Map<String, dynamic>? ?? q;
+      final qImg = qData['image_url']?.toString();
+      if (qImg != null && qImg.isNotEmpty && mounted) {
+        precacheImage(CachedNetworkImageProvider(qImg), context).catchError((_) {});
+      }
+
+      final options = qData['options'] as List<dynamic>?;
+      if (options != null) {
+        for (final opt in options) {
+          if (opt is Map) {
+            final optImg = opt['image_url']?.toString();
+            if (optImg != null && optImg.isNotEmpty && mounted) {
+              precacheImage(CachedNetworkImageProvider(optImg), context).catchError((_) {});
+            }
+          }
+        }
+      }
+    }
   }
 
   void _openPalette() {

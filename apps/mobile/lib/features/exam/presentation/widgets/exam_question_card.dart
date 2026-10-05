@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
+import 'package:secure_cbt_mobile/core/widgets/rich_exam_text.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/exam_state.dart';
 
 class ExamQuestionCard extends StatefulWidget {
@@ -33,9 +35,58 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
     super.dispose();
   }
 
+  void _showImageZoomDialog(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 4.0,
+                child: Center(
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.contain,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                    errorWidget: (context, url, error) => const Icon(
+                      Icons.broken_image_rounded,
+                      color: Colors.white54,
+                      size: 48,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                onPressed: () => Navigator.of(ctx).pop(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final content = widget.question['question']?['content'] ?? widget.question['content'] ?? '';
+    final imageUrl = widget.question['question']?['image_url'] ?? widget.question['image_url'];
     final options = (widget.question['question']?['options'] as List<dynamic>?) ??
         (widget.question['options'] as List<dynamic>?) ??
         [];
@@ -135,15 +186,76 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
               border: Border.all(color: AppColors.border),
               boxShadow: AppShadows.card,
             ),
-            child: Text(
-              content,
-              style: const TextStyle(
-                fontSize: 15,
-                height: 1.68,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
-                letterSpacing: -0.2,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (imageUrl != null && imageUrl.toString().isNotEmpty) ...[
+                  GestureDetector(
+                    onTap: () => _showImageZoomDialog(context, imageUrl.toString()),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      constraints: const BoxConstraints(maxHeight: 240),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceSubtle,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          Center(
+                            child: CachedNetworkImage(
+                              imageUrl: imageUrl.toString(),
+                              fit: BoxFit.contain,
+                              placeholder: (context, url) => const SizedBox(
+                                height: 120,
+                                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                              ),
+                              errorWidget: (context, url, error) => const SizedBox(
+                                height: 80,
+                                child: Center(
+                                  child: Icon(Icons.broken_image_rounded, color: AppColors.textMuted),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            margin: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.zoom_in_rounded, size: 14, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Perbesar',
+                                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                RichExamText(
+                  text: content,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 1.68,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -233,14 +345,39 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
                         ),
                         const SizedBox(width: 14),
                         Expanded(
-                          child: Text(
-                            optText,
-                            style: TextStyle(
-                              fontSize: 14,
-                              height: 1.45,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                              color: isSelected ? AppColors.textPrimary : AppColors.textPrimary.withValues(alpha: 0.85),
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (option['image_url'] != null && option['image_url'].toString().isNotEmpty) ...[
+                                GestureDetector(
+                                  onTap: () => _showImageZoomDialog(context, option['image_url'].toString()),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    constraints: const BoxConstraints(maxHeight: 140),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      color: AppColors.surfaceSubtle,
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: CachedNetworkImage(
+                                      imageUrl: option['image_url'].toString(),
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (optText.isNotEmpty)
+                                RichExamText(
+                                  text: optText,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    height: 1.45,
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                    color: isSelected ? AppColors.textPrimary : AppColors.textPrimary.withValues(alpha: 0.85),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                         if (isSelected) ...[

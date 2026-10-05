@@ -237,6 +237,7 @@ model Question {
   question_bank_id String         @db.Uuid
   type             QuestionType
   content          String         @db.Text
+  image_url        String?        @db.Text
   difficulty       DifficultyLevel @default(MEDIUM)
   explanation      String?         @db.Text
   created_at       DateTime       @default(now())
@@ -259,6 +260,7 @@ model QuestionOption {
   id          String   @id @default(uuid()) @db.Uuid
   question_id String   @db.Uuid
   content     String   @db.Text
+  image_url   String?  @db.Text
   is_correct  Boolean  @default(false)
   order       Int      @default(0)
   created_at  DateTime @default(now())

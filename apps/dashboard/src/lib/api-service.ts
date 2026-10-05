@@ -74,13 +74,25 @@ export const examApi = {
 
 export const questionBankApi = {
   getBanks: (params?: { subject_id?: string }) => api.get('/questions/banks', { params }),
+  getBankById: (id: string) => api.get(`/questions/banks/${id}`),
   createBank: (data: { title: string; subject_id: string }) => api.post('/questions/banks', data),
   deleteBank: (id: string) => api.delete(`/questions/banks/${id}`),
   getQuestions: (params?: QuestionQueryParams) => api.get('/questions', { params }),
-  createQuestion: (data: { question_bank_id: string; type: string; content: string; difficulty?: string; explanation?: string; options?: { content: string; is_correct: boolean }[]; tags?: string[] }) => api.post('/questions', data),
-  updateQuestion: (id: string, data: Partial<{ type: string; content: string; difficulty: string; explanation: string; options: { content: string; is_correct: boolean }[]; tags: string[] }>) => api.patch(`/questions/${id}`, data),
+  getQuestionById: (id: string) => api.get(`/questions/${id}`),
+  createQuestion: (data: { question_bank_id: string; type: string; content: string; image_url?: string | null; difficulty?: string; explanation?: string | null; options?: { content: string; is_correct: boolean; image_url?: string | null }[]; tags?: string[] }) => api.post('/questions', data),
+  updateQuestion: (id: string, data: Partial<{ type: string; content: string; image_url: string | null; difficulty: string; explanation: string | null; options: { content: string; is_correct: boolean; image_url?: string | null }[]; tags: string[] }>) => api.patch(`/questions/${id}`, data),
   deleteQuestion: (id: string) => api.delete(`/questions/${id}`),
   duplicateQuestion: (id: string) => api.post(`/questions/${id}/duplicate`),
+};
+
+export const uploadApi = {
+  uploadImage: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/uploads/image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export const reportApi = {

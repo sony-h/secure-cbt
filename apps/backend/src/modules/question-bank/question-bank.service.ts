@@ -88,19 +88,23 @@ export class QuestionBankService {
           question_bank_id: data.question_bank_id,
           type: data.type,
           content: data.content,
+          image_url: data.image_url,
           difficulty: data.difficulty,
           explanation: data.explanation,
         },
       });
 
-      await tx.questionOption.createMany({
-        data: data.options.map((opt: { content: string; is_correct: boolean }, idx: number) => ({
-          question_id: question.id,
-          content: opt.content,
-          is_correct: opt.is_correct,
-          order: idx + 1,
-        })),
-      });
+      if (data.options && data.options.length > 0) {
+        await tx.questionOption.createMany({
+          data: data.options.map((opt: { content: string; is_correct: boolean; image_url?: string | null }, idx: number) => ({
+            question_id: question.id,
+            content: opt.content,
+            image_url: opt.image_url,
+            is_correct: opt.is_correct,
+            order: idx + 1,
+          })),
+        });
+      }
 
       if (data.tags?.length) {
         await tx.questionTag.createMany({
@@ -125,6 +129,7 @@ export class QuestionBankService {
         data: {
           type: data.type,
           content: data.content,
+          image_url: data.image_url,
           difficulty: data.difficulty,
           explanation: data.explanation,
         },
@@ -132,14 +137,17 @@ export class QuestionBankService {
 
       if (data.options) {
         await tx.questionOption.deleteMany({ where: { question_id: id } });
-        await tx.questionOption.createMany({
-          data: data.options.map((opt, idx) => ({
-            question_id: id,
-            content: opt.content,
-            is_correct: opt.is_correct,
-            order: idx + 1,
-          })),
-        });
+        if (data.options.length > 0) {
+          await tx.questionOption.createMany({
+            data: data.options.map((opt, idx) => ({
+              question_id: id,
+              content: opt.content,
+              image_url: opt.image_url,
+              is_correct: opt.is_correct,
+              order: idx + 1,
+            })),
+          });
+        }
       }
 
       if (data.tags) {

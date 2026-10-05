@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { questionBankApi, academicApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
@@ -22,10 +23,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, Copy } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
-import { QuestionModal, emptyQuestionForm, questionTypes, difficultyLevels, type QuestionFormData } from '@/components/questions/question-modal';
+import { MathRenderer } from '@/components/ui/math-renderer';
+import { questionTypes, difficultyLevels } from '@/components/questions/question-modal';
 
 interface QuestionBank {
   id: string;
@@ -38,10 +40,11 @@ interface QuestionBank {
 interface Question {
   id: string;
   content: string;
+  image_url?: string | null;
   type: string;
   difficulty: string;
   explanation: string | null;
-  options: { id: string; content: string; is_correct: boolean; order: number }[];
+  options: { id: string; content: string; image_url?: string | null; is_correct: boolean; order: number }[];
   tags: { id: string; tag: string }[];
   question_bank: { id: string; title: string; subject: { name: string } };
   created_at: string;
@@ -55,10 +58,8 @@ interface Subject {
 
 function QuestionsPageContent() {
   useRoleGuard([UserRole.ADMIN, UserRole.TEACHER]);
+  const router = useRouter();
   const queryClient = useQueryClient();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<QuestionFormData>(emptyQuestionForm);
   const [newBankName, setNewBankName] = useState('');
   const [newBankSubject, setNewBankSubject] = useState('');
 
@@ -93,17 +94,6 @@ function QuestionsPageContent() {
     onError: () => toast.error('Gagal menghapus bank soal'),
   });
 
-  const saveMutation = useMutation({
-    mutationFn: (dto: any) => editingId ? questionBankApi.updateQuestion(editingId, dto) : questionBankApi.createQuestion(dto),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['questions'] });
-      queryClient.invalidateQueries({ queryKey: ['question-banks'] });
-      toast.success(editingId ? 'Soal diperbarui' : 'Soal berhasil dibuat');
-      setModalOpen(false); setEditingId(null); setForm(emptyQuestionForm);
-    },
-    onError: () => toast.error('Gagal menyimpan soal'),
-  });
-
   const deleteMutation = useMutation({
     mutationFn: (id: string) => questionBankApi.deleteQuestion(id),
     onSuccess: () => {
@@ -124,44 +114,12 @@ function QuestionsPageContent() {
     onError: () => toast.error('Gagal menduplikasi soal'),
   });
 
-  const handleSave = () => {
-    if (!form.question_bank_id) { toast.error('Pilih bank soal terlebih dahulu'); return; }
-    if (!form.content.trim()) { toast.error('Pertanyaan tidak boleh kosong'); return; }
-    if (form.type !== 'ESSAY') {
-      if (form.options.some((o) => !o.content.trim())) { toast.error('Semua pilihan harus diisi'); return; }
-      if (!form.options.some((o) => o.is_correct)) { toast.error('Pilih jawaban yang benar'); return; }
-    }
-
-    const dto: any = {
-      question_bank_id: form.question_bank_id,
-      type: form.type,
-      content: form.content,
-      difficulty: form.difficulty,
-      explanation: form.explanation || undefined,
-      options: form.type !== 'ESSAY' ? form.options : undefined,
-      tags: form.tags.length > 0 ? form.tags : undefined,
-    };
-    saveMutation.mutate(dto);
-  };
-
   const handleEdit = (question: Question) => {
-    setEditingId(question.id);
-    setForm({
-      question_bank_id: question.question_bank.id,
-      type: question.type,
-      content: question.content,
-      difficulty: question.difficulty,
-      explanation: question.explanation || '',
-      options: question.options.map((o) => ({ content: o.content, is_correct: o.is_correct })),
-      tags: question.tags.map((t) => t.tag),
-    });
-    setModalOpen(true);
+    router.push(`/dashboard/questions/${question.id}/edit`);
   };
 
   const handleAdd = () => {
-    setEditingId(null);
-    setForm(emptyQuestionForm);
-    setModalOpen(true);
+    router.push('/dashboard/questions/new');
   };
 
   const questionColumns: ColumnDef<Question>[] = [
@@ -169,8 +127,17 @@ function QuestionsPageContent() {
       accessorKey: 'content',
       header: 'Pertanyaan',
       cell: ({ row }: any) => (
-        <div>
-          <div className="max-w-md truncate font-medium">{row.original.content}</div>
+        <div className="max-w-md">
+          <div className="flex items-start gap-2">
+            {row.original.image_url && (
+              <span className="shrink-0 mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold" title="Memiliki Gambar Diagram">
+                <ImageIcon className="h-3 w-3" /> Foto
+              </span>
+            )}
+            <div className="truncate font-medium text-sm">
+              <MathRenderer content={row.original.content} />
+            </div>
+          </div>
           {row.original.tags?.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {row.original.tags.map((t: any) => (
@@ -358,16 +325,6 @@ function QuestionsPageContent() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      <QuestionModal
-        open={modalOpen}
-        onClose={() => { setModalOpen(false); setEditingId(null); }}
-        form={form}
-        setForm={setForm}
-        banks={banks || []}
-        onSave={handleSave}
-        isEditing={!!editingId}
-      />
     </div>
   );
 }

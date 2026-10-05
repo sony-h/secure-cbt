@@ -35,6 +35,8 @@ dependencies:
 
   # ── UI ──────────────────────────────────────────────────────
   google_fonts: ^6.2.0
+  flutter_math_fork: ^0.7.2
+  cached_network_image: ^3.3.1
 
   # ── Utilities ───────────────────────────────────────────────
   flutter_secure_storage: ^9.2.0

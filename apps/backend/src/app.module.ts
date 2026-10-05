@@ -2,10 +2,14 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { APP_GUARD } from '@nestjs/core';
+import * as path from 'path';
 import { SecurityDefaults } from '@secure-cbt/shared';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './common/queue/queue.module';
+import { StorageModule } from './modules/storage/storage.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { AcademicModule } from './modules/academic/academic.module';
@@ -26,6 +30,12 @@ import { HealthModule } from './modules/health/health.module';
     // ── Configuration ──────────────────────────────────────────
     ConfigModule.forRoot({ isGlobal: true }),
 
+    // ── Static Media Files ─────────────────────────────────────
+    ServeStaticModule.forRoot({
+      rootPath: path.join(process.cwd(), 'storage', 'uploads'),
+      serveRoot: '/uploads',
+    }),
+
     // ── Rate Limiting ──────────────────────────────────────────
     ThrottlerModule.forRoot([{
       ttl: (Number(process.env.THROTTLE_TTL) || SecurityDefaults.RATE_LIMIT_TTL) * 1000,
@@ -38,9 +48,11 @@ import { HealthModule } from './modules/health/health.module';
     // ── Infrastructure ─────────────────────────────────────────
     PrismaModule,
     QueueModule,
+    StorageModule,
 
     // ── Business Modules ───────────────────────────────────────
     HealthModule,
+    UploadsModule,
     AuthModule,
     UserModule,
     AcademicModule,
