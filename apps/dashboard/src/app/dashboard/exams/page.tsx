@@ -15,7 +15,7 @@ import {
   AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
   AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
-import { Plus, Pencil, Trash2, Key, Clock, Calendar } from 'lucide-react';
+import { Plus, Pencil, Trash2, Key, Clock, Calendar, Copy, Check, FileCheck, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import { CreateExamModal, emptyExamForm, type ExamFormData } from '@/components/exams/create-exam-modal';
 import { TokenModal } from '@/components/exams/token-modal';
@@ -37,6 +37,7 @@ interface Exam {
   package_count: number;
   created_at: string;
   classes?: { class: { id: string; name: string } }[];
+  exam_token?: { token: string; expires_at: string } | null;
   _count?: { exam_sessions: number; exam_questions: number };
 }
 
@@ -177,6 +178,46 @@ function ExamsPageContent() {
       cell: ({ row }: any) => (<span className="flex items-center gap-1 text-sm text-muted-foreground"><Calendar className="h-3 w-3" /> {formatDate(row.original.end_at)}</span>),
     },
     {
+      id: 'token',
+      header: 'Token Ujian',
+      cell: ({ row }: any) => {
+        const tokenVal = row.original.exam_token?.token;
+        const isEligible = ['PUBLISHED', 'ONGOING'].includes(row.original.status);
+
+        if (tokenVal) {
+          return (
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(tokenVal);
+                toast.success(`Token ${tokenVal} berhasil disalin ke clipboard!`);
+              }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-mono text-xs font-bold hover:bg-indigo-100 transition cursor-pointer group shadow-2xs"
+              title="Klik untuk salin token"
+            >
+              <span>{tokenVal}</span>
+              <Copy className="h-3 w-3 text-indigo-500 group-hover:scale-110 transition-transform" />
+            </button>
+          );
+        }
+
+        if (isEligible) {
+          return (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => tokenMutation.mutate(row.original.id)}
+              className="h-7 text-xs px-2.5 gap-1.5 border-dashed border-primary/50 text-primary hover:bg-primary/5"
+            >
+              <Key className="h-3 w-3" /> Rilis Token
+            </Button>
+          );
+        }
+
+        return <span className="text-xs text-muted-foreground">—</span>;
+      },
+    },
+    {
       accessorKey: 'status', header: 'Status', enableSorting: true,
       cell: ({ row }: any) => (<Badge variant={statusColors[row.original.status] || 'default'}>{statusLabels[row.original.status] || row.original.status}</Badge>),
     },
@@ -185,13 +226,13 @@ function ExamsPageContent() {
       id: 'actions', header: 'Aksi',
       cell: ({ row }: any) => (
         <div className="flex gap-1">
-          <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)} title="Edit Ujian"><Pencil className="h-4 w-4" /></Button>
           {(row.original.status === 'PUBLISHED' || row.original.status === 'ONGOING') && (
-            <Button variant="ghost" size="icon" onClick={() => tokenMutation.mutate(row.original.id)} title="Generate Token"><Key className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => tokenMutation.mutate(row.original.id)} title="Generate / Perbarui Token"><Key className="h-4 w-4" /></Button>
           )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              <Button variant="ghost" size="icon" title="Hapus Ujian"><Trash2 className="h-4 w-4 text-destructive" /></Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -209,20 +250,45 @@ function ExamsPageContent() {
     },
   ];
 
+  const totalExams = exams?.length || 0;
+  const ongoingCount = exams?.filter(e => e.status === 'ONGOING').length || 0;
+  const publishedCount = exams?.filter(e => e.status === 'PUBLISHED').length || 0;
+  const finishedCount = exams?.filter(e => e.status === 'FINISHED').length || 0;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ujian</h1>
-          <p className="text-muted-foreground">Buat dan kelola ujian</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">Jadwal &amp; Sesi Ujian</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Buat, kelola paket soal, dan pantau token sesi ujian</p>
         </div>
-        <Button onClick={() => { setEditingId(null); setForm(emptyExamForm); setModalOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" />
-          Buat Ujian
+        <Button onClick={() => { setEditingId(null); setForm(emptyExamForm); setModalOpen(true); }} className="rounded-xl gap-2 font-semibold shadow-xs">
+          <Plus className="h-4 w-4" />
+          Buat Ujian Baru
         </Button>
       </div>
 
-      <Card>
+      {/* Quick Status Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Jadwal</span>
+          <p className="text-2xl font-extrabold tracking-tight text-foreground mt-1 tabular-nums">{totalExams}</p>
+        </div>
+        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
+          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Sedang Aktif</span>
+          <p className="text-2xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">{ongoingCount}</p>
+        </div>
+        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Terbit / Siap</span>
+          <p className="text-2xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400 mt-1 tabular-nums">{publishedCount}</p>
+        </div>
+        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Selesai</span>
+          <p className="text-2xl font-extrabold tracking-tight text-foreground mt-1 tabular-nums">{finishedCount}</p>
+        </div>
+      </div>
+
+      <Card className="rounded-2xl border-border/70 shadow-xs">
         <CardContent className="pt-6">
           <DataTable
             columns={examColumns}

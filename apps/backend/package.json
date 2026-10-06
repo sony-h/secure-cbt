@@ -1,6 +1,6 @@
 {
   "name": "@secure-cbt/backend",
-  "version": "1.1.1",
+  "version": "1.3.0",
   "private": true,
   "description": "Secure CBT Platform - NestJS Backend API",
   "prisma": {

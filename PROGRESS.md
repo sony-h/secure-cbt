@@ -1,9 +1,9 @@
 # Progress Note: Secure CBT Platform (by Orivastra)
 
-**Current Version:** `v1.1.1` (Mobile Android Build: `1.1.1+7`)  
+**Current Version:** `v1.3.0` (Mobile Android Build: `1.3.0+9`)  
 **Brand Identity:** Orivastra — *"From Origin to the Stars."*  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 20 - Persistent Warning Cooldown, Short Answer & Matching Question Types - COMPLETE  
+**Current Phase:** Phase 22 - Dashboard Executive UI/UX Overhaul (Stripe & Apple Silicon Edition)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
 **Last Updated:** 2026-10-06
@@ -948,20 +948,94 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 
 ---
 
+## Phase 21 — Mobile UI/UX Overhaul & Universal Typography Shield — COMPLETE
+
+**Target Platform:** Android Mobile App (`apps/mobile`)  
+**Design Standard:** Refined Big-Tech Academic (Apple Bento & Airbnb Spec Sheet Aesthetics)  
+**Version:** `v1.2.0` (Android Build: `1.2.0+8`)  
+**Date:** 2026-10-06
+
+### 1. Universal Typography Scale Clamp (`app.dart`)
+- Wrapped `MaterialApp.router` with `MediaQuery` builder clamping `textScaler` to `[0.85, 1.15]`.
+- Shields dense CBT exam interfaces from Android system accessibility font zoom (1.3x - 1.5x) or extreme device pixel ratios, eliminating font explosion and layout clipping while preserving readability.
+
+### 2. Centered Bento Spec Grid 2x2 (`exam_detail_screen.dart`)
+- Replaced flat horizontal rows with a centered 2x2 Bento Grid:
+  - **Cell 1 (Alokasi Waktu):** Timer icon, uppercase label, duration title (`formatDetailDuration`), and minute badge.
+  - **Cell 2 (Total Soal):** Question list icon, uppercase label, question count, and package badge.
+  - **Cell 3 (Jadwal Mulai):** Calendar icon, uppercase label, formatted date (`5 Okt 2026`), and WIB time pill (`07:30 WIB`).
+  - **Cell 4 (Batas Selesai):** Clock icon, uppercase label, formatted date (`5 Okt 2026`), and WIB time pill (`09:30 WIB`).
+- Added `formatTimeWIB` helper in `date_utils.dart`.
+
+### 3. Frosted Glass Floating Dock (`scaffold_with_nav_bar.dart`)
+- Integrated `ClipRRect(borderRadius: 32)` with `BackdropFilter(filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18))` and translucent acrylic wash (`surface.withValues(alpha: 0.90)`).
+- Distributed nav tabs via `Expanded(flex: isSelected ? 13 : 9)` so active bubble expansion never pushes sibling tabs out of bounds.
+- Concentric geometry: outer pill `32px` radius, inner active bubble `22px` radius with soft indigo neon shadow (`BoxShadow(color: primary.withValues(alpha: 0.15), blurRadius: 8)`).
+
+### 4. Overlap & Overflow Elimination in Exam Cards (`exam_question_card.dart`)
+- **Matching Question Type (`_buildMatchingInput`):** Wrapped header title in `Expanded(child: Text(..., overflow: TextOverflow.ellipsis))` and shortened label to *"Pasangkan Jawaban"*, guaranteeing the right-aligned `X/X Terpasang` status badge never collides or overflows the card boundary on any device resolution.
+- **Short Answer Type (`_buildShortAnswerInput`):** Wrapped *"Jawaban Singkat Anda"* title in `Expanded` to protect the right-hand *"Tersimpan"* indicator.
+- **Question Number Header:** Wrapped *"Ganda Kompleks"* tag in `Flexible` so the right-side *"Ragu-ragu"* flag button is never pushed off-screen on 360dp narrow displays.
+
+### 5. Harmonized Bottom Scroll Padding (110px)
+- Unified scroll padding to `bottom: 110px` across `HomeScreen`, `ExamsScreen`, `HistoryScreen`, and `ProfileScreen`.
+- Prevents bottom elements, logout actions, and the Orivastra brand signature from being obscured beneath the floating dock.
+
+---
+
+## Phase 22 — Dashboard Executive UI/UX Overhaul (Stripe & Apple Silicon Edition) — COMPLETE
+
+**Target Platform:** Web Dashboard (Next.js App Router)  
+**Design Standard:** Stripe Billing & Apple Silicon Enterprise (Light-first Luxury, Layered Depth & Command Precision)  
+**Version:** `v1.3.0` (Mobile Android Build: `1.3.0+9`)  
+**Date:** 2026-10-06
+
+### 1. Default Theme Set to Light
+- Configured `defaultTheme="light"` in root `ThemeProvider` (`app/layout.tsx`).
+- Premium porcelain canvas (`bg-slate-50/70`) with soft dual-layered shadow cards (`bg-card`, `border-border/70`) eliminating harsh dark borders.
+
+### 2. Global Command Palette (`Ctrl + K` / `⌘K`) (`command-menu.tsx`)
+- Raycast-style keyboard-navigable command center (`CommandMenu`) accessible from anywhere via `Ctrl + K` or header search launcher.
+- Quick navigation across all 10 management routes, direct action launchers (Studio Soal Baru, Buat Ujian, Monitoring Live), and theme switchers.
+- Arrow-key navigation, Enter selection, Escape dismissal with fuzzy match filtering.
+
+### 3. Dynamic Breadcrumb Trail & Live Telemetry Pill (`layout.tsx`)
+- Created `Breadcrumbs` component rendering context-aware navigation trails (`Dashboard` $\rightarrow$ `Bank Soal` $\rightarrow$ `Studio Soal Baru`).
+- Added pulsating live telemetry status indicator pill (`● Live Telemetry`) indicating active WebSocket connectivity state.
+
+### 4. Executive Bento Grid Dashboard Home (`page.tsx`)
+- **Top Hero Launchpad (Col-span 12):** Midnight indigo-slate gradient card with greeting, date/WIB clock, and 3 quick action launchers (`Jadwal Ujian`, `Studio Soal`, `Monitoring`).
+- **Trio Metric Cards:** Layered porcelain cards with squircle icons, bold tabular figures, and status pills.
+- **Middle Bento Grid:** 5-col status donut chart with centered total count and 7-col boarding-pass exam schedule cards with live status badges.
+- **Workflow Protocol (01 - 03):** Clean sequential execution cards outlining school exam readiness.
+
+### 5. Mission Control Monitoring Hub (`monitoring/page.tsx`)
+- **View Switcher:** Segmented control between `[ 🪑 Denah Meja (Grid) ]` and `[ 📋 Tabel Rinci (List) ]`.
+- **Seating Plan Grid:** Interactive visual desk cards displaying student avatars with live status rings (green = live, amber = warning, red = limit exceeded, blue = submitted, gray = offline), progress bar percentage, and warning strike badges.
+- **Realtime Activity Drawer:** Expandable student timeline log displaying chronological events.
+- **Filter Tabs:** Quick filtering by `Semua`, `Aktif`, `Peringatan`, `Selesai`.
+
+### 6. Quick Token Copy & Exam Schedule Cards (`exams/page.tsx`)
+- Added dedicated **Token Ujian** column with one-click copy button (`[ 83F4D2B0 📋 ]`) with toast notifications.
+- Added summary statistics on top (Total Jadwal, Sedang Aktif, Terbit/Siap, Selesai).
+- Included `exam_token` relation in `ExamService.findAll()` query.
+
+---
+
 ## Future Phases (Planned & Prioritized Roadmap)
 
-### Phase 21: HOTS vs LOTS Cognitive Classification (Bloom's Taxonomy)
+### Phase 23: HOTS vs LOTS Cognitive Classification (Bloom's Taxonomy)
 - Tagging questions by cognitive level: LOTS (C1-C2), MOTS (C3), HOTS (C4-C6).
 - Exam Builder balance dial displaying cognitive distribution against school targets.
 
-### Phase 22: Random Question Pool per Exam (Sub-sampling)
+### Phase 24: Random Question Pool per Exam (Sub-sampling)
 - Teacher puts 60 questions into a Question Bank; exam randomly draws 30 unique questions per student session to eliminate neighboring screen cheating.
 
-### Phase 23: Bulk Question Operations
+### Phase 25: Bulk Question Operations
 - Multi-select checkboxes in `/dashboard/questions` to bulk-move questions between banks, bulk-change difficulty, and batch-assign tags.
 
-### Phase 24: Item Psychometrics (*Analisis Butir Soal*)
+### Phase 26: Item Psychometrics (*Analisis Butir Soal*)
 - Automated computation of Difficulty Index ($P$) and Discrimination Index ($D$) per question based on completed student sessions.
 
-### Phase 25: Word (.docx) & Excel (.xlsx) Template Importer
+### Phase 27: Word (.docx) & Excel (.xlsx) Template Importer
 - BullMQ worker parsing Microsoft Word table archives and Excel spreadsheets with embedded formulas directly into question banks.

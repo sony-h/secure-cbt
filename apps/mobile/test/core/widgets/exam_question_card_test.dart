@@ -73,7 +73,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Pasangkan Pernyataan & Jawaban'), findsOneWidget);
+    expect(find.text('Pasangkan Jawaban'), findsOneWidget);
     expect(find.text('Hukum I Newton'), findsOneWidget);
     expect(find.text('Hukum II Newton'), findsOneWidget);
   });

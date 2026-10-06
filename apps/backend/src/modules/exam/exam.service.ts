@@ -30,7 +30,7 @@ export class ExamService {
         where,
         skip,
         take: perPage,
-        include: { subject: true, _count: { select: { exam_questions: true, exam_sessions: true } } },
+        include: { subject: true, exam_token: true, _count: { select: { exam_questions: true, exam_sessions: true } } },
         orderBy: { created_at: 'desc' },
       }),
       this.prisma.exam.count({ where }),

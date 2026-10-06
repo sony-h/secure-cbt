@@ -128,7 +128,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         color: AppColors.primary,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 110),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -481,10 +481,11 @@ class _StudentPassportCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 6),
-                          Row(
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
                             children: [
                               _PassportBadge(label: nis),
-                              const SizedBox(width: 6),
                               _PassportBadge(label: className),
                             ],
                           ),

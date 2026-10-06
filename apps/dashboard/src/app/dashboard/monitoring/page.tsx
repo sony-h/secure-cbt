@@ -13,7 +13,25 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
-import { Wifi, WifiOff, AlertTriangle, Users, CheckCircle, Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Wifi,
+  WifiOff,
+  AlertTriangle,
+  Users,
+  CheckCircle,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  LayoutGrid,
+  List,
+  Clock,
+  ShieldAlert,
+  Sparkles,
+  Activity,
+  History,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Exam {
@@ -51,6 +69,8 @@ function MonitoringPageContent() {
   const [connectedStudents, setConnectedStudents] = useState<Set<string>>(new Set());
   const [sessionData, setSessionData] = useState<StudentSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'warning' | 'submitted' | 'disconnected'>('all');
   const socketRef = useRef<Socket | null>(null);
 
   const { data: exams, isLoading: examsLoading } = useQuery({
@@ -63,6 +83,13 @@ function MonitoringPageContent() {
     },
     refetchInterval: 10000,
   });
+
+  // Auto-select first exam if available
+  useEffect(() => {
+    if (!selectedExamId && exams && exams.length > 0) {
+      setSelectedExamId(exams[0]!.id);
+    }
+  }, [exams, selectedExamId]);
 
   const { data: monitoringData, isLoading: monitoringLoading } = useQuery({
     queryKey: ['monitoring', selectedExamId],
@@ -78,8 +105,8 @@ function MonitoringPageContent() {
           status: s.status === 'active' ? 'ACTIVE' : s.status === 'finished' ? 'SUBMITTED' : 'DISCONNECTED',
           started_at: s.last_activity_at,
           warning_count: s.warning_count,
-          remaining_time_seconds: s.remaining_time_seconds,
-          progress: s.progress?.total > 0 ? s.progress.answered / s.progress.total : 0,
+          remaining_time_seconds: null,
+          progress: s.progress,
           student_user_id: s.student_user_id,
           is_connected: s.is_connected,
         })),
@@ -97,44 +124,49 @@ function MonitoringPageContent() {
       return data.data as SessionLog[];
     },
     enabled: !!selectedSession,
-    refetchInterval: 3000,
   });
 
-  function resolveStudentName(data: { studentName?: string; studentId?: string; sessionId?: string }): string {
-    if (data.studentName) return data.studentName;
-    if (data.sessionId) {
-      const sess = sessionData.find((s) => s.id === data.sessionId);
-      if (sess) return sess.student.full_name;
-    }
-    if (data.studentId) {
-      const sess = sessionData.find((s) => s.student_user_id === data.studentId || s.id === data.studentId);
-      if (sess) return sess.student.full_name;
-    }
-    return data.studentId || 'Unknown';
-  }
+  const resolveStudentName = (data: { studentName?: string; studentId?: string; sessionId?: string }) => {
+    if (data.studentName && data.studentName.trim() !== '') return data.studentName;
+    const bySession = sessionData.find((s) => s.id === data.sessionId);
+    if (bySession?.student?.full_name) return bySession.student.full_name;
+    const byUser = sessionData.find((s) => s.student_user_id === data.studentId);
+    if (byUser?.student?.full_name) return byUser.student.full_name;
+    return 'Peserta Ujian';
+  };
 
+  // Socket.io Real-Time connection
   useEffect(() => {
     if (!selectedExamId) return;
 
-    const token = localStorage.getItem('access_token');
-    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace('/api/v1', '');
-    const socket = io(`${SOCKET_URL}/monitoring`, {
-      auth: { token },
-      query: { role: 'teacher', examId: selectedExamId },
-      transports: ['websocket'],
+    const socketUrl =
+      process.env.NEXT_PUBLIC_SOCKET_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'http://localhost:3000';
+    const baseUrl = socketUrl.replace(/\/api\/v1\/?$/, '');
+
+    const socket = io(`${baseUrl}/monitoring`, {
+      transports: ['websocket', 'polling'],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionDelay: 1000,
     });
 
-    socket.on('connected.students', (data: { examId: string; studentIds: string[] }) => {
-      if (data.studentIds && Array.isArray(data.studentIds)) {
+    socket.on('connect', () => {
+      socket.emit('teacher.connected', { examId: selectedExamId });
+    });
+
+    socket.on('connected.students', (data: { studentUserIds: string[] }) => {
+      if (data?.studentUserIds) {
         setConnectedStudents((prev) => {
           const next = new Set(prev);
-          data.studentIds.forEach((id) => next.add(id));
+          data.studentUserIds.forEach((id) => next.add(id));
           return next;
         });
       }
     });
 
-    socket.on('student.connected', (data: { studentId: string; studentName?: string; sessionId?: string }) => {
+    socket.on('student.connected', (data: { studentId: string; sessionId?: string; studentName?: string }) => {
       const name = resolveStudentName(data);
       setConnectedStudents((prev) => {
         const next = new Set(prev);
@@ -145,8 +177,8 @@ function MonitoringPageContent() {
       toast.info(`Siswa terhubung: ${name}`);
     });
 
-    socket.on('student.disconnected', (data: { studentId: string; sessionId?: string }) => {
-      const name = resolveStudentName({ studentId: data.studentId });
+    socket.on('student.disconnected', (data: { studentId: string; sessionId?: string; studentName?: string }) => {
+      const name = resolveStudentName(data);
       setConnectedStudents((prev) => {
         const next = new Set(prev);
         if (data.studentId) next.delete(data.studentId);
@@ -156,7 +188,7 @@ function MonitoringPageContent() {
       toast.warning(`Siswa terputus: ${name}`);
     });
 
-    socket.on('progress.updated', (data: { sessionId: string; questionId?: string }) => {
+    socket.on('progress.updated', () => {
       queryClient.invalidateQueries({ queryKey: ['monitoring', selectedExamId] });
     });
 
@@ -201,170 +233,440 @@ function MonitoringPageContent() {
   const submittedCount = sessionData.filter((s) => s.status === 'SUBMITTED' || s.status === 'AUTO_SUBMITTED').length;
   const warnings = sessionData.filter((s) => s.warning_count > 0).length;
 
+  const currentExam = exams?.find((e) => e.id === selectedExamId);
+
+  // Filter session list/grid
+  const filteredSessions = sessionData.filter((session) => {
+    const isCompleted = session.status === 'SUBMITTED' || session.status === 'AUTO_SUBMITTED';
+    const isConnected = !isCompleted && (
+      session.is_connected === true ||
+      (session.student_user_id ? connectedStudents.has(session.student_user_id) : false) ||
+      connectedStudents.has(session.id)
+    );
+
+    switch (statusFilter) {
+      case 'active':
+        return isConnected;
+      case 'warning':
+        return session.warning_count > 0;
+      case 'submitted':
+        return isCompleted;
+      case 'disconnected':
+        return !isCompleted && !isConnected;
+      default:
+        return true;
+    }
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Monitoring</h1>
-          <p className="text-muted-foreground">Pantau ujian yang sedang berlangsung secara real-time</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+              Pusat Kendali Pengawasan (Mission Control)
+            </h1>
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/20">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live Telemetry
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Pantau status integritas ujian siswa, denah meja, dan log peristiwa secara langsung.
+          </p>
+        </div>
+
+        {/* View Mode & Live Filter Controls */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="inline-flex rounded-xl bg-muted p-1 border border-border">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'grid'
+                  ? 'bg-card text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" /> Denah Meja (Grid)
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'list'
+                  ? 'bg-card text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <List className="h-3.5 w-3.5" /> Tabel Rinci (List)
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      {/* 4 Telemetry Metrics */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {monitoringLoading && selectedExamId ? (
           <>
             {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i}><CardContent className="pt-6"><Skeleton className="h-5 w-24 mb-2" /><Skeleton className="h-8 w-12" /></CardContent></Card>
+              <div key={i} className="rounded-2xl border border-border/70 bg-card p-5">
+                <Skeleton className="h-4 w-20 mb-2" />
+                <Skeleton className="h-8 w-16" />
+              </div>
             ))}
           </>
         ) : (
           <>
-            <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Users className="h-5 w-5 text-muted-foreground" /><div><p className="text-xs text-muted-foreground">Total Peserta</p><p className="text-2xl font-bold">{totalStudents}</p></div></div></CardContent></Card>
-            <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><Wifi className="h-5 w-5 text-green-600" /><div><p className="text-xs text-muted-foreground">Aktif Terhubung</p><p className="text-2xl font-bold">{activeCount}</p></div></div></CardContent></Card>
-            <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><CheckCircle className="h-5 w-5 text-primary" /><div><p className="text-xs text-muted-foreground">Selesai</p><p className="text-2xl font-bold">{submittedCount}</p></div></div></CardContent></Card>
-            <Card><CardContent className="pt-6"><div className="flex items-center gap-3"><AlertTriangle className="h-5 w-5 text-destructive" /><div><p className="text-xs text-muted-foreground">Peringatan</p><p className="text-2xl font-bold">{warnings}</p></div></div></CardContent></Card>
+            <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Peserta</span>
+                <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+                  <Users className="h-4.5 w-4.5" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mt-2 tabular-nums">{totalStudents}</p>
+              <p className="text-xs text-muted-foreground mt-1">Siswa terdaftar di ujian</p>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aktif Terhubung</span>
+                <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                  <Wifi className="h-4.5 w-4.5" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 mt-2 tabular-nums">{activeCount}</p>
+              <p className="text-xs text-muted-foreground mt-1">Sedang mengerjakan soal</p>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Telah Selesai</span>
+                <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                  <CheckCircle className="h-4.5 w-4.5" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mt-2 tabular-nums">{submittedCount}</p>
+              <p className="text-xs text-muted-foreground mt-1">Lembar jawaban terkumpul</p>
+            </div>
+
+            <div className={`rounded-2xl border p-5 shadow-xs transition-colors ${warnings > 0 ? 'border-rose-500/40 bg-rose-500/5' : 'border-border/70 bg-card'}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pelanggaran</span>
+                <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${warnings > 0 ? 'bg-rose-500/20 text-rose-600' : 'bg-muted text-muted-foreground'}`}>
+                  <AlertTriangle className="h-4.5 w-4.5" />
+                </div>
+              </div>
+              <p className={`text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 tabular-nums ${warnings > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'}`}>
+                {warnings}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Siswa dengan poin strike</p>
+            </div>
           </>
         )}
       </div>
 
-      <div className="flex gap-4">
-        <Card className="w-72 shrink-0">
-          <CardHeader><CardTitle className="text-base">Ujian Aktif</CardTitle></CardHeader>
-          <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
-            {examsLoading ? (
-              <Spinner className="mx-auto h-6 w-6" />
-            ) : exams?.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Tidak ada ujian aktif</p>
-            ) : (
-              exams?.map((exam) => (
-                <button
-                  key={exam.id}
-                  onClick={() => setSelectedExamId(exam.id === selectedExamId ? null : exam.id)}
-                  className={`w-full text-left p-3 rounded-md border transition hover:bg-muted ${exam.id === selectedExamId ? 'border-primary bg-primary/5' : ''}`}
-                >
-                  <p className="text-sm font-medium line-clamp-1">{exam.title}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={exam.status === 'ONGOING' ? 'success' : 'default'} className="text-xs">
-                      {exam.status === 'ONGOING' ? 'Berlangsung' : 'Terbit'}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">{exam.subject?.name}</span>
-                  </div>
-                </button>
-              ))
-            )}
-          </CardContent>
-        </Card>
+      {/* Main Mission Control Workstation Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Exam Rooms Selector (4 cols) */}
+        <div className="lg:col-span-4 rounded-2xl border border-border/70 bg-card p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-border/50">
+            <h3 className="text-sm font-bold text-foreground">Ruang Ujian Tersedia</h3>
+            <span className="text-xs text-muted-foreground">{exams?.length || 0} Ujian</span>
+          </div>
 
-        <Card className="flex-1">
-          <CardHeader>
-            <CardTitle>
-              {selectedExamId ? `Peserta: ${exams?.find((e) => e.id === selectedExamId)?.title || '...'}` : 'Pilih ujian untuk memantau'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!selectedExamId ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Eye className="h-12 w-12 mb-3" />
-                <p>Pilih ujian di panel sebelah kiri untuk mulai memantau</p>
-              </div>
-            ) : monitoringLoading ? (
-              <div className="flex h-48 items-center justify-center"><Spinner className="h-8 w-8" /></div>
+          <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
+            {examsLoading ? (
+              <div className="py-8 text-center"><Spinner className="mx-auto h-6 w-6 text-primary" /></div>
+            ) : exams?.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">Tidak ada ujian yang sedang berlangsung.</p>
             ) : (
-              <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                {sessionData.map((session) => {
-                  const isCompleted = session.status === 'SUBMITTED' || session.status === 'AUTO_SUBMITTED';
-                  const isConnected = !isCompleted && (
-                    session.is_connected === true ||
-                    (session.student_user_id ? connectedStudents.has(session.student_user_id) : false) ||
-                    connectedStudents.has(session.id)
-                  );
-                  const isExpanded = session.id === selectedSession;
-                  return (
-                    <div
-                      key={session.id}
-                      onClick={() => setSelectedSession(session.id === selectedSession ? null : session.id)}
-                      className={`p-3 border rounded-md cursor-pointer transition hover:bg-muted ${isExpanded ? 'border-primary bg-primary/5' : ''}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {isCompleted ? (
-                            <CheckCircle className="h-4 w-4 text-primary shrink-0" />
-                          ) : isConnected ? (
-                            <Wifi className="h-4 w-4 text-green-600 shrink-0" />
-                          ) : (
-                            <WifiOff className="h-4 w-4 text-amber-500 shrink-0" />
-                          )}
-                          <div>
-                            <p className="text-sm font-medium">{session.student?.full_name || 'Unknown'}</p>
-                            <p className="text-xs text-muted-foreground">{session.student?.nis} &middot; {session.student?.class?.name}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-2 mr-1">
-                            {session.status === 'ACTIVE' ? (
-                              <Badge variant={isConnected ? 'success' : 'warning'}>
-                                {isConnected ? 'Aktif' : 'Terputus'}
-                              </Badge>
-                            ) : session.status === 'SUBMITTED' ? (
-                              <Badge variant="default">Selesai</Badge>
-                            ) : (
-                              <Badge variant="warning">{session.status}</Badge>
-                            )}
-                            {session.warning_count > 0 && (
-                              <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />{session.warning_count}</Badge>
-                            )}
-                          </div>
-                          {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
-                        </div>
+              exams?.map((exam) => {
+                const isSelected = exam.id === selectedExamId;
+                return (
+                  <button
+                    key={exam.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedExamId(exam.id);
+                      setSelectedSession(null);
+                    }}
+                    className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-primary bg-primary/5 shadow-xs ring-1 ring-primary/30'
+                        : 'border-border/80 bg-background hover:bg-muted/50 hover:border-border'
+                    }`}
+                  >
+                    <p className={`text-sm font-bold line-clamp-1 ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                      {exam.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2 text-xs">
+                      <span className="font-semibold text-primary/90 bg-primary/10 px-2 py-0.5 rounded">
+                        {exam.subject?.name || 'Umum'}
+                      </span>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> {exam.duration_minutes}m
+                      </span>
+                      <span className="ml-auto">
+                        <Badge variant={exam.status === 'ONGOING' ? 'success' : 'default'} className="text-[10px] px-1.5 py-0">
+                          {exam.status === 'ONGOING' ? 'Aktif' : 'Terbit'}
+                        </Badge>
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Students Telemetry Monitoring (8 cols) */}
+        <div className="lg:col-span-8 rounded-2xl border border-border/70 bg-card p-5 shadow-xs space-y-4">
+          {/* Header & Filter Pills */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/50">
+            <div>
+              <h2 className="text-base font-bold text-foreground">
+                {currentExam ? currentExam.title : 'Pilih ruang ujian untuk memantau'}
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {filteredSessions.length} dari {sessionData.length} siswa ditampilkan
+              </p>
+            </div>
+
+            {/* Quick Status Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { id: 'all', label: 'Semua' },
+                { id: 'active', label: 'Aktif' },
+                { id: 'warning', label: 'Peringatan' },
+                { id: 'submitted', label: 'Selesai' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setStatusFilter(tab.id as any)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    statusFilter === tab.id
+                      ? 'bg-primary text-primary-foreground shadow-2xs'
+                      : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {!selectedExamId ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <Eye className="h-10 w-10 mb-2 text-muted-foreground/50" />
+              <p className="text-sm">Pilih ruang ujian di panel kiri untuk mulai memantau.</p>
+            </div>
+          ) : monitoringLoading ? (
+            <div className="flex h-56 items-center justify-center"><Spinner className="h-8 w-8 text-primary" /></div>
+          ) : filteredSessions.length === 0 ? (
+            <div className="py-16 text-center">
+              <EmptyState title="Belum Ada Peserta" description="Tidak ada peserta yang cocok dengan filter yang dipilih." />
+            </div>
+          ) : viewMode === 'grid' ? (
+            /* ── SEATING GRID VIEW (Bento Workstations) ───────────────── */
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 max-h-[500px] overflow-y-auto pr-1">
+              {filteredSessions.map((session) => {
+                const isCompleted = session.status === 'SUBMITTED' || session.status === 'AUTO_SUBMITTED';
+                const isConnected = !isCompleted && (
+                  session.is_connected === true ||
+                  (session.student_user_id ? connectedStudents.has(session.student_user_id) : false) ||
+                  connectedStudents.has(session.id)
+                );
+                const hasWarning = session.warning_count > 0;
+                const progressPct = Math.round((session.progress ?? 0) * 100);
+
+                return (
+                  <div
+                    key={session.id}
+                    onClick={() => setSelectedSession(session.id === selectedSession ? null : session.id)}
+                    className={`relative p-3.5 rounded-2xl border transition-all cursor-pointer shadow-2xs flex flex-col justify-between gap-3 ${
+                      hasWarning
+                        ? 'border-rose-500/50 bg-rose-500/5 hover:border-rose-500'
+                        : isCompleted
+                        ? 'border-blue-500/30 bg-blue-500/5 hover:border-blue-500/60'
+                        : isConnected
+                        ? 'border-emerald-500/40 bg-card hover:border-emerald-500 hover:shadow-xs'
+                        : 'border-border/80 bg-muted/20 hover:border-border'
+                    } ${selectedSession === session.id ? 'ring-2 ring-primary' : ''}`}
+                  >
+                    {/* Top Row: Status badge & Signal */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        {isCompleted ? (
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded-md">
+                            <CheckCircle className="h-3 w-3" /> Selesai
+                          </span>
+                        ) : isConnected ? (
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+                            <WifiOff className="h-3 w-3" /> Offline
+                          </span>
+                        )}
                       </div>
-                      {session.progress !== undefined && (
-                        <Progress value={Math.min((session.progress ?? 0) * 100, 100)} className="mt-2 h-1.5" />
-                      )}
-                      {isExpanded && (
-                        <div className="mt-3 pt-3 border-t">
-                          <p className="text-xs font-medium mb-2">Log Aktivitas</p>
-                          {logs && logs.length > 0 ? (
-                            <div className="space-y-0 max-h-32 overflow-y-auto">
-                              {logs.map((log, i) => {
-                                const dotColor = log.event === 'WARNING'
-                                  ? 'bg-red-500'
-                                  : log.event === 'SUBMITTED' || log.event === 'CONNECTED'
-                                    ? 'bg-green-500'
-                                    : 'bg-blue-500';
-                                return (
-                                  <div key={log.id} className="flex gap-3">
-                                    <div className="flex flex-col items-center">
-                                      <div className={`h-2 w-2 rounded-full ${dotColor}`} />
-                                      {i < logs.length - 1 && <div className="flex-1 w-px bg-border" />}
-                                    </div>
-                                    <div className="pb-3">
-                                      <p className="text-sm">{log.description || log.event}</p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }).format(new Date(log.created_at))}
-                                      </p>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">Belum ada aktivitas</p>
-                          )}
-                        </div>
+
+                      {hasWarning && (
+                        <span className="flex items-center gap-1 text-[11px] font-extrabold text-rose-600 bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 rounded-md animate-bounce">
+                          <AlertTriangle className="h-3 w-3" /> #{session.warning_count}
+                        </span>
                       )}
                     </div>
-                  );
-                })}
-                {sessionData.length === 0 && <EmptyState title="Belum ada peserta" description="Belum ada peserta yang memulai ujian" className="py-8" />}
+
+                    {/* Middle: Student Information */}
+                    <div>
+                      <p className="text-sm font-bold text-foreground truncate" title={session.student?.full_name}>
+                        {session.student?.full_name || 'Tanpa Nama'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        {session.student?.nis} • {session.student?.class?.name || 'Kelas'}
+                      </p>
+                    </div>
+
+                    {/* Bottom: Progress Bar */}
+                    <div className="space-y-1 pt-1 border-t border-border/40">
+                      <div className="flex justify-between text-[11px] font-semibold text-muted-foreground tabular-nums">
+                        <span>Pengerjaan</span>
+                        <span className="text-foreground">{progressPct}%</span>
+                      </div>
+                      <Progress value={progressPct} className="h-1.5" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* ── DETAILED TABLE LIST VIEW ─────────────────────────────── */
+            <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+              {filteredSessions.map((session) => {
+                const isCompleted = session.status === 'SUBMITTED' || session.status === 'AUTO_SUBMITTED';
+                const isConnected = !isCompleted && (
+                  session.is_connected === true ||
+                  (session.student_user_id ? connectedStudents.has(session.student_user_id) : false) ||
+                  connectedStudents.has(session.id)
+                );
+                const isExpanded = session.id === selectedSession;
+
+                return (
+                  <div
+                    key={session.id}
+                    onClick={() => setSelectedSession(session.id === selectedSession ? null : session.id)}
+                    className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
+                      isExpanded ? 'border-primary bg-primary/5 shadow-xs' : 'border-border/80 bg-card hover:bg-muted/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {isCompleted ? (
+                          <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                            <CheckCircle className="h-4 w-4" />
+                          </div>
+                        ) : isConnected ? (
+                          <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                            <Wifi className="h-4 w-4" />
+                          </div>
+                        ) : (
+                          <div className="h-8 w-8 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0">
+                            <WifiOff className="h-4 w-4" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-foreground truncate">{session.student?.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{session.student?.nis} &middot; {session.student?.class?.name}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {session.warning_count > 0 && (
+                          <Badge variant="destructive" className="gap-1 text-xs">
+                            <AlertTriangle className="h-3 w-3" /> {session.warning_count}
+                          </Badge>
+                        )}
+                        <Badge variant={isCompleted ? 'default' : isConnected ? 'success' : 'warning'}>
+                          {isCompleted ? 'Selesai' : isConnected ? 'Aktif' : 'Terputus'}
+                        </Badge>
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                      </div>
+                    </div>
+
+                    {session.progress !== undefined && (
+                      <div className="mt-2.5 space-y-1">
+                        <Progress value={Math.min((session.progress ?? 0) * 100, 100)} className="h-1.5" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Expanded Selected Session Logs Drawer */}
+          {selectedSession && (
+            <div className="mt-4 p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+                  <Activity className="h-4 w-4" /> Log Aktivitas Peserta Realtime
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedSession(null)}
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5 mr-1" /> Tutup Log
+                </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
+
+              {logs && logs.length > 0 ? (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {logs.map((log) => {
+                    const isWarning = log.event.includes('WARNING') || log.event.includes('STATUS_BAR') || log.event.includes('SPLIT');
+                    return (
+                      <div
+                        key={log.id}
+                        className="flex items-start gap-2.5 p-2 rounded-lg bg-background border border-border/60 text-xs"
+                      >
+                        <span className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${isWarning ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                        <div className="flex-1">
+                          <p className="font-semibold text-foreground">{log.description || log.event}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {new Intl.DateTimeFormat('id-ID', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                              timeZone: 'Asia/Jakarta',
+                            }).format(new Date(log.created_at))} WIB
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic py-2">Belum ada catatan pelanggaran atau log aktivitas pada sesi ini.</p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 export default function MonitoringPage() {
-  return <ErrorBoundary><MonitoringPageContent /></ErrorBoundary>;
+  return (
+    <ErrorBoundary>
+      <MonitoringPageContent />
+    </ErrorBoundary>
+  );
 }

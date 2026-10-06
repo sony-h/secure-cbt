@@ -29,12 +29,13 @@ class ExamDetailScreen extends StatelessWidget {
 
     final sTheme = SubjectTheme.fromSubject(name: subjectName, code: subjectCode);
 
-    final startLabel = (() {
-      try { return formatDateTimeWIB(DateTime.parse(startAt)); } catch (_) { return '-'; }
-    })();
-    final endLabel = (() {
-      try { return formatDateTimeWIB(DateTime.parse(endAt)); } catch (_) { return '-'; }
-    })();
+    final startParsed = DateTime.tryParse(startAt);
+    final startDateStr = startParsed != null ? formatDateShortWIB(startParsed) : '—';
+    final startTimeStr = startParsed != null ? formatTimeWIB(startParsed) : '—';
+
+    final endParsed = DateTime.tryParse(endAt);
+    final endDateStr = endParsed != null ? formatDateShortWIB(endParsed) : '—';
+    final endTimeStr = endParsed != null ? formatTimeWIB(endParsed) : '—';
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -115,61 +116,59 @@ class ExamDetailScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
 
-            // Metadata Specifications Card
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.border),
-                boxShadow: AppShadows.card,
-              ),
-              child: Column(
-                children: [
-                  _SpecRow(
+            // Bento Grid 2x2: Vertically Aligned & Centered
+            Row(
+              children: [
+                Expanded(
+                  child: _BentoSpecCell(
                     icon: Icons.timer_outlined,
+                    iconColor: sTheme.primary,
+                    iconBg: sTheme.backgroundWash,
                     label: 'Alokasi Waktu',
                     value: formatDetailDuration(duration),
+                    subValue: '$duration Menit',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _BentoSpecCell(
+                    icon: Icons.format_list_numbered_rounded,
                     iconColor: sTheme.primary,
                     iconBg: sTheme.backgroundWash,
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(height: 1, color: AppColors.border),
-                  ),
-                  _SpecRow(
-                    icon: Icons.format_list_numbered_rounded,
                     label: 'Total Soal',
                     value: '$questionDisplay Soal',
-                    iconColor: sTheme.primary,
-                    iconBg: sTheme.backgroundWash,
+                    subValue: packageCount > 1 ? 'Paket Acak' : 'Semua Soal',
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(height: 1, color: AppColors.border),
-                  ),
-                  _SpecRow(
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _BentoSpecCell(
                     icon: Icons.calendar_today_rounded,
-                    label: 'Jadwal Mulai',
-                    value: startLabel,
                     iconColor: AppColors.primary,
                     iconBg: AppColors.primaryContainer,
+                    label: 'Jadwal Mulai',
+                    value: startDateStr,
+                    subValue: startTimeStr,
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Divider(height: 1, color: AppColors.border),
-                  ),
-                  _SpecRow(
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _BentoSpecCell(
                     icon: Icons.event_busy_rounded,
-                    label: 'Batas Selesai',
-                    value: endLabel,
                     iconColor: AppColors.error,
                     iconBg: AppColors.errorContainer,
+                    label: 'Batas Selesai',
+                    value: endDateStr,
+                    subValue: endTimeStr,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
 
             if (description.isNotEmpty) ...[
@@ -242,55 +241,95 @@ class ExamDetailScreen extends StatelessWidget {
   }
 }
 
-class _SpecRow extends StatelessWidget {
+class _BentoSpecCell extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final String value;
   final Color iconColor;
   final Color iconBg;
+  final String label;
+  final String value;
+  final String? subValue;
 
-  const _SpecRow({
+  const _BentoSpecCell({
     required this.icon,
-    required this.label,
-    required this.value,
     required this.iconColor,
     required this.iconBg,
+    required this.label,
+    required this.value,
+    this.subValue,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: iconBg,
-            borderRadius: BorderRadius.circular(10),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: iconBg,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 20, color: iconColor),
           ),
-          child: Icon(icon, size: 18, color: iconColor),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const Spacer(),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.end,
+          const SizedBox(height: 10),
+          Text(
+            label.toUpperCase(),
+            textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 10.5,
               fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+              color: AppColors.textMuted,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
               color: AppColors.textPrimary,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-      ],
+          if (subValue != null && subValue!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                subValue!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: iconColor,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

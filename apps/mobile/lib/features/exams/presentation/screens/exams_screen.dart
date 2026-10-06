@@ -112,7 +112,7 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
                             ),
                           )
                         : ListView(
-                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
                             children: [
                               if (ongoing.isNotEmpty) ...[
                                 const _SectionHeader(

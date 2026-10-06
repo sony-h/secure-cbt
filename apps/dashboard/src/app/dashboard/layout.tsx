@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils';
 import { UserRole } from '@secure-cbt/shared';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { APP_INFO } from '@/lib/constants/app-info';
+import { CommandMenu } from '@/components/ui/command-menu';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,6 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
 
   useEffect(() => {
     if (sidebarOpen) {
@@ -195,7 +198,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main area */}
       <div className="flex flex-1 flex-col lg:ml-64">
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background px-4 lg:px-6 shadow-sm">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 backdrop-blur-md px-4 lg:px-6 shadow-xs">
           {/* Mobile hamburger */}
           <Button
             variant="ghost"
@@ -206,22 +209,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Menu className="h-5 w-5" />
           </Button>
 
-          {/* Page Title */}
-          <h1 className="text-base font-bold text-foreground min-w-0 truncate">{pageTitle}</h1>
-
-          {/* Search */}
-          <div className="hidden sm:relative sm:flex sm:flex-1 sm:max-w-xs ml-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Cari ujian, siswa..."
-              className="h-9 pl-9 text-sm bg-muted border-input"
-              /* TODO: wire real search */
-              onChange={() => {}}
-            />
+          {/* Page Title & Dynamic Breadcrumbs */}
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="text-base font-bold text-foreground min-w-0 truncate">{pageTitle}</h1>
+            <Breadcrumbs />
           </div>
+
+          {/* Command Menu Launcher (⌘K) */}
+          <button
+            type="button"
+            onClick={() => setCommandOpen(true)}
+            className="hidden sm:flex items-center gap-2.5 h-9 w-60 rounded-xl border border-input/80 bg-muted/40 px-3 text-xs text-muted-foreground hover:bg-muted/80 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-inner ml-4 cursor-pointer"
+            title="Buka Navigasi Cepat (Ctrl+K)"
+          >
+            <Search className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="flex-1 text-left font-medium">Navigasi cepat...</span>
+            <kbd className="inline-flex items-center gap-0.5 rounded bg-background px-1.5 py-0.5 text-[10px] font-mono font-bold border border-border shadow-2xs">
+              ⌘K
+            </kbd>
+          </button>
 
           {/* Spacer */}
           <div className="flex-1" />
+
+          {/* Live Telemetry Status Pill */}
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>Live Telemetry</span>
+          </div>
 
           {/* Theme Toggle */}
           <ThemeToggle />
@@ -238,7 +256,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Profile Avatar */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Avatar className="h-8 w-8 cursor-pointer">
+              <Avatar className="h-8 w-8 cursor-pointer ring-1 ring-border">
                 <AvatarFallback className="bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition-colors">
                   {initials}
                 </AvatarFallback>
@@ -250,7 +268,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="text-xs text-muted-foreground font-normal mt-0.5">{roleLabel}</div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => { logout(); router.push('/login'); }} className="text-destructive focus:text-destructive">
+              <DropdownMenuItem onClick={() => { logout(); router.push('/login'); }} className="text-destructive focus:text-destructive cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
                 Keluar
               </DropdownMenuItem>
@@ -259,12 +277,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 animate-fade-in p-4 lg:p-6">
+        <main className="flex-1 animate-fade-in p-4 lg:p-6 bg-slate-50/70 dark:bg-slate-950/20">
           <div className="mx-auto max-w-7xl">{children}</div>
         </main>
 
         {/* Global Dashboard Footer */}
-        <footer className="mt-auto border-t bg-card/40 py-3.5 px-6 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-2">
+        <footer className="mt-auto border-t bg-card/60 py-3.5 px-6 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>{APP_INFO.fullCopyright}</span>
           <div className="flex items-center gap-2">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -272,6 +290,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </footer>
       </div>
+
+      {/* Global Command Palette Dialog */}
+      <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} />
     </div>
   );
 }

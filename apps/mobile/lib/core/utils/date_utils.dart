@@ -23,6 +23,11 @@ String formatDateShortWIB(DateTime utc) {
   return '${wib.day} ${months[wib.month - 1]} ${wib.year}';
 }
 
+String formatTimeWIB(DateTime utc) {
+  final wib = toWIB(utc);
+  return '${DateFormat('HH:mm').format(wib)} WIB';
+}
+
 String formatDuration(int minutes) {
   if (minutes >= 60) {
     final h = minutes ~/ 60;
