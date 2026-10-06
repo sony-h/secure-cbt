@@ -121,8 +121,82 @@ export function QuestionPhonePreview({
           </div>
         </div>
 
-        {/* Answer Options */}
-        {type !== 'ESSAY' && (
+        {/* Answer Options / Inputs by Type */}
+        {type === 'SHORT_ANSWER' && (
+          <div className="mt-3 space-y-2">
+            <div className="rounded-xl border border-input bg-card p-3 shadow-sm">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                Kolom Jawaban Siswa:
+              </span>
+              <div className="h-10 px-3 rounded-lg border border-border bg-background flex items-center text-xs text-muted-foreground italic">
+                Ketik jawaban singkat di sini...
+              </div>
+            </div>
+
+            {/* Teacher's Accepted Key Variants */}
+            {options.length > 0 && (
+              <div className="p-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-1">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
+                  Kunci Jawaban Diterima ({options.length}):
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {options.map((opt, i) => (
+                    <span
+                      key={i}
+                      className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                    >
+                      {opt.content || '(Kunci kosong)'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {type === 'MATCHING' && (
+          <div className="mt-3 space-y-2">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block px-1">
+              Pasangan Menjodohkan:
+            </span>
+            {options.map((opt, idx) => {
+              let left = '';
+              let right = '';
+              try {
+                const parsed = JSON.parse(opt.content);
+                left = parsed.left || '';
+                right = parsed.right || '';
+              } catch {
+                left = opt.content;
+              }
+
+              return (
+                <div
+                  key={idx}
+                  className="rounded-xl border border-border bg-card p-2.5 shadow-sm space-y-1.5 text-xs"
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="h-5 w-5 rounded-full bg-primary/10 text-primary font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1 font-medium text-foreground">
+                      {left ? <MathRenderer content={left} /> : <span className="text-muted-foreground/50 italic">Pernyataan {idx + 1}</span>}
+                    </div>
+                  </div>
+                  <div className="pl-7 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="text-primary font-semibold">↳ Pasangan:</span>
+                    <span className="font-semibold text-foreground">
+                      {right ? <MathRenderer content={right} /> : <span className="italic text-muted-foreground/50">Target {idx + 1}</span>}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Objective Options (Multiple Choice, Multi Select, True/False) */}
+        {type !== 'ESSAY' && type !== 'SHORT_ANSWER' && type !== 'MATCHING' && (
           <div className="mt-3 space-y-2">
             {options.map((opt, idx) => {
               const label = String.fromCharCode(65 + idx);

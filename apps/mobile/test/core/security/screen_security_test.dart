@@ -123,7 +123,7 @@ void main() {
       expect(violations, isEmpty);
     });
 
-    test('focus lost past 1000ms logs STATUS_BAR_EXPANDED violation and increments warnings', () async {
+    test('focus lost past 1000ms logs STATUS_BAR_EXPANDED violation and requires explicit acknowledgment to unblock', () async {
       final violations = <String>[];
       notifier.setOnViolation((event, count, sessionId) {
         violations.add(event);
@@ -132,18 +132,26 @@ void main() {
       notifier.setWindowFocus(false);
 
       expect(notifier.state.isFocusLostBlocked, isTrue);
+      expect(notifier.state.isFocusViolationAckPending, isFalse);
       expect(notifier.state.warningCount, 0);
 
       // Wait beyond the 1000ms grace period
       await Future.delayed(const Duration(milliseconds: 1100));
 
       expect(notifier.state.isFocusLostBlocked, isTrue);
+      expect(notifier.state.isFocusViolationAckPending, isTrue);
       expect(notifier.state.warningCount, 1);
       expect(violations, ['STATUS_BAR_EXPANDED']);
 
-      // Restoring focus clears the blocked curtain but retains warning
+      // Restoring window focus does NOT auto-dismiss the warning curtain
       notifier.setWindowFocus(true);
+      expect(notifier.state.isFocusLostBlocked, isTrue);
+      expect(notifier.state.isFocusViolationAckPending, isTrue);
+
+      // Student taps "Saya Mengerti & Lanjutkan Ujian"
+      notifier.acknowledgeFocusViolation();
       expect(notifier.state.isFocusLostBlocked, isFalse);
+      expect(notifier.state.isFocusViolationAckPending, isFalse);
       expect(notifier.state.warningCount, 1);
     });
   });

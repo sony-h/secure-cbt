@@ -17,11 +17,21 @@ export const createQuestionSchema = z.object({
   options: z.array(optionSchema).default([]),
   tags: z.array(z.string().max(50, { message: 'Tag maksimal 50 karakter' })).max(20, { message: 'Maksimal 20 tag' }).optional(),
 }).superRefine((data, ctx) => {
-  if (data.type !== QuestionType.ESSAY && data.options.length < 2) {
+  if (data.type === QuestionType.SHORT_ANSWER && data.options.length < 1) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['options'],
-      message: 'Soal pilihan ganda minimal memerlukan 2 pilihan jawaban',
+      message: 'Soal isian singkat minimal memerlukan 1 kunci jawaban',
+    });
+  } else if (
+    data.type !== QuestionType.ESSAY &&
+    data.type !== QuestionType.SHORT_ANSWER &&
+    data.options.length < 2
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: 'Soal minimal memerlukan 2 pilihan jawaban atau pasangan',
     });
   }
 });

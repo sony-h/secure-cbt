@@ -15,6 +15,7 @@ class ExamState {
   final Set<String> flagged;
   final bool isDualScreenBlocked;
   final bool isFocusLostBlocked;
+  final bool isFocusViolationAckPending;
 
   const ExamState({
     this.isLoading = false,
@@ -33,6 +34,7 @@ class ExamState {
     this.flagged = const {},
     this.isDualScreenBlocked = false,
     this.isFocusLostBlocked = false,
+    this.isFocusViolationAckPending = false,
   });
 
   ExamState copyWith({
@@ -52,6 +54,7 @@ class ExamState {
     Set<String>? flagged,
     bool? isDualScreenBlocked,
     bool? isFocusLostBlocked,
+    bool? isFocusViolationAckPending,
   }) {
     return ExamState(
       isLoading: isLoading ?? this.isLoading,
@@ -70,6 +73,7 @@ class ExamState {
       flagged: flagged ?? this.flagged,
       isDualScreenBlocked: isDualScreenBlocked ?? this.isDualScreenBlocked,
       isFocusLostBlocked: isFocusLostBlocked ?? this.isFocusLostBlocked,
+      isFocusViolationAckPending: isFocusViolationAckPending ?? this.isFocusViolationAckPending,
     );
   }
 }

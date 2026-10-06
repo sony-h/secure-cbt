@@ -93,6 +93,77 @@ describe('GradingService', () => {
       expect(result.wrong_count).toBe(0);
     });
 
+    it('should auto-grade SHORT_ANSWER questions case-insensitively', async () => {
+      const tx = {
+        examSession: { findUnique: vi.fn() },
+        questionOption: { findMany: vi.fn() },
+        answer: { update: vi.fn() },
+      };
+      const questionId = UUID();
+      tx.examSession.findUnique.mockResolvedValue({
+        id: UUID(), package_id: null,
+        answers: [{
+          id: UUID(), question_id: questionId, answer_text: '  Nusantara  ',
+          score: null, is_correct: null,
+          question: { type: QuestionType.SHORT_ANSWER },
+        }],
+        exam: { exam_questions: [{ id: UUID(), package_id: null }] },
+      });
+      tx.questionOption.findMany.mockResolvedValue([
+        { id: 'opt-1', content: 'IKN' },
+        { id: 'opt-2', content: 'nusantara' },
+      ]);
+      tx.answer.update.mockResolvedValue({});
+
+      const result = await service.calculateTotalScore(tx as any, UUID());
+
+      expect(tx.answer.update).toHaveBeenCalledWith({
+        where: { id: expect.any(String) },
+        data: { is_correct: true, score: 100 },
+      });
+      expect(result.total_score).toBe(100);
+      expect(result.correct_count).toBe(1);
+      expect(result.wrong_count).toBe(0);
+    });
+
+    it('should auto-grade MATCHING questions with partial credit', async () => {
+      const tx = {
+        examSession: { findUnique: vi.fn() },
+        questionOption: { findMany: vi.fn() },
+        answer: { update: vi.fn() },
+      };
+      const questionId = UUID();
+      const pair1Id = 'pair-1';
+      const pair2Id = 'pair-2';
+
+      tx.examSession.findUnique.mockResolvedValue({
+        id: UUID(), package_id: null,
+        answers: [{
+          id: UUID(), question_id: questionId,
+          // Student matched pair1 correctly, pair2 wrongly
+          answer_text: JSON.stringify({ [pair1Id]: pair1Id, [pair2Id]: 'wrong-pair' }),
+          score: null, is_correct: null,
+          question: { type: QuestionType.MATCHING },
+        }],
+        exam: { exam_questions: [{ id: UUID(), package_id: null }] },
+      });
+      tx.questionOption.findMany.mockResolvedValue([
+        { id: pair1Id, content: JSON.stringify({ left: 'A', right: '1' }) },
+        { id: pair2Id, content: JSON.stringify({ left: 'B', right: '2' }) },
+      ]);
+      tx.answer.update.mockResolvedValue({});
+
+      const result = await service.calculateTotalScore(tx as any, UUID());
+
+      // 1 of 2 pairs correct = 50%
+      expect(tx.answer.update).toHaveBeenCalledWith({
+        where: { id: expect.any(String) },
+        data: { is_correct: false, score: 50 },
+      });
+      expect(result.total_score).toBe(50);
+      expect(result.correct_count).toBe(1);
+    });
+
     it('should throw NotFoundException if session not found', async () => {
       const tx = { examSession: { findUnique: vi.fn().mockResolvedValue(null) } };
       await expect(service.calculateTotalScore(tx as any, UUID())).rejects.toThrow(NotFoundException);

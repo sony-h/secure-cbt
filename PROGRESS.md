@@ -1,9 +1,9 @@
 # Progress Note: Secure CBT Platform
 
-**Current Phase:** Phase 18 - Question Studio, Visual Math Keyboard & Media System - COMPLETE
+**Current Phase:** Phase 20 - Persistent Warning Cooldown, Short Answer & Matching Question Types - COMPLETE
 **Target Platform:** Indonesian High Schools (SMA/SMK)
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-06
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -864,3 +864,80 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - Backend unit tests: 33/33 passing (`vitest run`).
 - Backend typecheck: 0 errors (`tsc --noEmit`).
 - Dashboard typecheck & production build: 0 errors (`next build` compiled all 16 routes).
+
+---
+
+## Phase 19 — Persistent Anti-Cheat Warning Guard with 3-Second Cooldown — COMPLETE
+
+**Target Platform:** Android Mobile App (`apps/mobile`)  
+**Security Standard:** Zero-Peek Window Focus Enforcement with Explicit Friction Acknowledgment  
+**Date:** 2026-10-06
+
+### 1. Two-Stage State Machine (`exam_state.dart` & `exam_notifier.dart`)
+- Added `isFocusViolationAckPending` to `ExamState`.
+- Implemented persistent barrier logic:
+  - If notification shade is opened for > 1000ms: Increments strike count, logs `STATUS_BAR_EXPANDED` violation, dispatches WebSocket warning to proctors, and sets `isFocusViolationAckPending = true`.
+  - When student returns to app: The warning curtain **does not auto-dismiss**. It stays locked on screen.
+  - Added `ExamNotifier.acknowledgeFocusViolation()`: Only unblocks question view and resumes timer once student taps the active button.
+
+### 2. 3-Second Animated Cooldown Button (`_FocusLostBlockedOverlay` in `exam_screen.dart`)
+- Upgraded overlay to `StatefulWidget` tracking a 3-second periodic countdown.
+- Displays disabled state with active spinner: `Tunggu (3 detik)...` $\rightarrow$ `Tunggu (2 detik)...` $\rightarrow$ `Tunggu (1 detik)...`.
+- Prevents panic-clicking or accidental dismissal.
+- Once timer reaches 0, transforms into an active Electric Indigo button: **"Saya Mengerti & Lanjutkan Ujian"** with `Icons.check_circle_outline_rounded`.
+- Tapping re-enforces `SystemUiMode.immersiveSticky`, clears the curtain, and resumes the exam countdown.
+
+### 3. Automated Testing
+- Unit tests added to `apps/mobile/test/core/security/screen_security_test.dart` verifying that restoring focus does not unblock when `isFocusViolationAckPending` is true, and that unblocking requires `acknowledgeFocusViolation()`.
+
+---
+
+## Phase 20 — ANBK Question Formats (Short Answer & Matching) with Auto-Grading — COMPLETE
+
+**Target Platform:** Full-Stack (Backend + Shared + Dashboard + Mobile)  
+**Curriculum Standard:** Indonesian AKM / ANBK & Kurikulum Merdeka  
+**Date:** 2026-10-06
+
+### 1. Domain Enums & Database Migration
+- Added `SHORT_ANSWER` and `MATCHING` to `QuestionType` enum in `packages/shared/src/enums/index.ts`.
+- Updated `schema.prisma` with new enum values.
+- Created Prisma migration `20261005000001_add_short_answer_and_matching`.
+- Updated `question.schema.ts` validation to require $\ge 1$ variant for short answer and $\ge 2$ pairs for matching.
+
+### 2. Backend Auto-Grading & Partial Credit (`grading.service.ts`)
+- **`SHORT_ANSWER` Auto-Grading:**
+  - Case-insensitive normalized matching: `studentAnswer.trim().toLowerCase()` compared against teacher's accepted answer variants.
+  - Score = 100 on match, 0 otherwise.
+- **`MATCHING` Partial-Credit Auto-Grading:**
+  - Evaluates student pair mapping against teacher premise-target pairs.
+  - Proportional score: $\text{round}\left(\frac{\text{correct\_pairs}}{\text{total\_pairs}} \times 100\right)$.
+  - Added unit tests in `grading.service.spec.ts` covering both types (100% pass).
+
+### 3. Dashboard Question Studio & Live Simulation
+- **Short Answer Editor:** Dynamic accepted key variants list with "+ Tambah Variasi Kunci" and formula builder integration.
+- **Matching Editor:** Dual-column premise & target pairing table with per-column formula buttons (`∑`) and dynamic add/remove rows.
+- **`QuestionPhonePreview`:** Live student smartphone simulation rendering single-line input with accepted keys badge for short answer, and interactive premise-target cards for matching.
+
+### 4. Mobile App Exam Question Card
+- **`_buildShortAnswerInput`:** Styled input card with `TextFormField`, focus borders, and 500ms debounce auto-save.
+- **`_buildMatchingInput`:** Clean premise cards with touched state indicators and native dropdown selectors to match each premise with a target from the right column.
+
+---
+
+## Future Phases (Planned & Prioritized Roadmap)
+
+### Phase 21: HOTS vs LOTS Cognitive Classification (Bloom's Taxonomy)
+- Tagging questions by cognitive level: LOTS (C1-C2), MOTS (C3), HOTS (C4-C6).
+- Exam Builder balance dial displaying cognitive distribution against school targets.
+
+### Phase 22: Random Question Pool per Exam (Sub-sampling)
+- Teacher puts 60 questions into a Question Bank; exam randomly draws 30 unique questions per student session to eliminate neighboring screen cheating.
+
+### Phase 23: Bulk Question Operations
+- Multi-select checkboxes in `/dashboard/questions` to bulk-move questions between banks, bulk-change difficulty, and batch-assign tags.
+
+### Phase 24: Item Psychometrics (*Analisis Butir Soal*)
+- Automated computation of Difficulty Index ($P$) and Discrimination Index ($D$) per question based on completed student sessions.
+
+### Phase 25: Word (.docx) & Excel (.xlsx) Template Importer
+- BullMQ worker parsing Microsoft Word table archives and Excel spreadsheets with embedded formulas directly into question banks.

@@ -20,6 +20,7 @@ import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submit_dial
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_submit_handler.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_violation_handler.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
+import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 import 'package:secure_cbt_mobile/core/security/screen_security.dart';
 
 class ExamScreen extends ConsumerStatefulWidget {
@@ -241,7 +242,12 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         body: examState.isDualScreenBlocked
             ? _DualScreenBlockedOverlay(examState: examState)
             : examState.isFocusLostBlocked
-                ? _FocusLostBlockedOverlay(examState: examState)
+                ? _FocusLostBlockedOverlay(
+                    examState: examState,
+                    onAcknowledge: () {
+                      ref.read(examProvider.notifier).acknowledgeFocusViolation();
+                    },
+                  )
                 : examState.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : examState.questions.isEmpty
@@ -432,13 +438,72 @@ class _DualScreenBlockedOverlay extends StatelessWidget {
   }
 }
 
-class _FocusLostBlockedOverlay extends StatelessWidget {
+class _FocusLostBlockedOverlay extends StatefulWidget {
   final ExamState examState;
+  final VoidCallback onAcknowledge;
 
-  const _FocusLostBlockedOverlay({required this.examState});
+  const _FocusLostBlockedOverlay({
+    required this.examState,
+    required this.onAcknowledge,
+  });
+
+  @override
+  State<_FocusLostBlockedOverlay> createState() => _FocusLostBlockedOverlayState();
+}
+
+class _FocusLostBlockedOverlayState extends State<_FocusLostBlockedOverlay> {
+  int _countdown = 3;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.examState.isFocusViolationAckPending) {
+      _startCountdown();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _FocusLostBlockedOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.examState.isFocusViolationAckPending && widget.examState.isFocusViolationAckPending) {
+      _startCountdown();
+    }
+  }
+
+  void _startCountdown() {
+    _timer?.cancel();
+    setState(() {
+      _countdown = 3;
+    });
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_countdown > 1) {
+        setState(() {
+          _countdown--;
+        });
+      } else {
+        setState(() {
+          _countdown = 0;
+        });
+        timer.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isAckPending = widget.examState.isFocusViolationAckPending;
+
     return Container(
       color: AppColors.canvas,
       width: double.infinity,
@@ -468,10 +533,10 @@ class _FocusLostBlockedOverlay extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Center(
+                child: Center(
                   child: Icon(
-                    Icons.notifications_paused_rounded,
-                    size: 40,
+                    isAckPending ? Icons.warning_amber_rounded : Icons.notifications_paused_rounded,
+                    size: 42,
                     color: AppColors.error,
                   ),
                 ),
@@ -479,10 +544,12 @@ class _FocusLostBlockedOverlay extends StatelessWidget {
               const SizedBox(height: 20),
 
               // Title
-              const Text(
-                'Bilah Status / Panel Notifikasi Terdeteksi!',
+              Text(
+                isAckPending
+                    ? 'Peringatan Pelanggaran Terdeteksi!'
+                    : 'Bilah Status / Panel Notifikasi Terdeteksi!',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.4,
@@ -492,49 +559,18 @@ class _FocusLostBlockedOverlay extends StatelessWidget {
               const SizedBox(height: 8),
 
               // Description
-              const Text(
-                'Aplikasi mendeteksi interaksi dengan bilah status atau panel notifikasi. Akses ke soal ditutup sementara demi menjaga integritas ujian.',
+              Text(
+                isAckPending
+                  ? 'Aplikasi mendeteksi interaksi dengan bilah status atau panel notifikasi. Sistem telah mencatat 1 poin pelanggaran dan waktu ujian Anda dijeda.'
+                  : 'Aplikasi mendeteksi interaksi dengan bilah status atau panel notifikasi. Akses ke soal ditutup sementara demi menjaga integritas ujian.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 13,
                   height: 1.5,
                   color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Action Guidance Box
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: AppShadows.card,
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.swipe_up_rounded,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Geser kembali ke atas atau tutup panel notifikasi sekarang untuk melanjutkan ujian.',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
 
               // Violation count badge
               Container(
@@ -545,7 +581,7 @@ class _FocusLostBlockedOverlay extends StatelessWidget {
                   border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
                 ),
                 child: Text(
-                  'Peringatan Pelanggaran: ${examState.warningCount}/${examState.warningLimit}',
+                  'Peringatan Pelanggaran: ${widget.examState.warningCount}/${widget.examState.warningLimit}',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -553,6 +589,109 @@ class _FocusLostBlockedOverlay extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+
+              // Action Box or Acknowledgment Button
+              if (!isAckPending)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: AppShadows.card,
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.swipe_up_rounded,
+                        color: AppColors.primary,
+                        size: 24,
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Geser kembali ke atas atau tutup panel notifikasi sekarang untuk melanjutkan ujian.',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else ...[
+                if (_countdown > 0)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceSubtle,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textMuted),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Tunggu ($_countdown detik)...',
+                            style: const TextStyle(
+                              color: AppColors.textMuted,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  BouncingButton(
+                    onTap: widget.onAcknowledge,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'Saya Mengerti & Lanjutkan Ujian',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ],
           ),
         ),

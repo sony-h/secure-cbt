@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "QuestionType" ADD VALUE 'SHORT_ANSWER';
+ALTER TYPE "QuestionType" ADD VALUE 'MATCHING';

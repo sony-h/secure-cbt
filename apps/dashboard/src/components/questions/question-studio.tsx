@@ -50,6 +50,8 @@ export const questionTypes = [
   { value: 'MULTIPLE_CHOICE', label: 'Pilihan Ganda (Satu Jawaban Benar)' },
   { value: 'MULTI_SELECT', label: 'Pilihan Ganda Kompleks (Banyak Jawaban Benar)' },
   { value: 'TRUE_FALSE', label: 'Benar / Salah' },
+  { value: 'SHORT_ANSWER', label: 'Isian Singkat (Jawaban Tepat)' },
+  { value: 'MATCHING', label: 'Menjodohkan (Pasangan Kiri & Kanan)' },
   { value: 'ESSAY', label: 'Esai / Uraian Bebas' },
 ];
 
@@ -92,7 +94,7 @@ export function QuestionStudio({
   const [form, setForm] = useState<QuestionStudioData>(initialData);
   const [activeMobileTab, setActiveMobileTab] = useState<'editor' | 'preview'>('editor');
   const [equationModalOpen, setEquationModalOpen] = useState(false);
-  const [equationTarget, setEquationTarget] = useState<'content' | 'explanation' | number>('content');
+  const [equationTarget, setEquationTarget] = useState<'content' | 'explanation' | number | string>('content');
   const tagInputRef = useRef<HTMLInputElement>(null);
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -131,7 +133,31 @@ export function QuestionStudio({
       toast.error('Konten pertanyaan wajib diisi');
       return;
     }
-    if (form.type !== 'ESSAY') {
+
+    if (form.type === 'SHORT_ANSWER') {
+      const validVariants = form.options.filter((o) => o.content.trim().length > 0);
+      if (validVariants.length === 0) {
+        toast.error('Masukkan minimal satu kunci jawaban untuk soal isian singkat');
+        return;
+      }
+    } else if (form.type === 'MATCHING') {
+      if (form.options.length < 2) {
+        toast.error('Minimal 2 pasangan menjodohkan diperlukan');
+        return;
+      }
+      for (let i = 0; i < form.options.length; i++) {
+        try {
+          const parsed = JSON.parse(form.options[i]!.content);
+          if (!parsed.left?.trim() || !parsed.right?.trim()) {
+            toast.error(`Pasangan nomor ${i + 1} belum lengkap (kiri dan kanan harus diisi)`);
+            return;
+          }
+        } catch {
+          toast.error(`Format pasangan nomor ${i + 1} tidak valid`);
+          return;
+        }
+      }
+    } else if (form.type !== 'ESSAY') {
       if (form.options.length < 2) {
         toast.error('Minimal 2 pilihan jawaban diperlukan');
         return;
@@ -153,6 +179,14 @@ export function QuestionStudio({
       options:
         form.type === 'ESSAY'
           ? []
+          : form.type === 'SHORT_ANSWER'
+          ? form.options
+              .filter((o) => o.content.trim().length > 0)
+              .map((opt) => ({
+                content: opt.content.trim(),
+                is_correct: true,
+                image_url: null,
+              }))
           : form.options.map((opt) => ({
               content: opt.content.trim(),
               is_correct: opt.is_correct,
@@ -164,7 +198,7 @@ export function QuestionStudio({
     saveMutation.mutate(payload);
   };
 
-  const handleOpenEquationBuilder = (target: 'content' | 'explanation' | number) => {
+  const handleOpenEquationBuilder = (target: 'content' | 'explanation' | number | string) => {
     setEquationTarget(target);
     setEquationModalOpen(true);
   };
@@ -180,6 +214,30 @@ export function QuestionStudio({
         ...prev,
         explanation: prev.explanation ? `${prev.explanation} ${formula} ` : `${formula} `,
       }));
+    } else if (typeof equationTarget === 'string' && equationTarget.startsWith('matching-')) {
+      const parts = equationTarget.split('-');
+      const side = parts[1];
+      const idx = Number(parts[2]);
+      setForm((prev) => {
+        const next = [...prev.options];
+        let pair = { left: '', right: '' };
+        try {
+          pair = JSON.parse(next[idx]?.content || '{}');
+        } catch {
+          pair = { left: next[idx]?.content || '', right: '' };
+        }
+        if (side === 'left') {
+          pair.left = pair.left ? `${pair.left} ${formula} ` : `${formula} `;
+        } else {
+          pair.right = pair.right ? `${pair.right} ${formula} ` : `${formula} `;
+        }
+        next[idx] = {
+          ...next[idx]!,
+          content: JSON.stringify(pair),
+          is_correct: true,
+        };
+        return { ...prev, options: next };
+      });
     } else if (typeof equationTarget === 'number') {
       const idx = equationTarget;
       setForm((prev) => {
@@ -321,7 +379,18 @@ export function QuestionStudio({
                           { content: 'Benar', is_correct: true, image_url: null },
                           { content: 'Salah', is_correct: false, image_url: null },
                         ];
-                      } else if (form.type === 'TRUE_FALSE' && v !== 'TRUE_FALSE') {
+                      } else if (v === 'SHORT_ANSWER') {
+                        nextOpts = [
+                          { content: '', is_correct: true, image_url: null },
+                        ];
+                      } else if (v === 'MATCHING') {
+                        nextOpts = [
+                          { content: JSON.stringify({ left: '', right: '' }), is_correct: true, image_url: null },
+                          { content: JSON.stringify({ left: '', right: '' }), is_correct: true, image_url: null },
+                        ];
+                      } else if (v === 'ESSAY') {
+                        nextOpts = [];
+                      } else if (['TRUE_FALSE', 'SHORT_ANSWER', 'MATCHING', 'ESSAY'].includes(form.type)) {
                         nextOpts = defaultQuestionStudioData.options;
                       }
                       setForm({ ...form, type: v, options: nextOpts });
@@ -460,8 +529,210 @@ export function QuestionStudio({
             </CardContent>
           </Card>
 
-          {/* Card 3: Pilihan Jawaban */}
-          {form.type !== 'ESSAY' && (
+          {/* Card 3: Isian Singkat */}
+          {form.type === 'SHORT_ANSWER' && (
+            <Card>
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-semibold">3. Kunci Jawaban yang Diterima</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Masukkan jawaban yang benar. Anda dapat menambahkan variasi penulisan alternatif. Penilaian otomatis bersifat case-insensitive.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      options: [...form.options, { content: '', is_correct: true, image_url: null }],
+                    })
+                  }
+                  className="gap-1 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Tambah Variasi Kunci
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {form.options.map((opt, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <span className="w-6 text-xs font-bold text-muted-foreground shrink-0 text-center">
+                      #{idx + 1}
+                    </span>
+                    <Input
+                      value={opt.content}
+                      onChange={(e) => {
+                        const next = [...form.options];
+                        next[idx] = { ...next[idx]!, content: e.target.value };
+                        setForm({ ...form, options: next });
+                      }}
+                      placeholder={`Contoh: Variasi jawaban ${idx + 1}`}
+                      className="flex-1 text-sm font-medium"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleOpenEquationBuilder(idx)}
+                      className="h-8 w-8 text-primary hover:bg-primary/10 shrink-0"
+                      title="Sisipkan Rumus ke Kunci Jawaban"
+                    >
+                      <Sigma className="h-4 w-4" />
+                    </Button>
+                    {form.options.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const next = form.options.filter((_, i) => i !== idx);
+                          setForm({ ...form, options: next });
+                        }}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                        title="Hapus variasi"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Card 3: Menjodohkan */}
+          {form.type === 'MATCHING' && (
+            <Card>
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-semibold">3. Pasangan Menjodohkan (Premis & Target)</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Masukkan pernyataan di kolom kiri dan pasangannya di kolom kanan. Urutan kolom kanan akan diacak otomatis saat siswa mengerjakan ujian.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      options: [
+                        ...form.options,
+                        { content: JSON.stringify({ left: '', right: '' }), is_correct: true, image_url: null },
+                      ],
+                    })
+                  }
+                  className="gap-1 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Tambah Pasangan
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {form.options.map((opt, idx) => {
+                  let pair = { left: '', right: '' };
+                  try {
+                    pair = JSON.parse(opt.content);
+                  } catch {
+                    pair = { left: opt.content, right: '' };
+                  }
+
+                  return (
+                    <div key={idx} className="p-3 rounded-xl border border-border bg-card space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                          <span className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center text-[11px]">
+                            {idx + 1}
+                          </span>
+                          Pasangan #{idx + 1}
+                        </span>
+                        {form.options.length > 2 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const next = form.options.filter((_, i) => i !== idx);
+                              setForm({ ...form, options: next });
+                            }}
+                            className="h-7 text-xs text-muted-foreground hover:text-destructive px-2"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Hapus
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                        {/* Kolom Kiri */}
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground font-semibold">
+                            Pernyataan Kiri (Soal):
+                          </Label>
+                          <div className="flex gap-1.5">
+                            <Input
+                              value={pair.left}
+                              onChange={(e) => {
+                                const next = [...form.options];
+                                const updated = { ...pair, left: e.target.value };
+                                next[idx] = { ...next[idx]!, content: JSON.stringify(updated) };
+                                setForm({ ...form, options: next });
+                              }}
+                              placeholder="Contoh: Hukum I Newton"
+                              className="text-xs"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenEquationBuilder(`matching-left-${idx}`)}
+                              className="h-8 w-8 text-primary hover:bg-primary/10 shrink-0"
+                              title="Sisipkan Rumus ke Kolom Kiri"
+                            >
+                              <Sigma className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Kolom Kanan */}
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground font-semibold">
+                            Pasangan Kanan (Kunci Benar):
+                          </Label>
+                          <div className="flex gap-1.5">
+                            <Input
+                              value={pair.right}
+                              onChange={(e) => {
+                                const next = [...form.options];
+                                const updated = { ...pair, right: e.target.value };
+                                next[idx] = { ...next[idx]!, content: JSON.stringify(updated) };
+                                setForm({ ...form, options: next });
+                              }}
+                              placeholder="Contoh: Kelembaman (Inersia)"
+                              className="text-xs"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenEquationBuilder(`matching-right-${idx}`)}
+                              className="h-8 w-8 text-primary hover:bg-primary/10 shrink-0"
+                              title="Sisipkan Rumus ke Kolom Kanan"
+                            >
+                              <Sigma className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Card 3: Pilihan Jawaban (Multiple Choice, Multi Select, True/False) */}
+          {form.type !== 'ESSAY' && form.type !== 'SHORT_ANSWER' && form.type !== 'MATCHING' && (
             <Card>
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <div>

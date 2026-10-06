@@ -44,6 +44,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
       isFullscreen: true,
       isDualScreenBlocked: false,
       isFocusLostBlocked: false,
+      isFocusViolationAckPending: false,
     );
     state = state.copyWith(isLoading: false);
     _dio = dio;
@@ -118,15 +119,31 @@ class ExamNotifier extends StateNotifier<ExamState> {
       _focusGraceTimer?.cancel();
       _focusGraceTimer = Timer(const Duration(milliseconds: 1000), () {
         if (!state.isFocusLostBlocked || state.isSubmitted) return;
+        state = state.copyWith(isFocusViolationAckPending: true);
         logViolation('STATUS_BAR_EXPANDED');
       });
     } else {
       _focusGraceTimer?.cancel();
-      if (!state.isFocusLostBlocked) return;
-      state = state.copyWith(isFocusLostBlocked: false);
-      resumeTimer();
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      // If no violation was logged yet (accidental touch restored < 1000ms),
+      // dismiss the curtain immediately without penalty.
+      if (!state.isFocusViolationAckPending) {
+        if (!state.isFocusLostBlocked) return;
+        state = state.copyWith(isFocusLostBlocked: false);
+        resumeTimer();
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      }
+      // If a violation was logged, keep the curtain locked until the student explicitly acknowledges it.
     }
+  }
+
+  void acknowledgeFocusViolation() {
+    if (state.isSubmitted) return;
+    state = state.copyWith(
+      isFocusLostBlocked: false,
+      isFocusViolationAckPending: false,
+    );
+    resumeTimer();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   Future<void> saveAnswer({

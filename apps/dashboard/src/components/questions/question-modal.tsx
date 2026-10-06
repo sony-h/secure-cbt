@@ -32,6 +32,8 @@ export const questionTypes = [
   { value: 'MULTIPLE_CHOICE', label: 'Pilihan Ganda' },
   { value: 'MULTI_SELECT', label: 'Multi Pilih' },
   { value: 'TRUE_FALSE', label: 'Benar/Salah' },
+  { value: 'SHORT_ANSWER', label: 'Isian Singkat' },
+  { value: 'MATCHING', label: 'Menjodohkan' },
   { value: 'ESSAY', label: 'Esai' },
 ];
 

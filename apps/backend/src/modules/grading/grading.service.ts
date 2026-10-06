@@ -85,30 +85,67 @@ export class GradingService {
           else wrongCount++;
         }
       } else if (answer.score === null) {
-        const options = await tx.questionOption.findMany({
-          where: { question_id: answer.question_id, is_correct: true },
-        });
-        const correctOptionIds = options.map((o) => o.id);
-        const studentAnswerIds = answer.answer_text?.split(',').filter(Boolean) ?? [];
+        let isCorrect = false;
+        let score = 0;
 
-        const isCorrect = correctOptionIds.length === studentAnswerIds.length &&
-          correctOptionIds.every((id) => studentAnswerIds.includes(id));
+        if (answer.question.type === QuestionType.SHORT_ANSWER) {
+          const options = await tx.questionOption.findMany({
+            where: { question_id: answer.question_id },
+          });
+          const normalizedStudent = (answer.answer_text || '').trim().toLowerCase();
+          isCorrect = normalizedStudent.length > 0 && options.some(
+            (opt) => opt.content.trim().toLowerCase() === normalizedStudent,
+          );
+          score = isCorrect ? 100 : 0;
+        } else if (answer.question.type === QuestionType.MATCHING) {
+          const options = await tx.questionOption.findMany({
+            where: { question_id: answer.question_id },
+          });
+          if (options.length > 0) {
+            let matches: Record<string, string> = {};
+            try {
+              matches = JSON.parse(answer.answer_text || '{}');
+            } catch {
+              matches = {};
+            }
+            let correctPairs = 0;
+            for (const opt of options) {
+              if (matches[opt.id] === opt.id) {
+                correctPairs++;
+              }
+            }
+            score = Math.round((correctPairs / options.length) * 100);
+            isCorrect = score === 100;
+          }
+        } else {
+          const options = await tx.questionOption.findMany({
+            where: { question_id: answer.question_id, is_correct: true },
+          });
+          const correctOptionIds = options.map((o) => o.id);
+          const studentAnswerIds = answer.answer_text?.split(',').filter(Boolean) ?? [];
 
-        if (isCorrect) {
+          isCorrect = correctOptionIds.length === studentAnswerIds.length &&
+            correctOptionIds.every((id) => studentAnswerIds.includes(id));
+          score = isCorrect ? 100 : 0;
+        }
+
+        if (isCorrect || score >= 50) {
           correctCount++;
-          totalScore += 100;
         } else {
           wrongCount++;
         }
+        totalScore += score;
+
         await tx.answer.update({
           where: { id: answer.id },
-          data: { is_correct: isCorrect, score: isCorrect ? 100 : 0 },
+          data: { is_correct: isCorrect, score },
         });
-      } else if (answer.is_correct) {
+      } else if (answer.is_correct || (answer.score !== null && answer.score >= 50)) {
         correctCount++;
-        totalScore += 100;
+        totalScore += (answer.score ?? 100);
       } else {
         wrongCount++;
+        totalScore += (answer.score ?? 0);
       }
     }
 
