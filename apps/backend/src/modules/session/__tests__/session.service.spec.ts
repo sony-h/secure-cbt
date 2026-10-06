@@ -125,8 +125,8 @@ describe('SessionService', () => {
           randomize_questions: true,
           randomize_answers: false,
           exam_questions: [
-            { id: 'eq-1', position: 1, package_id: null, question: { id: UUID(), type: 'MULTIPLE_CHOICE', content: 'Q1', options: [] } },
-            { id: 'eq-2', position: 2, package_id: null, question: { id: UUID(), type: 'MULTIPLE_CHOICE', content: 'Q2', options: [] } },
+            { id: 'eq-1', position: 1, package_id: null, question: { id: UUID(), type: 'MULTIPLE_CHOICE', content: 'Q1', image_url: 'https://example.com/q1.webp', options: [{ id: 'opt-1', content: 'O1', image_url: 'https://example.com/o1.webp' }] } },
+            { id: 'eq-2', position: 2, package_id: null, question: { id: UUID(), type: 'MULTIPLE_CHOICE', content: 'Q2', image_url: null, options: [] } },
           ],
         },
         package: null,
@@ -136,6 +136,9 @@ describe('SessionService', () => {
       const result = await service.resume({ session_id: UUID() }, 'user-1');
       expect(mockPrisma.examSession.update).toHaveBeenCalled();
       expect(result.questions).toHaveLength(2);
+      const qWithImg: any = result.questions.find((q: any) => q.id === 'eq-1');
+      expect(qWithImg?.question.image_url).toBe('https://example.com/q1.webp');
+      expect(qWithImg?.question.options[0]?.image_url).toBe('https://example.com/o1.webp');
     });
 
     it('should throw for completed sessions', async () => {

@@ -154,5 +154,31 @@ void main() {
       expect(notifier.state.isFocusViolationAckPending, isFalse);
       expect(notifier.state.warningCount, 1);
     });
+
+    test('app pause cancels focus grace timer and debounces cascading violations to prevent double warnings', () async {
+      final violations = <String>[];
+      notifier.setOnViolation((event, count, sessionId) {
+        violations.add(event);
+      });
+
+      // 1. Android loses window focus first
+      notifier.setWindowFocus(false);
+      expect(notifier.state.isFocusLostBlocked, isTrue);
+
+      // 2. Android pauses app shortly after (e.g. 100ms)
+      await Future.delayed(const Duration(milliseconds: 100));
+      notifier.setAppPaused(true);
+      notifier.logViolation('APP_MINIMIZED');
+
+      expect(notifier.state.warningCount, 1);
+      expect(violations, ['APP_MINIMIZED']);
+
+      // 3. Wait past the 1000ms mark when focus timer would have fired
+      await Future.delayed(const Duration(milliseconds: 1100));
+
+      // STATUS_BAR_EXPANDED should NOT have fired! Still exactly 1 violation!
+      expect(notifier.state.warningCount, 1);
+      expect(violations, ['APP_MINIMIZED']);
+    });
   });
 }

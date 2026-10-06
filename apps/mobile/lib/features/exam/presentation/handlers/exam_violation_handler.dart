@@ -21,6 +21,7 @@ class ExamViolationHandler {
     switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
+        notifier.setAppPaused(true);
         notifier.pauseTimer();
         if (!_violationPending) {
           _violationPending = true;
@@ -30,6 +31,7 @@ class ExamViolationHandler {
         break;
       case AppLifecycleState.resumed:
         _violationPending = false;
+        notifier.setAppPaused(false);
         notifier.resumeTimer();
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
         break;

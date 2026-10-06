@@ -1,6 +1,6 @@
 export const APP_INFO = {
   name: 'Secure CBT',
-  version: '1.1.0',
+  version: '1.1.1',
   brand: 'Orivastra',
   tagline: 'From Origin to the Stars.',
   builtBy: 'Built with care by Orivastra',

@@ -133,7 +133,8 @@ export class SessionService {
           id: eq.question.id,
           type: eq.question.type,
           content: eq.question.content,
-          options: opts.map((o) => ({ id: o.id, content: o.content })),
+          image_url: eq.question.image_url,
+          options: opts.map((o) => ({ id: o.id, content: o.content, image_url: o.image_url })),
         },
       };
     });
@@ -196,7 +197,8 @@ export class SessionService {
           id: eq.question.id,
           type: eq.question.type,
           content: eq.question.content,
-          options: opts.map((o) => ({ id: o.id, content: o.content })),
+          image_url: eq.question.image_url,
+          options: opts.map((o) => ({ id: o.id, content: o.content, image_url: o.image_url })),
         },
       };
     });

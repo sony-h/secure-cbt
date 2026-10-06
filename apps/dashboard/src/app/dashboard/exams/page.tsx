@@ -140,7 +140,7 @@ function ExamsPageContent() {
         title: full.title, description: full.description || '',
         subject_id: full.subject?.id || '', duration_minutes: full.duration_minutes,
         start_at: toWIB(full.start_at), end_at: toWIB(full.end_at),
-        class_ids: full.exam_classes?.map((ec: any) => ec.class.id) || [],
+        class_ids: full.exam_classes?.map((ec: any) => ec.class?.id ?? ec.class_id).filter(Boolean) || [],
         question_ids: full.exam_questions?.map((eq: any) => eq.question_id) || [],
         package_count: full.package_count || 1, randomize_questions: full.randomize_questions,
         randomize_answers: full.randomize_answers, warning_limit: full.warning_limit,

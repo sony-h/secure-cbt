@@ -11,6 +11,7 @@ import 'package:secure_cbt_mobile/core/widgets/shimmer.dart';
 import 'package:secure_cbt_mobile/core/widgets/status_pill.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 import 'package:secure_cbt_mobile/features/home/providers/home_provider.dart';
+import 'package:secure_cbt_mobile/features/exams/providers/exams_provider.dart';
 
 const _quotes = [
   'Belajar adalah investasi paling menguntungkan untuk masa depan.',
@@ -122,6 +123,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(homeDataProvider);
+          ref.invalidate(examsDataProvider);
         },
         color: AppColors.primary,
         child: SingleChildScrollView(
@@ -143,8 +145,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
               // ── 2. Ongoing Exam Alert (If Any) ────────────────────
               if (ongoingExams.isNotEmpty) ...[
-                _ActiveExamHeroBanner(exam: ongoingExams.first),
-                const SizedBox(height: 18),
+                ...ongoingExams.map((exam) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _ActiveExamHeroBanner(exam: exam),
+                )),
+                const SizedBox(height: 6),
               ],
 
               // ── 3. Trio Gamified Metrics ──────────────────────────

@@ -157,7 +157,16 @@ export class ExamService {
         });
       }
 
-      if (data.question_ids) {
+      // Only recreate packages & questions if question list or package count actually changed.
+      // This prevents destroying active exam packages/sessions when only editing classes or exam details.
+      const existingQuestionIds = (existing.exam_questions || []).map((eq) => eq.question_id);
+      const isQuestionsChanged =
+        data.question_ids &&
+        (data.question_ids.length !== existingQuestionIds.length ||
+          data.question_ids.some((qid) => !existingQuestionIds.includes(qid)) ||
+          (data.package_count !== undefined && data.package_count !== existing.package_count));
+
+      if (isQuestionsChanged && data.question_ids) {
         await tx.examQuestion.deleteMany({ where: { exam_id: id } });
         await tx.examPackage.deleteMany({ where: { exam_id: id } });
 

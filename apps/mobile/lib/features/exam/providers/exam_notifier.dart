@@ -17,6 +17,9 @@ class ExamNotifier extends StateNotifier<ExamState> {
   void Function()? _onExamSubmitted;
   final LocalDatabase _db;
   bool _timerPaused = false;
+  bool _isAppPaused = false;
+  DateTime? _lastViolationTime;
+  String? _lastViolationEvent;
 
   ExamNotifier(this._db) : super(const ExamState());
 
@@ -29,6 +32,9 @@ class ExamNotifier extends StateNotifier<ExamState> {
     _timer?.cancel();
     _autosaveTimer?.cancel();
     _focusGraceTimer?.cancel();
+    _isAppPaused = false;
+    _lastViolationTime = null;
+    _lastViolationEvent = null;
     state = state.copyWith(
       isLoading: true,
       sessionId: sessionId,
@@ -108,8 +114,21 @@ class ExamNotifier extends StateNotifier<ExamState> {
     }
   }
 
+  void setAppPaused(bool isPaused) {
+    _isAppPaused = isPaused;
+    if (isPaused) {
+      // When the app is minimized / sent to background, cancel any pending status bar timer.
+      // App minimization is the primary event and takes full precedence over window focus.
+      _focusGraceTimer?.cancel();
+      if (state.isFocusLostBlocked && !state.isFocusViolationAckPending) {
+        state = state.copyWith(isFocusLostBlocked: false);
+      }
+    }
+  }
+
   void setWindowFocus(bool hasFocus) {
     if (state.isSubmitted) return;
+    if (_isAppPaused) return;
 
     if (!hasFocus) {
       if (state.isFocusLostBlocked) return;
@@ -118,7 +137,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
 
       _focusGraceTimer?.cancel();
       _focusGraceTimer = Timer(const Duration(milliseconds: 1000), () {
-        if (!state.isFocusLostBlocked || state.isSubmitted) return;
+        if (!state.isFocusLostBlocked || state.isSubmitted || _isAppPaused) return;
         state = state.copyWith(isFocusViolationAckPending: true);
         logViolation('STATUS_BAR_EXPANDED');
       });
@@ -199,8 +218,19 @@ class ExamNotifier extends StateNotifier<ExamState> {
   void logViolation(String event) {
     if (state.isSubmitted) return;
 
+    // Cooldown guard: Prevent duplicate or cascading violations within 3 seconds
+    // (e.g. OS firing both focus loss and app pause when user presses Home).
+    final now = DateTime.now();
+    if (_lastViolationTime != null &&
+        now.difference(_lastViolationTime!) < const Duration(seconds: 3)) {
+      AppLogger.warn('Ignoring duplicate/cascading violation within 3s cooldown: $event (previous: $_lastViolationEvent)');
+      return;
+    }
+    _lastViolationTime = now;
+    _lastViolationEvent = event;
+
     final newCount = state.warningCount + 1;
-    final newViolations = [...state.violations, '$event @ ${DateTime.now().toIso8601String()}'];
+    final newViolations = [...state.violations, '$event @ ${now.toIso8601String()}'];
     state = state.copyWith(warningCount: newCount, violations: newViolations);
     AppLogger.warn('Violation: $event (warning $newCount / ${state.warningLimit})');
     _onViolation?.call(event, newCount, state.sessionId);

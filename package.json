@@ -1,6 +1,6 @@
 {
   "name": "secure-cbt-monorepo",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Secure CBT Platform - Cloud-based Computer Based Test system for Indonesian schools",
   "engines": {

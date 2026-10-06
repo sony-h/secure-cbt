@@ -1,6 +1,6 @@
 # Progress Note: Secure CBT Platform (by Orivastra)
 
-**Current Version:** `v1.1.0` (Mobile Android Build: `1.1.0+6`)  
+**Current Version:** `v1.1.1` (Mobile Android Build: `1.1.1+7`)  
 **Brand Identity:** Orivastra — *"From Origin to the Stars."*  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
 **Current Phase:** Phase 20 - Persistent Warning Cooldown, Short Answer & Matching Question Types - COMPLETE  
@@ -934,6 +934,17 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - **LaTeX Math Equations:** Inline and block KaTeX formulas across questions, options, and structured explanations.
 - **Vector Diagram Generator (`seed-diagrams.ts`):** 11 self-hosted, offline-ready `.webp` diagram assets procedurally rendered via `sharp` directly into `storage/uploads/questions/`.
 - **Media URL Resolution:** Universal `resolveMediaUrl()` helpers in mobile (`dio_client.dart`) and dashboard (`utils.ts`).
+
+### 6. Hotfixes (Mobile Media, Multi-Class Ongoing Exam & Warning Debounce)
+- **Bug 1 (Mobile Image Missing):** Fixed `SessionService.start()` and `resume()` which previously omitted `image_url` on questions and options when returning session payloads to mobile clients.
+- **Bug 2 (Ongoing Exam Multi-Class Sync):**
+  - Updated `ExamService.update()` to avoid deleting and recreating packages and questions when question IDs have not changed, preserving active student packages and sessions.
+  - Safe mapping of existing class IDs (`ec.class?.id ?? ec.class_id`) in dashboard edit modal.
+  - Updated mobile `HomeScreen` to render all active ongoing exams, and added provider cache invalidation on app auto-login and screen refresh.
+- **Bug 3 (Eliminated Double Violation Penalty):**
+  - Android home/app-switcher transitions fire both window focus loss and app lifecycle pause.
+  - `ExamViolationHandler.handleLifecycleChange(paused)` now cancels the pending status bar focus timer immediately.
+  - Added a 3-second violation cooldown in `ExamNotifier.logViolation()` ensuring that at most 1 violation strike can occur during any app minimize or transition event.
 
 ---
 

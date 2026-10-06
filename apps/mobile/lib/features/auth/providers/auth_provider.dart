@@ -131,6 +131,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
           nis: user['nis'] as String?,
           className: user['class_name'] as String?,
         );
+        _ref.invalidate(homeDataProvider);
+        _ref.invalidate(examsDataProvider);
+        _ref.invalidate(historyDataProvider);
       } catch (e) {
         AppLogger.error('tryAutoLogin failed', e);
         await _storage.deleteAll();

@@ -9,6 +9,7 @@ import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 import 'package:secure_cbt_mobile/core/widgets/empty_state.dart';
 import 'package:secure_cbt_mobile/core/widgets/status_pill.dart';
 import 'package:secure_cbt_mobile/features/exams/providers/exams_provider.dart';
+import 'package:secure_cbt_mobile/features/home/providers/home_provider.dart';
 
 class ExamsScreen extends ConsumerStatefulWidget {
   const ExamsScreen({super.key});
@@ -59,7 +60,10 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, size: 22),
-            onPressed: () => ref.invalidate(examsDataProvider),
+            onPressed: () {
+              ref.invalidate(examsDataProvider);
+              ref.invalidate(homeDataProvider);
+            },
             tooltip: 'Segarkan',
           ),
           const SizedBox(width: 8),
@@ -68,7 +72,10 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : RefreshIndicator(
-              onRefresh: () async { ref.invalidate(examsDataProvider); },
+              onRefresh: () async {
+                ref.invalidate(examsDataProvider);
+                ref.invalidate(homeDataProvider);
+              },
               color: AppColors.primary,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

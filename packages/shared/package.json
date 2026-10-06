@@ -1,6 +1,6 @@
 {
   "name": "@secure-cbt/shared",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Shared DTOs, schemas, and constants for the Secure CBT platform",
   "main": "./dist/index.js",
