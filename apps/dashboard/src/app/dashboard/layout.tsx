@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@secure-cbt/shared';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { APP_INFO } from '@/lib/constants/app-info';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -183,6 +184,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <LogOut className="mr-2 h-4 w-4" />
             Keluar
           </Button>
+
+          <div className="mt-3 pt-3 border-t border-slate-900/80 flex items-center justify-between text-[11px] text-slate-500">
+            <span>v{APP_INFO.version}</span>
+            <span className="font-semibold text-slate-400">by {APP_INFO.brand}</span>
+          </div>
         </div>
       </aside>
 
@@ -253,9 +259,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page Content */}
-        <main className="animate-fade-in p-4 lg:p-6">
+        <main className="flex-1 animate-fade-in p-4 lg:p-6">
           <div className="mx-auto max-w-7xl">{children}</div>
         </main>
+
+        {/* Global Dashboard Footer */}
+        <footer className="mt-auto border-t bg-card/40 py-3.5 px-6 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>{APP_INFO.fullCopyright}</span>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span>{APP_INFO.name} v{APP_INFO.version}</span>
+          </div>
+        </footer>
       </div>
     </div>
   );

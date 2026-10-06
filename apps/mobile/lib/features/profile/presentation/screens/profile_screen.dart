@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
+import 'package:secure_cbt_mobile/core/constants/app_info.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
@@ -195,6 +196,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
 
+            const SizedBox(height: 14),
+
+            // Application & Brand Information Section
+            AppCard.section(
+              title: 'Tentang Aplikasi',
+              children: const [
+                _InfoRow(label: 'Versi Aplikasi', value: 'v${AppInfo.versionString}'),
+                _InfoRow(label: 'Pengembang', value: AppInfo.brand),
+                _InfoRow(label: 'Tagline', value: '"${AppInfo.tagline}"'),
+                _InfoRow(label: 'Hak Cipta', value: AppInfo.copyright, isLast: true),
+              ],
+            ),
+
             const SizedBox(height: 28),
 
             // Logout Action
@@ -223,6 +237,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ],
                 ),
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // Orivastra Brand Signature
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    AppInfo.brand.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2.0,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    '"${AppInfo.tagline}"',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '${AppInfo.builtBy} • ${AppInfo.copyright}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
           ],

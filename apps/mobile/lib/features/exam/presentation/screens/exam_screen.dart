@@ -452,7 +452,7 @@ class _FocusLostBlockedOverlay extends StatefulWidget {
 }
 
 class _FocusLostBlockedOverlayState extends State<_FocusLostBlockedOverlay> {
-  int _countdown = 3;
+  int _countdown = 10;
   Timer? _timer;
 
   @override
@@ -474,7 +474,7 @@ class _FocusLostBlockedOverlayState extends State<_FocusLostBlockedOverlay> {
   void _startCountdown() {
     _timer?.cancel();
     setState(() {
-      _countdown = 3;
+      _countdown = 10;
     });
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {

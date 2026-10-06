@@ -6,6 +6,7 @@ import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/exam_provider.dart';
 import 'package:secure_cbt_mobile/core/security/screen_security.dart';
+import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submission_transition_dialog.dart';
 
 class ExamSubmitHandler {
   final Dio dio;
@@ -50,17 +51,17 @@ class ExamSubmitHandler {
       }
       AppLogger.info('Session already submitted on server, navigating to result screen');
     }
+    final examState = ref.read(examProvider);
     ref.read(examProvider.notifier).markSubmitted();
     ScreenSecurity.disable();
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Ujian otomatis dikumpulkan.'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          duration: const Duration(seconds: 5),
-        ),
+      await showSubmissionTransitionDialog(
+        context,
+        isAutoSubmit: true,
+        warningCount: examState.warningCount,
+        warningLimit: examState.warningLimit,
+        durationSeconds: 10,
       );
-      await Future.delayed(const Duration(seconds: 2));
       if (context.mounted) context.goNamed(RouteNames.result, extra: {'sessionId': sessionId});
     }
   }
@@ -90,6 +91,13 @@ class ExamSubmitHandler {
     }
     ref.read(examProvider.notifier).markSubmitted();
     ScreenSecurity.disable();
-    if (context.mounted) context.goNamed(RouteNames.result, extra: {'sessionId': sessionId});
+    if (context.mounted) {
+      await showSubmissionTransitionDialog(
+        context,
+        isAutoSubmit: false,
+        durationSeconds: 5,
+      );
+      if (context.mounted) context.goNamed(RouteNames.result, extra: {'sessionId': sessionId});
+    }
   }
 }

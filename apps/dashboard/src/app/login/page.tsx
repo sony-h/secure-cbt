@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Spinner } from '@/components/ui/spinner';
 import { GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
+import { APP_INFO } from '@/lib/constants/app-info';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -85,7 +86,17 @@ export default function LoginPage() {
           </CardFooter>
         </form>
       </Card>
-      <p className="absolute bottom-6 text-xs text-muted-foreground/60 text-center">© Secure CBT — Platform Ujian Berbasis Komputer</p>
+      <footer className="absolute bottom-4 flex flex-col items-center text-center gap-0.5 px-4">
+        <span className="text-xs font-bold tracking-widest text-foreground/80 uppercase">
+          {APP_INFO.brand}
+        </span>
+        <span className="text-[11px] text-muted-foreground italic">
+          "{APP_INFO.tagline}"
+        </span>
+        <span className="text-[10px] text-muted-foreground/60 mt-0.5">
+          {APP_INFO.builtBy} • {APP_INFO.copyright} • v{APP_INFO.version}
+        </span>
+      </footer>
     </div>
   );
 }

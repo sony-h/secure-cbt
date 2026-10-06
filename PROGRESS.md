@@ -1,8 +1,11 @@
-# Progress Note: Secure CBT Platform
+# Progress Note: Secure CBT Platform (by Orivastra)
 
-**Current Phase:** Phase 20 - Persistent Warning Cooldown, Short Answer & Matching Question Types - COMPLETE
-**Target Platform:** Indonesian High Schools (SMA/SMK)
-**Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)
+**Current Version:** `v1.1.0` (Mobile Android Build: `1.1.0+6`)  
+**Brand Identity:** Orivastra — *"From Origin to the Stars."*  
+**Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
+**Current Phase:** Phase 20 - Persistent Warning Cooldown, Short Answer & Matching Question Types - COMPLETE  
+**Target Platform:** Indonesian High Schools (SMA/SMK)  
+**Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
 **Last Updated:** 2026-10-06
 
 ## Current Workspace State
@@ -867,10 +870,10 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 
 ---
 
-## Phase 19 — Persistent Anti-Cheat Warning Guard with 3-Second Cooldown — COMPLETE
+## Phase 19 — Persistent Anti-Cheat Warning Guard (10s Cooldown) & Submission Delay Modals — COMPLETE
 
 **Target Platform:** Android Mobile App (`apps/mobile`)  
-**Security Standard:** Zero-Peek Window Focus Enforcement with Explicit Friction Acknowledgment  
+**Security Standard:** Zero-Peek Window Focus Enforcement with Explicit Friction Acknowledgment & Transition Modals  
 **Date:** 2026-10-06
 
 ### 1. Two-Stage State Machine (`exam_state.dart` & `exam_notifier.dart`)
@@ -880,15 +883,19 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
   - When student returns to app: The warning curtain **does not auto-dismiss**. It stays locked on screen.
   - Added `ExamNotifier.acknowledgeFocusViolation()`: Only unblocks question view and resumes timer once student taps the active button.
 
-### 2. 3-Second Animated Cooldown Button (`_FocusLostBlockedOverlay` in `exam_screen.dart`)
-- Upgraded overlay to `StatefulWidget` tracking a 3-second periodic countdown.
-- Displays disabled state with active spinner: `Tunggu (3 detik)...` $\rightarrow$ `Tunggu (2 detik)...` $\rightarrow$ `Tunggu (1 detik)...`.
+### 2. 10-Second Animated Cooldown Button (`_FocusLostBlockedOverlay` in `exam_screen.dart`)
+- Upgraded overlay to `StatefulWidget` tracking a 10-second periodic countdown.
+- Displays disabled state with active spinner: `Tunggu (10 detik)...` $\rightarrow$ $\dots$ $\rightarrow$ `Tunggu (1 detik)...`.
 - Prevents panic-clicking or accidental dismissal.
 - Once timer reaches 0, transforms into an active Electric Indigo button: **"Saya Mengerti & Lanjutkan Ujian"** with `Icons.check_circle_outline_rounded`.
 - Tapping re-enforces `SystemUiMode.immersiveSticky`, clears the curtain, and resumes the exam countdown.
 
-### 3. Automated Testing
-- Unit tests added to `apps/mobile/test/core/security/screen_security_test.dart` verifying that restoring focus does not unblock when `isFocusViolationAckPending` is true, and that unblocking requires `acknowledgeFocusViolation()`.
+### 3. Submission Transition Modals with Timed Reading Delays (`submission_transition_dialog.dart`)
+- **Auto-Submit Penalty (10s Delay):** When auto-submitted due to violation limit (e.g. 3/3 warnings) or time expiration, a modal dialog locks the screen for 10 seconds with violation details so the student clearly reads why their exam was terminated, before transitioning to the results screen.
+- **Clean Submit (5s Delay):** When submitted normally, a 5-second appreciation dialog confirms secure storage of answers before opening results.
+
+### 4. Automated Testing
+- Unit tests added to `apps/mobile/test/core/security/screen_security_test.dart` and `apps/mobile/test/core/widgets/submission_transition_dialog_test.dart` verifying countdown ticks, modal barrier, and unblocking flows (16/16 tests passing).
 
 ---
 
