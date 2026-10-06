@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { MathRenderer } from '@/components/ui/math-renderer';
 import { Badge } from '@/components/ui/badge';
 import { Flag, Check, Smartphone, ZoomIn } from 'lucide-react';
+import { resolveMediaUrl } from '@/lib/utils';
 
 interface QuestionPhonePreviewProps {
   content: string;
@@ -102,7 +103,7 @@ export function QuestionPhonePreview({
               className="group relative cursor-pointer overflow-hidden rounded-lg border border-border bg-muted/40 max-h-48 flex items-center justify-center"
             >
               <img
-                src={imageUrl}
+                src={resolveMediaUrl(imageUrl)}
                 alt="Stimulus Soal"
                 className="w-full h-auto object-contain transition-transform group-hover:scale-105 duration-200"
               />
@@ -229,7 +230,7 @@ export function QuestionPhonePreview({
                     {opt.image_url && (
                       <div className="overflow-hidden rounded-md border border-border bg-muted/40 max-h-32 mb-1">
                         <img
-                          src={opt.image_url}
+                          src={resolveMediaUrl(opt.image_url)}
                           alt={`Opsi ${label}`}
                           className="w-full h-auto object-contain"
                         />
@@ -286,7 +287,7 @@ export function QuestionPhonePreview({
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out"
         >
           <img
-            src={lightboxImage}
+            src={resolveMediaUrl(lightboxImage)}
             alt="Perbesar Gambar"
             className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
           />

@@ -182,7 +182,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       final qData = q['question'] as Map<String, dynamic>? ?? q;
       final qImg = qData['image_url']?.toString();
       if (qImg != null && qImg.isNotEmpty && mounted) {
-        precacheImage(CachedNetworkImageProvider(qImg), context).catchError((_) {});
+        precacheImage(CachedNetworkImageProvider(resolveMediaUrl(qImg)), context).catchError((_) {});
       }
 
       final options = qData['options'] as List<dynamic>?;
@@ -191,7 +191,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
           if (opt is Map) {
             final optImg = opt['image_url']?.toString();
             if (optImg != null && optImg.isNotEmpty && mounted) {
-              precacheImage(CachedNetworkImageProvider(optImg), context).catchError((_) {});
+              precacheImage(CachedNetworkImageProvider(resolveMediaUrl(optImg)), context).catchError((_) {});
             }
           }
         }

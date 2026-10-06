@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 import 'package:secure_cbt_mobile/core/widgets/rich_exam_text.dart';
@@ -56,7 +57,7 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
                 maxScale: 4.0,
                 child: Center(
                   child: CachedNetworkImage(
-                    imageUrl: imageUrl,
+                    imageUrl: resolveMediaUrl(imageUrl),
                     fit: BoxFit.contain,
                     placeholder: (context, url) => const Center(
                       child: CircularProgressIndicator(color: Colors.white),
@@ -208,7 +209,7 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
                         children: [
                           Center(
                             child: CachedNetworkImage(
-                              imageUrl: imageUrl.toString(),
+                              imageUrl: resolveMediaUrl(imageUrl?.toString()),
                               fit: BoxFit.contain,
                               placeholder: (context, url) => const SizedBox(
                                 height: 120,
@@ -368,7 +369,7 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
                                     ),
                                     clipBehavior: Clip.antiAlias,
                                     child: CachedNetworkImage(
-                                      imageUrl: option['image_url'].toString(),
+                                      imageUrl: resolveMediaUrl(option['image_url']?.toString()),
                                       fit: BoxFit.contain,
                                     ),
                                   ),

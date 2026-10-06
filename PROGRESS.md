@@ -929,6 +929,12 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - **`_buildShortAnswerInput`:** Styled input card with `TextFormField`, focus borders, and 500ms debounce auto-save.
 - **`_buildMatchingInput`:** Clean premise cards with touched state indicators and native dropdown selectors to match each premise with a target from the right column.
 
+### 5. Comprehensive Seed Dataset (`seed.ts` & `seed-diagrams.ts`)
+- **Coverage:** 32 questions across 4 banks covering all 6 question types (`MULTIPLE_CHOICE`, `TRUE_FALSE`, `MULTI_SELECT`, `SHORT_ANSWER`, `MATCHING`, `ESSAY`).
+- **LaTeX Math Equations:** Inline and block KaTeX formulas across questions, options, and structured explanations.
+- **Vector Diagram Generator (`seed-diagrams.ts`):** 11 self-hosted, offline-ready `.webp` diagram assets procedurally rendered via `sharp` directly into `storage/uploads/questions/`.
+- **Media URL Resolution:** Universal `resolveMediaUrl()` helpers in mobile (`dio_client.dart`) and dashboard (`utils.ts`).
+
 ---
 
 ## Future Phases (Planned & Prioritized Roadmap)

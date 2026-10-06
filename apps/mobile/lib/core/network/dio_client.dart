@@ -11,6 +11,13 @@ const _apiHost = String.fromEnvironment(
 );
 const _baseUrl = '$_apiHost/api/v1';
 
+String resolveMediaUrl(String? url) {
+  if (url == null || url.isEmpty) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  final cleanHost = _apiHost.replaceAll(RegExp(r'/+$'), '');
+  return '$cleanHost${url.startsWith('/') ? '' : '/'}$url';
+}
+
 final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
   return const FlutterSecureStorage();
 });

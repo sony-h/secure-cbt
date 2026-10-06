@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { UploadCloud, X, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import { resolveMediaUrl } from '@/lib/utils';
 
 interface ImageDropzoneProps {
   imageUrl?: string | null;
@@ -102,7 +103,7 @@ export function ImageDropzone({
           {/* Thumbnail */}
           <div className="relative h-14 w-14 shrink-0 rounded-lg overflow-hidden border border-border bg-muted/40">
             <img
-              src={imageUrl}
+              src={resolveMediaUrl(imageUrl)}
               alt="Thumbnail"
               className="h-full w-full object-cover"
               onError={(e) => {
@@ -115,7 +116,7 @@ export function ImageDropzone({
               {imageUrl.split('/').pop()}
             </p>
             <a
-              href={imageUrl}
+              href={resolveMediaUrl(imageUrl)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[11px] text-primary hover:underline flex items-center gap-1 mt-0.5"

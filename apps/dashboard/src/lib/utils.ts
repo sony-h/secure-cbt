@@ -56,3 +56,10 @@ export function getStatusLabel(status: string): string {
   };
   return labels[status] || status;
 }
+
+export function resolveMediaUrl(url?: string | null): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1').replace(/\/api\/v1\/?$/, '');
+  return `${apiUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+}

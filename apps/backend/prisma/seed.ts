@@ -6,6 +6,8 @@ import { PrismaModule } from '../src/prisma/prisma.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { randomBytes } from 'crypto';
+import * as path from 'path';
+import { ensureSeedDiagrams } from './seed-diagrams';
 
 /**
  * Comprehensive seed script for Secure CBT development.
@@ -206,7 +208,12 @@ async function seed() {
     }
     logger.log(`  60 students created (10 per class)`);
 
-    // ── 10. Question Banks (3) ──────────────────────────────
+    // ── 10. Question Banks (4) ──────────────────────────────
+    logger.log('Generating seed diagram images...');
+    const uploadsDir = path.join(process.cwd(), 'storage', 'uploads', 'questions');
+    await ensureSeedDiagrams(uploadsDir);
+    logger.log('  11 diagram images generated in storage/uploads/questions/');
+
     logger.log('Creating question banks & questions...');
     const mathMinat = subjects.find(s => s.code === 'MTK-P');
     const fisika = subjects.find(s => s.code === 'FIS');
@@ -218,155 +225,490 @@ async function seed() {
     const banks = await Promise.all([
       prisma.questionBank.create({ data: { title: 'Bank Soal UTBK Matematika', subject_id: mathMinat!.id, teacher_id: teachers[0].id } }),
       prisma.questionBank.create({ data: { title: 'Bank Soal Fisika Kelas XII', subject_id: fisika!.id, teacher_id: teachers[1].id } }),
-      prisma.questionBank.create({ data: { title: 'Bank Soal Bahasa Indonesia', subject_id: bin!.id, teacher_id: teachers[2].id } }),
-      prisma.questionBank.create({ data: { title: 'Bank Soal Ekonomi SMA', subject_id: eko!.id, teacher_id: teachers[3].id } }),
+      prisma.questionBank.create({ data: { title: 'Bank Soal Sains & Kimia/Biologi Terpadu', subject_id: kimia!.id, teacher_id: teachers[1].id } }),
+      prisma.questionBank.create({ data: { title: 'Bank Soal Ekonomi & Pengetahuan Umum', subject_id: eko!.id, teacher_id: teachers[3].id } }),
     ]);
 
-    // ── 11. Questions (10 + 8 + 7 = 25 total) ──────────────
-    const questionTemplates: { bank: number; type: string; content: string; options: { text: string; correct: boolean }[]; difficulty: string; tags: string[] }[] = [
-      // ── Bank 0: Matematika (10 questions) ──
-      { bank: 0, type: 'MULTIPLE_CHOICE', difficulty: 'EASY',
-        content: 'Hasil dari 2³ × 2² adalah...',
-        options: [{ text: '32', correct: true }, { text: '16', correct: false }, { text: '64', correct: false }, { text: '10', correct: false }, { text: '8', correct: false }],
-        tags: ['eksponen', 'dasar'] },
-      { bank: 0, type: 'MULTIPLE_CHOICE', difficulty: 'EASY',
-        content: 'Akar kuadrat dari 196 adalah...',
-        options: [{ text: '12', correct: false }, { text: '13', correct: false }, { text: '14', correct: true }, { text: '15', correct: false }, { text: '16', correct: false }],
-        tags: ['akar', 'dasar'] },
-      { bank: 0, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
-        content: 'Jika f(x) = 2x² - 3x + 1, maka f(2) adalah...',
-        options: [{ text: '3', correct: true }, { text: '5', correct: false }, { text: '7', correct: false }, { text: '9', correct: false }],
-        tags: ['fungsi', 'aljabar'] },
-      { bank: 0, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
-        content: 'Persamaan garis yang melalui titik (2, 3) dan (4, 7) adalah...',
-        options: [{ text: 'y = 2x - 1', correct: true }, { text: 'y = x + 1', correct: false }, { text: 'y = 2x + 1', correct: false }, { text: 'y = x - 1', correct: false }],
-        tags: ['persamaan_garis', 'geometri'] },
-      { bank: 0, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
-        content: 'Turunan pertama dari f(x) = x³ - 6x² + 9x adalah...',
-        options: [{ text: '3x² - 12x + 9', correct: true }, { text: 'x² - 6x + 9', correct: false }, { text: '3x² - 6x + 9', correct: false }, { text: '3x² - 12x', correct: false }],
-        tags: ['turunan', 'kalkulus'] },
-      { bank: 0, type: 'TRUE_FALSE', difficulty: 'EASY',
-        content: 'Nilai sin 90° adalah 1.',
-        options: [{ text: 'Benar', correct: true }, { text: 'Salah', correct: false }],
-        tags: ['trigonometri', 'dasar'] },
-      { bank: 0, type: 'MULTIPLE_CHOICE', difficulty: 'HARD',
-        content: 'Jika matriks A = [[2, 1], [3, 4]], determinan dari A adalah...',
-        options: [{ text: '5', correct: true }, { text: '8', correct: false }, { text: '11', correct: false }, { text: '6', correct: false }],
-        tags: ['matriks', 'aljabar_linear'] },
-      { bank: 0, type: 'MULTI_SELECT', difficulty: 'HARD',
-        content: 'Manakah yang termasuk bilangan prima? (Pilih semua yang benar)',
-        options: [{ text: '2', correct: true }, { text: '9', correct: false }, { text: '13', correct: true }, { text: '21', correct: false }, { text: '17', correct: true }],
-        tags: ['bilangan', 'teori'] },
-      { bank: 0, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
-        content: 'Peluang munculnya mata dadu genap pada pelemparan sebuah dadu adalah...',
-        options: [{ text: '1/2', correct: true }, { text: '1/3', correct: false }, { text: '1/6', correct: false }, { text: '2/3', correct: false }],
-        tags: ['probabilitas', 'statistika'] },
-      { bank: 0, type: 'ESSAY', difficulty: 'HARD',
-        content: 'Sebuah bola dilempar vertikal ke atas dengan kecepatan awal 20 m/s. Jika percepatan gravitasi 10 m/s², hitunglah: (a) waktu untuk mencapai titik tertinggi, (b) tinggi maksimum yang dicapai.',
-        options: [], tags: ['kinematika', 'terapan'] },
-
-      // ── Bank 1: Fisika (8 questions) ──
-      { bank: 1, type: 'MULTIPLE_CHOICE', difficulty: 'EASY',
-        content: 'Satuan dari gaya dalam SI adalah...',
-        options: [{ text: 'Newton', correct: true }, { text: 'Joule', correct: false }, { text: 'Pascal', correct: false }, { text: 'Watt', correct: false }],
-        tags: ['satuan', 'dasar'] },
-      { bank: 1, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
-        content: 'Sebuah benda bermassa 2 kg bergerak dengan kecepatan 4 m/s. Energi kinetik benda tersebut adalah...',
-        options: [{ text: '16 J', correct: true }, { text: '8 J', correct: false }, { text: '32 J', correct: false }, { text: '4 J', correct: false }],
-        tags: ['energi', 'mekanika'] },
-      { bank: 1, type: 'TRUE_FALSE', difficulty: 'EASY',
-        content: 'Semakin besar hambatan, semakin besar arus listrik yang mengalir pada tegangan tetap.',
-        options: [{ text: 'Benar', correct: false }, { text: 'Salah', correct: true }],
-        tags: ['listrik', 'hukum_ohm'] },
-      { bank: 1, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
-        content: 'Sebuah benda bermassa 5 kg dikenai gaya 20 N. Percepatan benda adalah...',
-        options: [{ text: '4 m/s²', correct: true }, { text: '100 m/s²', correct: false }, { text: '0,25 m/s²', correct: false }, { text: '15 m/s²', correct: false }],
-        tags: ['hukum_newton', 'mekanika'] },
-      { bank: 1, type: 'MULTIPLE_CHOICE', difficulty: 'HARD',
-        content: 'Dua buah muatan masing-masing 2 μC dan 4 μC terpisah sejauh 2 cm. Gaya Coulomb yang terjadi adalah... (k = 9×10⁹ Nm²/C²)',
-        options: [{ text: '180 N', correct: true }, { text: '90 N', correct: false }, { text: '360 N', correct: false }, { text: '45 N', correct: false }],
-        tags: ['listrik_statis', 'coulomb'] },
-      { bank: 1, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
-        content: 'Frekuensi gelombang yang memiliki panjang gelombang 2 m dan cepat rambat 340 m/s adalah...',
-        options: [{ text: '170 Hz', correct: true }, { text: '680 Hz', correct: false }, { text: '340 Hz', correct: false }, { text: '85 Hz', correct: false }],
-        tags: ['gelombang', 'bunyi'] },
-      { bank: 1, type: 'MULTI_SELECT', difficulty: 'HARD',
-        content: 'Manakah yang termasuk gelombang elektromagnetik? (Pilih semua yang benar)',
-        options: [{ text: 'Gelombang radio', correct: true }, { text: 'Gelombang bunyi', correct: false }, { text: 'Sinar X', correct: true }, { text: 'Gelombang air', correct: false }],
-        tags: ['gelombang', 'elektromagnetik'] },
-      { bank: 1, type: 'ESSAY', difficulty: 'HARD',
-        content: 'Jelaskan perbedaan antara rangkaian seri dan paralel pada listrik, beserta rumus hambatan penggantinya. Berikan contoh aplikasi masing-masing.',
-        options: [], tags: ['listrik', 'rangkaian'] },
-
-      // ── Bank 2: Bahasa Indonesia (7 questions) ──
-      { bank: 2, type: 'MULTIPLE_CHOICE', difficulty: 'EASY',
-        content: 'Kata "efektif" dalam KBBI berarti...',
-        options: [{ text: 'Ada efeknya', correct: false }, { text: 'Tepat guna / berhasil guna', correct: true }, { text: 'Bermanfaat', correct: false }, { text: 'Berkualitas', correct: false }],
-        tags: ['kosakata', 'dasar'] },
-      { bank: 2, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
-        content: 'Bacalah paragraf berikut:\n\n"Pendidikan karakter sangat penting bagi generasi muda. Melalui pendidikan karakter, siswa tidak hanya cerdas secara intelektual tetapi juga memiliki moral yang baik."\n\nIde pokok paragraf tersebut adalah...',
-        options: [{ text: 'Pentingnya pendidikan karakter', correct: true }, { text: 'Kecerdasan intelektual', correct: false }, { text: 'Generasi muda', correct: false }, { text: 'Moral yang baik', correct: false }],
-        tags: ['pemahaman_bacaan', 'ide_pokok'] },
-      { bank: 2, type: 'TRUE_FALSE', difficulty: 'EASY',
-        content: '"Saya pergi ke sekolah" menggunakan kata depan yang tepat.',
-        options: [{ text: 'Benar', correct: true }, { text: 'Salah', correct: false }],
-        tags: ['tata_bahasa', 'kata_depan'] },
-      { bank: 2, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
-        content: 'Kalimat berikut yang menggunakan ejaan yang benar adalah...',
+    // ── 11. Questions (32 total across all 6 question types) ──
+    const questionTemplates: {
+      bank: number;
+      type: string;
+      content: string;
+      image_url?: string | null;
+      options: { text: string; correct: boolean; image_url?: string | null }[];
+      difficulty: string;
+      explanation?: string | null;
+      tags: string[];
+    }[] = [
+      // ════════════════════════════════════════════════════════
+      // ── Bank 0: Matematika Peminatan (10 questions) ──────────
+      // ════════════════════════════════════════════════════════
+      {
+        bank: 0,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'EASY',
+        content: 'Bentuk sederhana dari operasi perpangkatan $\\left(\\frac{2^4 \\cdot 3^{-2} \\cdot 5^3}{2^2 \\cdot 3^{-4} \\cdot 5}\\right)^2$ adalah...',
         options: [
-          { text: 'Presiden Republik Indonesia.', correct: false },
-          { text: 'presiden Republik Indonesia.', correct: true },
-          { text: 'Presiden republik indonesia.', correct: false },
-          { text: 'presiden republik Indonesia.', correct: false },
+          { text: '100', correct: false },
+          { text: '2025', correct: false },
+          { text: '202500', correct: true },
+          { text: '450000', correct: false },
+          { text: '625000', correct: false },
         ],
-        tags: ['ejaan', 'EYD'] },
-      { bank: 2, type: 'MULTIPLE_CHOICE', difficulty: 'HARD',
-        content: 'Majas yang digunakan dalam kalimat "Angin berbisik lembut di telingaku" adalah...',
-        options: [{ text: 'Personifikasi', correct: true }, { text: 'Metafora', correct: false }, { text: 'Hiperbola', correct: false }, { text: 'Simile', correct: false }],
-        tags: ['majas', 'sastra'] },
-      { bank: 2, type: 'MULTI_SELECT', difficulty: 'MEDIUM',
-        content: 'Manakah yang termasuk jenis teks eksposisi? (Pilih semua yang benar)',
-        options: [{ text: 'Artikel ilmiah', correct: true }, { text: 'Cerpen', correct: false }, { text: 'Editorial', correct: true }, { text: 'Puisi', correct: false }, { text: 'Laporan penelitian', correct: true }],
-        tags: ['teks', 'jenis_teks'] },
-      { bank: 2, type: 'ESSAY', difficulty: 'HARD',
-        content: 'Tulislah sebuah paragraf argumentatif (minimal 5 kalimat) tentang pentingnya literasi digital di era modern. Perhatikan struktur: pendahuluan, argumen, dan kesimpulan.',
-        options: [], tags: ['menulis', 'argumentasi'] },
+        explanation: 'Langkah penyelesaian:\n$$\\left(\\frac{2^{4-2} \\cdot 3^{-2-(-4)} \\cdot 5^{3-1}}{1}\\right)^2 = (2^2 \\cdot 3^2 \\cdot 5^2)^2 = (450)^2 = 202.500$$',
+        tags: ['eksponen', 'aljabar', 'utbk'],
+      },
+      {
+        bank: 0,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'MEDIUM',
+        content: 'Hitunglah nilai dari integral tentu fungsi aljabar berikut:\n$$\\int_{0}^{2} (3x^2 - 4x + 5) \\, dx$$',
+        options: [
+          { text: '10', correct: false },
+          { text: '12', correct: false },
+          { text: '14', correct: true },
+          { text: '16', correct: false },
+          { text: '18', correct: false },
+        ],
+        explanation: 'Antiturunan dari $3x^2 - 4x + 5$ adalah $F(x) = x^3 - 2x^2 + 5x$.\nMaka:\n$$F(2) - F(0) = (2^3 - 2(2)^2 + 5(2)) - 0 = (8 - 8 + 10) = 14$$',
+        tags: ['kalkulus', 'integral'],
+      },
+      {
+        bank: 0,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'MEDIUM',
+        image_url: '/uploads/questions/stimulus-math-geometry.webp',
+        content: 'Perhatikan gambar segitiga siku-siku $ABC$ terlampir. Jika panjang sisi hipotenusa $r = 10\\text{ cm}$ dan besar sudut $\\theta = 30^\\circ$, tentukan luas segitiga $ABC$ tersebut!',
+        options: [
+          { text: '12,5 cm²', correct: false },
+          { text: '21,65 cm²', correct: true },
+          { text: '25 cm²', correct: false },
+          { text: '43,3 cm²', correct: false },
+          { text: '50 cm²', correct: false },
+        ],
+        explanation: 'Tinggi $y = r \\sin(30^\\circ) = 10 \\cdot 0{,}5 = 5\\text{ cm}$.\nAlas $x = r \\cos(30^\\circ) = 10 \\cdot \\frac{1}{2}\\sqrt{3} = 5\\sqrt{3} \\approx 8{,}66\\text{ cm}$.\nLuas $= \\frac{1}{2} \\cdot x \\cdot y = \\frac{1}{2} \\cdot 5\\sqrt{3} \\cdot 5 = 12{,}5\\sqrt{3} \\approx 21{,}65\\text{ cm}^2$.',
+        tags: ['trigonometri', 'geometri', 'gambar'],
+      },
+      {
+        bank: 0,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'HARD',
+        content: 'Manakah di antara grafik fungsi kuadrat berikut yang merepresentasikan kurva parabola $f(x) = x^2 - 2x - 3$?',
+        options: [
+          { text: 'Grafik Parabola A', correct: true, image_url: '/uploads/questions/opt-parabola-a.webp' },
+          { text: 'Grafik Parabola B', correct: false, image_url: '/uploads/questions/opt-parabola-b.webp' },
+          { text: 'Grafik Parabola C', correct: false, image_url: '/uploads/questions/opt-parabola-c.webp' },
+          { text: 'Grafik Parabola D', correct: false, image_url: '/uploads/questions/opt-parabola-d.webp' },
+        ],
+        explanation: 'Fungsi $f(x) = x^2 - 2x - 3$ memiliki $a = 1 > 0$ (terbuka ke atas).\nTitik puncak $x_p = -\\frac{b}{2a} = 1$, $y_p = 1^2 - 2(1) - 3 = -4$.\nTitik potong sumbu-x: $x = 3$ dan $x = -1$. Grafik A adalah representasi yang tepat.',
+        tags: ['fungsi_kuadrat', 'parabola', 'grafik'],
+      },
+      {
+        bank: 0,
+        type: 'TRUE_FALSE',
+        difficulty: 'EASY',
+        content: 'Identitas dasar trigonometri $\\sin^2(\\alpha) + \\cos^2(\\alpha) = 1$ berlaku untuk setiap sudut real $\\alpha \\in \\mathbb{R}$.',
+        options: [
+          { text: 'Benar', correct: true },
+          { text: 'Salah', correct: false },
+        ],
+        explanation: 'Berdasarkan teorema Pythagoras pada lingkaran satuan dengan persamaan $x^2 + y^2 = 1$, identitas ini berlaku universal untuk semua nilai real sudut $\\alpha$.',
+        tags: ['trigonometri', 'identitas'],
+      },
+      {
+        bank: 0,
+        type: 'MULTI_SELECT',
+        difficulty: 'HARD',
+        content: 'Diberikan dua matriks persegi $A$ dan $B$ berordo $2 \\times 2$ yang memiliki invers. Manakah sifat-sifat matriks berikut yang BENAR? (Pilih semua yang sesuai)',
+        options: [
+          { text: 'det(A · B) = det(A) · det(B)', correct: true },
+          { text: 'det(Aᵀ) = det(A)', correct: true },
+          { text: 'A · B = B · A untuk setiap matriks persegi', correct: false },
+          { text: 'det(A⁻¹) = 1 / det(A)', correct: true },
+          { text: 'det(k · A) = k · det(A) untuk sembarang skalar k', correct: false },
+        ],
+        explanation: 'Perkalian matriks tidak bersifat komutatif ($AB \\neq BA$). Pada ordo $2 \\times 2$, $\\det(kA) = k^2 \\det(A)$. Tiga pernyataan lainnya adalah sifat baku determinan matriks.',
+        tags: ['matriks', 'aljabar_linear', 'multi_pilih'],
+      },
+      {
+        bank: 0,
+        type: 'SHORT_ANSWER',
+        difficulty: 'MEDIUM',
+        content: 'Diketahui matriks $A = \\begin{pmatrix} 4 & 2 \\\\ 1 & 5 \\end{pmatrix}$. Tentukan nilai determinan dari matriks $A$!',
+        options: [
+          { text: '18', correct: true },
+          { text: '18.0', correct: true },
+          { text: '18 satuan', correct: true },
+        ],
+        explanation: 'Determinan matriks $2 \\times 2$:\n$$\\det(A) = ad - bc = (4 \\cdot 5) - (2 \\cdot 1) = 20 - 2 = 18$$',
+        tags: ['matriks', 'determinan', 'isian_singkat'],
+      },
+      {
+        bank: 0,
+        type: 'SHORT_ANSWER',
+        difficulty: 'HARD',
+        content: 'Hitunglah nilai dari limit trigonometri berikut:\n$$\\lim_{x \\to 0} \\frac{\\sin(6x)}{\\tan(2x)}$$',
+        options: [
+          { text: '3', correct: true },
+          { text: '3.0', correct: true },
+        ],
+        explanation: 'Menggunakan sifat dasar limit trigonometri $\\lim_{x \\to 0} \\frac{\\sin(ax)}{\\tan(bx)} = \\frac{a}{b} = \\frac{6}{2} = 3$.',
+        tags: ['limit', 'trigonometri', 'isian_singkat'],
+      },
+      {
+        bank: 0,
+        type: 'MATCHING',
+        difficulty: 'MEDIUM',
+        content: 'Jodohkan fungsi $f(x)$ di kolom kiri dengan turunan pertamanya $f\'(x)$ di kolom kanan secara tepat:',
+        options: [
+          { text: JSON.stringify({ left: 'f(x) = x^3 - 4x', right: "f'(x) = 3x^2 - 4" }), correct: true },
+          { text: JSON.stringify({ left: 'f(x) = \\sin(2x)', right: "f'(x) = 2\\cos(2x)" }), correct: true },
+          { text: JSON.stringify({ left: 'f(x) = \\ln(x)', right: "f'(x) = \\frac{1}{x}" }), correct: true },
+          { text: JSON.stringify({ left: 'f(x) = e^{3x}', right: "f'(x) = 3e^{3x}" }), correct: true },
+        ],
+        explanation: 'Aturan turunan baku: $(x^n)\' = n x^{n-1}$, $(\\sin ax)\' = a\\cos ax$, $(\\ln x)\' = 1/x$, dan $(e^{ax})\' = a e^{ax}$.',
+        tags: ['kalkulus', 'turunan', 'menjodohkan'],
+      },
+      {
+        bank: 0,
+        type: 'ESSAY',
+        difficulty: 'HARD',
+        content: 'Tentukan himpunan penyelesaian dari pertidaksamaan rasional berikut:\n$$\\frac{x^2 - 5x + 6}{x - 1} \\le 0$$\nTuliskan langkah faktorisasi pembilang, pembuat nol fungsi, syarat penyebut, dan interval garis bilangannya secara lengkap!',
+        options: [],
+        explanation: 'Langkah Penyelesaian:\n1. Faktorkan pembilang: $x^2 - 5x + 6 = (x - 2)(x - 3)$.\n2. Pertidaksamaan: $\\frac{(x - 2)(x - 3)}{x - 1} \\le 0$.\n3. Pembuat nol: $x = 2$, $x = 3$, dan $x = 1$.\n4. Syarat penyebut: $x \\neq 1$.\n5. Garis bilangan: uji titik interval menghasilkan daerah negatif pada $x < 1$ atau $2 \\le x \\le 3$.\nHimpunan Penyelesaian: $HP = \\{x \\mid x < 1 \\text{ atau } 2 \\le x \\le 3, x \\in \\mathbb{R}\\}$.',
+        tags: ['aljabar', 'pertidaksamaan', 'esai'],
+      },
 
-      // ── Bank 3: Ekonomi (5 questions) ──
-      { bank: 3, type: 'MULTIPLE_CHOICE', difficulty: 'EASY',
-        content: 'Kegiatan menyalurkan barang dari produsen ke konsumen disebut...',
-        options: [{ text: 'Produksi', correct: false }, { text: 'Distribusi', correct: true }, { text: 'Konsumsi', correct: false }, { text: 'Promosi', correct: false }],
-        tags: ['kegiatan_ekonomi', 'dasar'] },
-      { bank: 3, type: 'MULTIPLE_CHOICE', difficulty: 'EASY',
-        content: 'Berikut yang termasuk kebutuhan primer adalah...',
-        options: [{ text: 'Mobil mewah', correct: false }, { text: 'Pakaian', correct: true }, { text: 'Liburan', correct: false }, { text: 'Smartphone terbaru', correct: false }],
-        tags: ['kebutuhan', 'dasar'] },
-      { bank: 3, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
-        content: 'Inflasi dapat menyebabkan...',
-        options: [{ text: 'Nilai uang naik', correct: false }, { text: 'Daya beli turun', correct: true }, { text: 'Harga turun', correct: false }, { text: 'Pengangguran hilang', correct: false }],
-        tags: ['inflasi', 'makro'] },
-      { bank: 3, type: 'MULTIPLE_CHOICE', difficulty: 'MEDIUM',
-        content: 'Pasar yang memperjualbelikan instrumen keuangan jangka panjang disebut...',
-        options: [{ text: 'Pasar barang', correct: false }, { text: 'Pasar modal', correct: true }, { text: 'Pasar tenaga kerja', correct: false }, { text: 'Pasar uang', correct: false }],
-        tags: ['pasar_modal', 'keuangan'] },
-      { bank: 3, type: 'TRUE_FALSE', difficulty: 'EASY',
-        content: 'Permintaan (demand) adalah jumlah barang yang diminta konsumen pada tingkat harga tertentu.',
-        options: [{ text: 'Benar', correct: true }, { text: 'Salah', correct: false }],
-        tags: ['permintaan', 'dasar'] },
+      // ════════════════════════════════════════════════════════
+      // ── Bank 1: Fisika Kelas XII (8 questions) ──────────────
+      // ════════════════════════════════════════════════════════
+      {
+        bank: 1,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'MEDIUM',
+        content: 'Dua buah muatan titik $q_1 = +2\\,\\mu\\text{C}$ dan $q_2 = -8\\,\\mu\\text{C}$ terpisah sejauh $r = 20\\text{ cm}$. Jika konstanta elektrostatika $k = 9 \\times 10^9\\,\\text{N}\\cdot\\text{m}^2/\\text{C}^2$, besar gaya Coulomb yang terjadi adalah...',
+        options: [
+          { text: '1,8 N', correct: false },
+          { text: '3,6 N', correct: true },
+          { text: '7,2 N', correct: false },
+          { text: '18 N', correct: false },
+          { text: '36 N', correct: false },
+        ],
+        explanation: 'Hukum Coulomb:\n$$F = k \\frac{|q_1 q_2|}{r^2} = 9 \\times 10^9 \\cdot \\frac{(2 \\times 10^{-6})(8 \\times 10^{-6})}{(0{,}2)^2} = \\frac{144 \times 10^{-3}}{0{,}04} = 3{,}6\\text{ N}$$',
+        tags: ['listrik_statis', 'coulomb'],
+      },
+      {
+        bank: 1,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'MEDIUM',
+        image_url: '/uploads/questions/stimulus-physics-circuit.webp',
+        content: 'Perhatikan skema rangkaian listrik pada gambar terlampir. Jika $R_1 = 4\\,\\Omega$, $R_2 = 6\\,\\Omega$, dan $R_3 = 12\\,\\Omega$ dihubungkan ke sumber tegangan $V = 24\\text{ V}$, hitunglah kuat arus total $I$ yang mengalir pada rangkaian!',
+        options: [
+          { text: '1,5 A', correct: false },
+          { text: '2,0 A', correct: false },
+          { text: '3,0 A', correct: true },
+          { text: '4,0 A', correct: false },
+        ],
+        explanation: 'Hambatan paralel $R_2$ dan $R_3$:\n$$\\frac{1}{R_p} = \\frac{1}{6} + \\frac{1}{12} = \\frac{3}{12} \\implies R_p = 4\\,\\Omega$$\nHambatan total seri $R_{tot} = R_1 + R_p = 4 + 4 = 8\\,\\Omega$.\nKuat arus total $I = \\frac{V}{R_{tot}} = \\frac{24}{8} = 3\\text{ A}$.',
+        tags: ['listrik_dinamis', 'rangkaian', 'gambar'],
+      },
+      {
+        bank: 1,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'MEDIUM',
+        image_url: '/uploads/questions/stimulus-physics-vt-graph.webp',
+        content: 'Berdasarkan grafik kecepatan terhadap waktu ($v-t$) terlampir, tentukan jarak total yang ditempuh benda dari waktu $t = 0\\text{ s}$ sampai $t = 10\\text{ s}$!',
+        options: [
+          { text: '110 m', correct: false },
+          { text: '140 m', correct: true },
+          { text: '160 m', correct: false },
+          { text: '200 m', correct: false },
+        ],
+        explanation: 'Jarak tempuh adalah luas trapesium di bawah grafik $v-t$:\n$$s = \\frac{\\text{sisi sejajar atas} + \\text{sisi sejajar bawah}}{2} \\times \\text{tinggi} = \\frac{(7 - 3) + 10}{2} \\times 20 = \\frac{4 + 10}{2} \\times 20 = 140\\text{ m}$$',
+        tags: ['kinematika', 'grafik', 'glb_glbb'],
+      },
+      {
+        bank: 1,
+        type: 'TRUE_FALSE',
+        difficulty: 'EASY',
+        content: 'Pada suhu konstan, kuat arus listrik yang mengalir melalui suatu konduktor berbanding lurus dengan beda potensial pada kedua ujungnya (Hukum Ohm: $V = I \\cdot R$).',
+        options: [
+          { text: 'Benar', correct: true },
+          { text: 'Salah', correct: false },
+        ],
+        explanation: 'Pernyataan tersebut tepat sesuai bunyi Hukum Ohm yang dirumuskan oleh Georg Simon Ohm pada tahun 1827.',
+        tags: ['listrik', 'hukum_ohm'],
+      },
+      {
+        bank: 1,
+        type: 'MULTI_SELECT',
+        difficulty: 'HARD',
+        content: 'Manakah dari spektrum gelombang berikut yang termasuk dalam kelompok gelombang elektromagnetik? (Pilih semua yang benar)',
+        options: [
+          { text: 'Gelombang Radio & Televisi', correct: true },
+          { text: 'Gelombang Bunyi / Suara Ultrasonik', correct: false },
+          { text: 'Radiasi Inframerah', correct: true },
+          { text: 'Sinar-X (Rontgen)', correct: true },
+          { text: 'Gelombang Air Laut', correct: false },
+        ],
+        explanation: 'Gelombang elektromagnetik dapat merambat tanpa medium perantara (ruang hampa), meliputi radio, mikro, inframerah, cahaya tampak, ultraviolet, sinar-X, dan sinar gamma. Gelombang bunyi dan air adalah gelombang mekanik.',
+        tags: ['gelombang', 'elektromagnetik', 'multi_pilih'],
+      },
+      {
+        bank: 1,
+        type: 'SHORT_ANSWER',
+        difficulty: 'HARD',
+        content: 'Sebuah mobil ambulans bergerak dengan kecepatan $v_s = 20\\text{ m/s}$ membunyikan sirine berfrekuensi $f_s = 680\\text{ Hz}$ mendekati pendengar yang diam di tepi jalan. Jika cepat rambat bunyi di udara $v = 340\\text{ m/s}$, hitunglah frekuensi bunyi yang didengar oleh pendengar! (dalam satuan Hz)',
+        options: [
+          { text: '722.5', correct: true },
+          { text: '722,5', correct: true },
+          { text: '722.5 Hz', correct: true },
+          { text: '723', correct: true },
+        ],
+        explanation: 'Rumus Efek Doppler:\n$$f_p = \\left(\\frac{v \\pm v_p}{v \\pm v_s}\\right) f_s = \\left(\\frac{340}{340 - 20}\\right) 680 = \\frac{340}{320} \\times 680 = 722{,}5\\text{ Hz}$$',
+        tags: ['gelombang_bunyi', 'efek_doppler', 'isian_singkat'],
+      },
+      {
+        bank: 1,
+        type: 'MATCHING',
+        difficulty: 'MEDIUM',
+        content: 'Pasangkan hukum fisika dan konsep mekanika di sebelah kiri dengan persamaan matematisnya yang tepat di sebelah kanan:',
+        options: [
+          { text: JSON.stringify({ left: 'Hukum II Newton', right: '\\Sigma F = m \\cdot a' }), correct: true },
+          { text: JSON.stringify({ left: 'Hukum Gravitasi Universal', right: 'F = G \\frac{m_1 m_2}{r^2}' }), correct: true },
+          { text: JSON.stringify({ left: 'Energi Kinetik Benda', right: 'E_k = \\frac{1}{2} m v^2' }), correct: true },
+          { text: JSON.stringify({ left: 'Energi Potensial Pegas', right: 'E_p = \\frac{1}{2} k \\Delta x^2' }), correct: true },
+        ],
+        explanation: 'Pasangan rumus baku fisika mekanika klasik.',
+        tags: ['mekanika', 'hukum_newton', 'menjodohkan'],
+      },
+      {
+        bank: 1,
+        type: 'ESSAY',
+        difficulty: 'HARD',
+        content: 'Tuliskan persamaan kesetaraan massa-energi Einstein $E = mc^2$ dan jelaskan konsep dilatasi waktu $\\Delta t = \\frac{\\Delta t_0}{\\sqrt{1 - \\frac{v^2}{c^2}}}$ pada kerangka acuan yang bergerak mendekati kecepatan cahaya!',
+        options: [],
+        explanation: 'Pembahasan:\n1. Kesetaraan massa-energi: $E = mc^2$ menyatakan bahwa massa dapat dikonversi menjadi energi dan sebaliknya.\n2. Dilatasi waktu: Waktu berjalan lebih lambat bagi pengamat yang bergerak relatif terhadap pengamat yang diam. Ketika $v \\to c$, penyebut $\\sqrt{1 - v^2/c^2} \\to 0$, menyebabkan $\\Delta t \\to \\infty$.',
+        tags: ['relativitas', 'modern', 'esai'],
+      },
+
+      // ════════════════════════════════════════════════════════
+      // ── Bank 2: Sains & Kimia/Biologi Terpadu (7 questions) ─
+      // ════════════════════════════════════════════════════════
+      {
+        bank: 2,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'MEDIUM',
+        image_url: '/uploads/questions/stimulus-chemistry-volta.webp',
+        content: 'Perhatikan diagram sel elektrokimia Volta terlampir. Pada sel tersebut, elektroda Seng (Zn) bertindak sebagai anoda dan Tembaga (Cu) sebagai katoda. Reaksi setengah sel yang berlangsung pada anoda adalah...',
+        options: [
+          { text: 'Zn(s) → Zn²⁺(aq) + 2e⁻', correct: true },
+          { text: 'Cu²⁺(aq) + 2e⁻ → Cu(s)', correct: false },
+          { text: 'Zn²⁺(aq) + 2e⁻ → Zn(s)', correct: false },
+          { text: 'Cu(s) → Cu²⁺(aq) + 2e⁻', correct: false },
+        ],
+        explanation: 'Pada anoda selalu terjadi reaksi oksidasi (pelepasan elektron): $\\text{Zn}(s) \\rightarrow \\text{Zn}^{2+}(aq) + 2e^-$. Pada katoda terjadi reduksi: $\\text{Cu}^{2+}(aq) + 2e^- \\rightarrow \\text{Cu}(s)$.',
+        tags: ['elektrokimia', 'sel_volta', 'kimia', 'gambar'],
+      },
+      {
+        bank: 2,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'EASY',
+        image_url: '/uploads/questions/stimulus-biology-cell.webp',
+        content: 'Perhatikan gambar mikroskop sel tumbuhan terlampir. Organel sel bermembran ganda yang ditunjukkan oleh penunjuk nomor (2) berfungsi sebagai tempat terjadinya...',
+        options: [
+          { text: 'Sintesis protein', correct: false },
+          { text: 'Fotosintesis menghasilkan glukosa', correct: true },
+          { text: 'Respirasi seluler dan pembentukan ATP', correct: false },
+          { text: 'Pencernaan intraseluler', correct: false },
+        ],
+        explanation: 'Nomor (2) menunjukkan kloroplas (chloroplast) yang mengandung pigmen klorofil dan berfungsi menangkap energi cahaya matahari untuk proses fotosintesis.',
+        tags: ['biologi', 'organel_sel', 'gambar'],
+      },
+      {
+        bank: 2,
+        type: 'TRUE_FALSE',
+        difficulty: 'EASY',
+        content: 'Persamaan termokimia pembakaran gas metana $\\text{CH}_4(g) + 2\\text{O}_2(g) \\rightarrow \\text{CO}_2(g) + 2\\text{H}_2\\text{O}(l)$ memiliki perubahan entalpi $\\Delta H = -890\\text{ kJ}$. Nilai $\\Delta H$ negatif menandakan reaksi berlangsung secara endoterm.',
+        options: [
+          { text: 'Benar', correct: false },
+          { text: 'Salah', correct: true },
+        ],
+        explanation: 'Nilai $\\Delta H$ negatif menandakan sistem melepaskan kalor ke lingkungan, yang merupakan ciri khas reaksi EKSOTERM, bukan endoterm.',
+        tags: ['termokimia', 'entalpi', 'kimia'],
+      },
+      {
+        bank: 2,
+        type: 'MULTI_SELECT',
+        difficulty: 'MEDIUM',
+        content: 'Manakah dari pernyataan-pernyataan berikut yang BENAR mengenai konsep reaksi reduksi-oksidasi (redoks)? (Pilih semua yang sesuai)',
+        options: [
+          { text: 'Oksidasi adalah peristiwa pelepasan elektron', correct: true },
+          { text: 'Reduksi adalah peristiwa penurunan bilangan oksidasi (biloks)', correct: true },
+          { text: 'Zat reduktor adalah zat yang mengalami reduksi', correct: false },
+          { text: 'Oksidator adalah spesi yang mengoksidasi zat lain', correct: true },
+        ],
+        explanation: 'Reduktor adalah zat yang mereduksi zat lain sehingga dirinya sendiri mengalami OKSIDASI. Pernyataan 1, 2, dan 4 bernilai benar.',
+        tags: ['redoks', 'biloks', 'kimia', 'multi_pilih'],
+      },
+      {
+        bank: 2,
+        type: 'SHORT_ANSWER',
+        difficulty: 'MEDIUM',
+        content: 'Berapakah nilai $\\text{pH}$ dari larutan asam klorida ($\\text{HCl}$) kuat dengan konsentrasi $0{,}001\\text{ M}$?',
+        options: [
+          { text: '3', correct: true },
+          { text: '3.0', correct: true },
+          { text: 'pH 3', correct: true },
+        ],
+        explanation: 'Asam kuat $\\text{HCl}$ terionisasi sempurna: $[\\text{H}^+] = 1 \\times 10^{-3}\\text{ M}$.\nMaka $\\text{pH} = -\\log[\\text{H}^+] = -\\log(10^{-3}) = 3$.',
+        tags: ['asam_basa', 'ph', 'kimia', 'isian_singkat'],
+      },
+      {
+        bank: 2,
+        type: 'MATCHING',
+        difficulty: 'EASY',
+        content: 'Jodohkan rumus kimia senyawa anorganik di kolom kiri dengan nama ilmiah resminya di kolom kanan:',
+        options: [
+          { text: JSON.stringify({ left: '\\text{H}_2\\text{SO}_4', right: 'Asam Sulfat' }), correct: true },
+          { text: JSON.stringify({ left: '\\text{NaCl}', right: 'Natrium Klorida' }), correct: true },
+          { text: JSON.stringify({ left: '\\text{CaCO}_3', right: 'Kalsium Karbonat' }), correct: true },
+          { text: JSON.stringify({ left: '\\text{CH}_3\\text{COOH}', right: 'Asam Asetat (Cuka)' }), correct: true },
+        ],
+        explanation: 'Tata nama senyawa anorganik dan organik sederhana sesuai standar IUPAC.',
+        tags: ['tata_nama', 'senyawa', 'menjodohkan'],
+      },
+      {
+        bank: 2,
+        type: 'ESSAY',
+        difficulty: 'HARD',
+        content: 'Setarakan persamaan reaksi redoks berikut menggunakan metode setengah reaksi dalam suasana asam:\n$$\\text{MnO}_4^- + \\text{Fe}^{2+} \\rightarrow \\text{Mn}^{2+} + \\text{Fe}^{3+}$$\nTuliskan reaksi reduksi, reaksi oksidasi, dan persamaan ion bersihnya secara sistematis!',
+        options: [],
+        explanation: 'Langkah Penyetaraan:\n1. Reduksi: $\\text{MnO}_4^- + 8\\text{H}^+ + 5e^- \\rightarrow \\text{Mn}^{2+} + 4\\text{H}_2\\text{O}$.\n2. Oksidasi: $\\text{Fe}^{2+} \\rightarrow \\text{Fe}^{3+} + e^-$ (dikalikan 5).\n3. Reaksi Bersih: $\\text{MnO}_4^- + 5\\text{Fe}^{2+} + 8\\text{H}^+ \\rightarrow \\text{Mn}^{2+} + 5\\text{Fe}^{3+} + 4\\text{H}_2\\text{O}$.',
+        tags: ['redoks', 'reaksi_kimia', 'esai'],
+      },
+
+      // ════════════════════════════════════════════════════════
+      // ── Bank 3: Ekonomi & Pengetahuan Umum (7 questions) ────
+      // ════════════════════════════════════════════════════════
+      {
+        bank: 3,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'MEDIUM',
+        image_url: '/uploads/questions/stimulus-economics-curve.webp',
+        content: 'Perhatikan kurva ekuilibrium pasar terlampir. Jika terjadi kenaikan biaya produksi yang mengakibatkan kurva penawaran bergeser ke kiri dari $S_0$ ke $S_1$, maka dampak terhadap harga keseimbangan ($P$) dan jumlah keseimbangan ($Q$) adalah...',
+        options: [
+          { text: 'Harga naik dan kuantitas turun', correct: true },
+          { text: 'Harga turun dan kuantitas naik', correct: false },
+          { text: 'Harga dan kuantitas sama-sama naik', correct: false },
+          { text: 'Harga dan kuantitas sama-sama turun', correct: false },
+        ],
+        explanation: 'Ketika kurva penawaran bergeser ke kiri atas (berkurang) sementara kurva permintaan tetap, titik ekuilibrium baru $E_1$ terbentuk pada tingkat harga yang lebih tinggi ($P_1 > P_0$) dan kuantitas yang lebih rendah ($Q_1 < Q_0$).',
+        tags: ['permintaan_penawaran', 'ekuilibrium', 'kurva', 'gambar'],
+      },
+      {
+        bank: 3,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'EASY',
+        content: 'Jika koefisien elastisitas permintaan suatu barang adalah $E_d = 1{,}8$ ($E_d > 1$), maka sifat elastisitas permintaan barang tersebut adalah...',
+        options: [
+          { text: 'Inelastis', correct: false },
+          { text: 'Elastis', correct: true },
+          { text: 'Elastis Uniter', correct: false },
+          { text: 'Inelastis Sempurna', correct: false },
+        ],
+        explanation: 'Jika $E_d > 1$, persentase perubahan jumlah barang yang diminta lebih besar daripada persentase perubahan harga, sehingga sifatnya adalah elastis.',
+        tags: ['elastisitas', 'mikroekonomi'],
+      },
+      {
+        bank: 3,
+        type: 'TRUE_FALSE',
+        difficulty: 'EASY',
+        content: 'Bank sentral (Bank Indonesia) menaikkan suku bunga acuan (BI Rate) dengan tujuan untuk meredam laju inflasi melalui penyerapan likuiditas uang beredar.',
+        options: [
+          { text: 'Benar', correct: true },
+          { text: 'Salah', correct: false },
+        ],
+        explanation: 'Kenaikan suku bunga acuan merupakan instrumen kebijakan moneter kontraktif untuk mengerem laju inflasi dengan mendorong masyarakat menabung dan menurunkan konsumsi.',
+        tags: ['kebijakan_moneter', 'bank_sentral'],
+      },
+      {
+        bank: 3,
+        type: 'MULTI_SELECT',
+        difficulty: 'MEDIUM',
+        content: 'Manakah instrumen-instrumen keuangan berikut yang diperjualbelikan di pasar modal (capital market)? (Pilih semua yang benar)',
+        options: [
+          { text: 'Saham Perusahaan Publik', correct: true },
+          { text: 'Obligasi Korporasi / Surat Utang Negara', correct: true },
+          { text: 'Sertifikat Bank Indonesia (SBI Pasar Uang)', correct: false },
+          { text: 'Reksadana (Mutual Funds)', correct: true },
+          { text: 'Call Money antar-bank', correct: false },
+        ],
+        explanation: 'Pasar modal memperjualbelikan instrumen jangka panjang (> 1 tahun) seperti saham, obligasi, dan reksadana. SBI dan Call Money adalah instrumen pasar uang jangka pendek.',
+        tags: ['pasar_modal', 'keuangan', 'multi_pilih'],
+      },
+      {
+        bank: 3,
+        type: 'SHORT_ANSWER',
+        difficulty: 'EASY',
+        content: 'Ibukota negara Indonesia yang baru yang berlokasi di Kabupaten Penajam Paser Utara, Kalimantan Timur bernama...',
+        options: [
+          { text: 'Nusantara', correct: true },
+          { text: 'IKN', correct: true },
+          { text: 'Ibu Kota Nusantara', correct: true },
+          { text: 'IKN Nusantara', correct: true },
+        ],
+        explanation: 'Berdasarkan Undang-Undang Nomor 3 Tahun 2022, Ibukota Negara Indonesia diberi nama Nusantara.',
+        tags: ['pengetahuan_umum', 'geografi', 'isian_singkat'],
+      },
+      {
+        bank: 3,
+        type: 'MATCHING',
+        difficulty: 'MEDIUM',
+        content: 'Jodohkan tokoh pelopor teori ekonomi di kolom kiri dengan karya / konsep pemikirannya di kolom kanan:',
+        options: [
+          { text: JSON.stringify({ left: 'Adam Smith', right: 'Teori Pasar Bebas & Tangan Tak Terlihat' }), correct: true },
+          { text: JSON.stringify({ left: 'John Maynard Keynes', right: 'Teori Intervensi Fiskal & Makroekonomi' }), correct: true },
+          { text: JSON.stringify({ left: 'David Ricardo', right: 'Teori Keunggulan Komparatif Perdagangan' }), correct: true },
+          { text: JSON.stringify({ left: 'Thomas Robert Malthus', right: 'Teori Deret Ukur Pertumbuhan Populasi' }), correct: true },
+        ],
+        explanation: 'Tokoh-tokoh sejarah pemikiran ekonomi klasik dan modern.',
+        tags: ['sejarah_ekonomi', 'tokoh', 'menjodohkan'],
+      },
+      {
+        bank: 3,
+        type: 'ESSAY',
+        difficulty: 'HARD',
+        content: 'Jelaskan bagaimana inflasi yang tinggi dapat menurunkan daya beli masyarakat berpenghasilan tetap serta kebijakan fiskal apa saja yang dapat diambil pemerintah untuk menstabilkannya!',
+        options: [],
+        explanation: 'Pembahasan:\n1. Dampak terhadap daya beli: Inflasi menaikkan harga barang/jasa secara umum. Dengan pendapatan nominal tetap, nilai riil uang turun drastis sehingga kemampuan konsumsi menurun.\n2. Kebijakan fiskal pemerintah: Pengurangan belanja negara yang bersifat non-prioritas, penyesuaian tarif pajak, dan pemberian bantuan sosial tunai/subsidi pangan terarah untuk menjaga daya beli kelompok rentan.',
+        tags: ['makroekonomi', 'inflasi', 'esai'],
+      },
     ];
 
     const allQuestions: any[] = [];
     for (let qi = 0; qi < questionTemplates.length; qi++) {
       const t = questionTemplates[qi]!;
       const question = await prisma.question.create({
-        data: { question_bank_id: banks[t.bank]!.id, type: t.type as any, content: t.content, difficulty: t.difficulty as any },
+        data: {
+          question_bank_id: banks[t.bank]!.id,
+          type: t.type as any,
+          content: t.content,
+          image_url: t.image_url || null,
+          difficulty: t.difficulty as any,
+          explanation: t.explanation || null,
+        },
       });
       allQuestions.push(question);
 
       if (t.options.length > 0) {
         await prisma.questionOption.createMany({
           data: t.options.map((opt, idx) => ({
-            question_id: question.id, content: opt.text, is_correct: opt.correct, order: idx + 1,
+            question_id: question.id,
+            content: opt.text,
+            image_url: opt.image_url || null,
+            is_correct: opt.correct,
+            order: idx + 1,
           })),
         });
       }
@@ -376,7 +718,7 @@ async function seed() {
         });
       }
     }
-    logger.log(`  25 questions created across 3 banks`);
+    logger.log(`  32 questions created across 4 banks covering all 6 question types`);
 
     // ── 12. Sample Exams ────────────────────────────────────
     logger.log('Creating sample exams...');
@@ -462,7 +804,7 @@ async function seed() {
     logger.log('  Ulangan Harian Fisika (PUBLISHED — upcoming, IPA)');
 
     // ── Exam 3: UTS Ekonomi — PASSED (IPS) ────────────────────
-    const ekonomiQuestions = allQuestions.slice(25, 30);
+    const ekonomiQuestions = allQuestions.slice(25, 32);
     const token3 = randomBytes(4).toString('hex').toUpperCase().slice(0, 8);
     const exam3 = await prisma.exam.create({
       data: {
@@ -651,18 +993,57 @@ async function seed() {
         for (const eq of pkgQs) {
           const isCorrect = si % 3 !== 0; // 2/3 correct randomly
           const allOpts = await prisma.questionOption.findMany({ where: { question_id: eq.question_id }, orderBy: { order: 'asc' } });
-          const answerText = isCorrect && allOpts.length > 0
-            ? (allOpts.find(o => o.is_correct)?.content || allOpts[0]!.content)
-            : (allOpts.find(o => !o.is_correct)?.content || '');
-          const questionType = allOpts.length > 0 ? (allOpts.length <= 2 ? 'TRUE_FALSE' : 'MULTIPLE_CHOICE') : 'ESSAY';
+          const question = await prisma.question.findUnique({ where: { id: eq.question_id } });
+          const qType = question?.type || 'MULTIPLE_CHOICE';
+
+          let answerText = '';
+          let score: number | null = null;
+          let answerCorrect: boolean | null = null;
+
+          if (qType === 'ESSAY') {
+            answerText = 'Jawaban analisis esai terperinci oleh siswa.';
+            score = null;
+            answerCorrect = null;
+          } else if (qType === 'SHORT_ANSWER') {
+            const accepted = allOpts.filter(o => o.is_correct);
+            answerText = isCorrect && accepted.length > 0 ? accepted[0]!.content : 'jawaban lain';
+            answerCorrect = isCorrect;
+            score = isCorrect ? 100 : 0;
+          } else if (qType === 'MATCHING') {
+            const matches: Record<string, string> = {};
+            for (let oi = 0; oi < allOpts.length; oi++) {
+              const opt = allOpts[oi]!;
+              if (isCorrect || oi === 0) {
+                matches[opt.id] = opt.id;
+              } else {
+                matches[opt.id] = allOpts[(oi + 1) % allOpts.length]!.id;
+              }
+            }
+            answerText = JSON.stringify(matches);
+            const correctPairs = isCorrect ? allOpts.length : 1;
+            score = Math.round((correctPairs / allOpts.length) * 100);
+            answerCorrect = score === 100;
+          } else if (qType === 'MULTI_SELECT') {
+            const correctOpts = allOpts.filter(o => o.is_correct);
+            answerText = isCorrect ? correctOpts.map(o => o.id).join(',') : (allOpts[0]?.id || '');
+            answerCorrect = isCorrect;
+            score = isCorrect ? 100 : 0;
+          } else {
+            // MULTIPLE_CHOICE or TRUE_FALSE
+            const correctOpt = allOpts.find(o => o.is_correct);
+            const wrongOpt = allOpts.find(o => !o.is_correct);
+            answerText = isCorrect && correctOpt ? correctOpt.id : (wrongOpt?.id || allOpts[0]?.id || '');
+            answerCorrect = isCorrect;
+            score = isCorrect ? 100 : 0;
+          }
 
           await prisma.answer.create({
             data: {
               exam_session_id: session.id,
               question_id: eq.question_id,
               answer_text: answerText,
-              is_correct: questionType !== 'ESSAY' ? isCorrect : null,
-              score: questionType !== 'ESSAY' ? (isCorrect ? 100 / pkgQs.length : 0) : null,
+              is_correct: answerCorrect,
+              score: score,
               answered_at: new Date(now.getTime() - 30 * 60 * 1000 + si * 5 * 60 * 1000),
               synced_at: new Date(),
             },
@@ -701,7 +1082,7 @@ async function seed() {
     logger.log('     • 198807202012011003 / teacher123 (Hendra G. — Biologi, BIN)');
     logger.log('     • 199107152018012004 / teacher123 (Siti R. — Ekonomi, Geografi, Sosiologi)');
     logger.log('  🔑 Students: NIS-based login (e.g., 202501001 / 202501001)');
-    logger.log('  📝 Questions: 30 across 4 banks (Math, Physics, Indonesian, Economics)');
+    logger.log('  📝 Questions: 32 across 4 banks (Math, Physics, Science, Economics) covering all 6 question types');
     logger.log('  📋 Exams:');
     logger.log('     • UTS Matematika (PUBLISHED — IPA) — Token: ' + token1);
     logger.log('     • Ulangan Fisika (PUBLISHED — upcoming, IPA)');
