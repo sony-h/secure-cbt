@@ -5,6 +5,7 @@ import 'package:secure_cbt_mobile/features/auth/presentation/screens/login_scree
 import 'package:secure_cbt_mobile/features/auth/presentation/screens/token_screen.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/screens/exam_screen.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/screens/result_screen.dart';
+import 'package:secure_cbt_mobile/features/exam/presentation/screens/exam_review_screen.dart';
 import 'package:secure_cbt_mobile/features/home/presentation/screens/home_screen.dart';
 import 'package:secure_cbt_mobile/features/exams/presentation/screens/exams_screen.dart';
 import 'package:secure_cbt_mobile/features/exams/presentation/screens/exam_detail_screen.dart';
@@ -112,6 +113,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>? ?? {};
           return ResultScreen(
+            sessionId: extra['sessionId'] as String? ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/exam-review',
+        name: RouteNames.examReview,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return ExamReviewScreen(
             sessionId: extra['sessionId'] as String? ?? '',
           );
         },

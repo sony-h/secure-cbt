@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
+import 'package:secure_cbt_mobile/core/utils/date_utils.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
 import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 import 'package:secure_cbt_mobile/core/widgets/confetti_celebration.dart';
@@ -316,9 +317,95 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                    ),
                                  ],
 
-                                 const SizedBox(height: 32),
+                                 const SizedBox(height: 28),
 
-                                // Back to Home Button
+                                 // Exam Review Button (if finished) or Lock Warning
+                                 (() {
+                                   final isFinished = resultAsync.value?['is_exam_finished'] == true;
+                                   final endAt = resultAsync.value?['end_at'] as String?;
+                                   final endAtFormatted = endAt != null
+                                       ? (() {
+                                           try {
+                                             return formatDateTimeWIB(DateTime.parse(endAt));
+                                           } catch (_) {
+                                             return '';
+                                           }
+                                         })()
+                                       : '';
+
+                                   if (isFinished) {
+                                     return Column(
+                                       children: [
+                                         BouncingButton(
+                                           onTap: () {
+                                             context.pushNamed(RouteNames.examReview, extra: {'sessionId': widget.sessionId});
+                                           },
+                                           child: Container(
+                                             height: 50,
+                                             decoration: BoxDecoration(
+                                               color: AppColors.surface,
+                                               borderRadius: BorderRadius.circular(14),
+                                               border: Border.all(color: AppColors.primary, width: 1.5),
+                                               boxShadow: AppShadows.card,
+                                             ),
+                                             child: const Center(
+                                               child: Row(
+                                                 mainAxisAlignment: MainAxisAlignment.center,
+                                                 children: [
+                                                   Icon(Icons.menu_book_rounded, color: AppColors.primary, size: 18),
+                                                   SizedBox(width: 8),
+                                                   Text(
+                                                     'Lihat Pembahasan & Kunci Soal',
+                                                     style: TextStyle(
+                                                       color: AppColors.primary,
+                                                       fontSize: 14,
+                                                       fontWeight: FontWeight.w700,
+                                                       decoration: TextDecoration.none,
+                                                     ),
+                                                   ),
+                                                 ],
+                                               ),
+                                             ),
+                                           ),
+                                         ),
+                                         const SizedBox(height: 12),
+                                       ],
+                                     );
+                                   } else {
+                                     return Column(
+                                       children: [
+                                         Container(
+                                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                           decoration: BoxDecoration(
+                                             color: AppColors.surfaceSubtle,
+                                             borderRadius: BorderRadius.circular(14),
+                                             border: Border.all(color: AppColors.border),
+                                           ),
+                                           child: Row(
+                                             children: [
+                                               const Icon(Icons.lock_clock_rounded, color: AppColors.warning, size: 20),
+                                               const SizedBox(width: 12),
+                                               Expanded(
+                                                 child: Text(
+                                                   'Pembahasan soal akan terbuka otomatis setelah seluruh jadwal ujian berakhir${endAtFormatted.isNotEmpty ? " ($endAtFormatted)" : ""}.',
+                                                   style: const TextStyle(
+                                                     fontSize: 12,
+                                                     height: 1.45,
+                                                     decoration: TextDecoration.none,
+                                                     color: AppColors.textSecondary,
+                                                   ),
+                                                 ),
+                                               ),
+                                             ],
+                                           ),
+                                         ),
+                                         const SizedBox(height: 16),
+                                       ],
+                                     );
+                                   }
+                                 })(),
+
+                                 // Back to Home Button
                                 BouncingButton(
                                   onTap: _backToHome,
                                   child: Container(

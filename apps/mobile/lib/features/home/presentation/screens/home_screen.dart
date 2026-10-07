@@ -323,7 +323,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: _SubjectThemedExamCard(
                       exam: exam,
                       theme: sTheme,
-                      onTap: () => context.goNamed(RouteNames.examDetail, extra: exam),
+                      onTap: () => context.pushNamed(RouteNames.examDetail, extra: exam),
                     ),
                   );
                 }),
@@ -551,7 +551,7 @@ class _ActiveExamHeroBanner extends StatelessWidget {
     );
 
     return BouncingButton(
-      onTap: () => context.goNamed(RouteNames.examDetail, extra: exam),
+      onTap: () => context.pushNamed(RouteNames.examDetail, extra: exam),
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(

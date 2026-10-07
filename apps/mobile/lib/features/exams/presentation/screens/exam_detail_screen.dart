@@ -37,15 +37,31 @@ class ExamDetailScreen extends StatelessWidget {
     final endDateStr = endParsed != null ? formatDateShortWIB(endParsed) : '—';
     final endTimeStr = endParsed != null ? formatTimeWIB(endParsed) : '—';
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        title: const Text('Rincian Ujian'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: () => context.goNamed(RouteNames.exams),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.goNamed(RouteNames.exams);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.canvas,
+        appBar: AppBar(
+          title: const Text('Rincian Ujian'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.goNamed(RouteNames.exams);
+              }
+            },
+          ),
         ),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
@@ -192,7 +208,7 @@ class ExamDetailScreen extends StatelessWidget {
 
             // Continue CTA Button with Subject Themed Gradient
             BouncingButton(
-              onTap: () => context.goNamed(RouteNames.token, extra: {
+              onTap: () => context.pushNamed(RouteNames.token, extra: {
                 'examId': exam['id'],
                 'examTitle': title,
                 'examDuration': duration,
@@ -236,6 +252,7 @@ class ExamDetailScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

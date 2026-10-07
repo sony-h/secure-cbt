@@ -266,15 +266,129 @@ export class SessionService {
       orderBy: { submitted_at: 'desc' },
     });
 
-    return sessions.map((s) => ({
-      id: s.id,
-      exam_title: s.exam.title,
-      subject_name: s.exam.subject.name,
-      total_score: s.score!.total_score,
-      correct_count: s.score!.correct_count,
-      wrong_count: s.score!.wrong_count,
-      submitted_at: s.submitted_at?.toISOString(),
-    }));
+    const now = new Date();
+    return sessions.map((s) => {
+      const isFinished = s.exam.status === ExamStatus.FINISHED || now > new Date(s.exam.end_at);
+      return {
+        id: s.id,
+        exam_id: s.exam_id,
+        exam_title: s.exam.title,
+        subject_name: s.exam.subject.name,
+        total_score: s.score!.total_score,
+        correct_count: s.score!.correct_count,
+        wrong_count: s.score!.wrong_count,
+        submitted_at: s.submitted_at?.toISOString(),
+        end_at: s.exam.end_at.toISOString(),
+        is_exam_finished: isFinished,
+      };
+    });
+  }
+
+  async getReview(sessionId: string, userId: string) {
+    const studentId = await resolveStudentId(this.prisma, userId);
+
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        exam: {
+          include: {
+            subject: true,
+            exam_questions: {
+              include: {
+                question: {
+                  include: {
+                    options: {
+                      orderBy: { order: 'asc' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        answers: true,
+        score: true,
+        student: true,
+      },
+    });
+
+    if (!session) throw new NotFoundException('Session not found');
+    if (session.student_id !== studentId) throw new ForbiddenException('Not your session');
+
+    if (
+      session.status !== SessionStatus.SUBMITTED &&
+      session.status !== SessionStatus.AUTO_SUBMITTED
+    ) {
+      throw new BadRequestException('Exam review is only available for submitted exams');
+    }
+
+    const now = new Date();
+    const isExamFinished =
+      session.exam.status === ExamStatus.FINISHED || now > new Date(session.exam.end_at);
+
+    if (!isExamFinished) {
+      throw new ForbiddenException(
+        'Pembahasan ujian hanya dapat diakses setelah seluruh jadwal ujian selesai.',
+      );
+    }
+
+    // Filter by package if session has a package
+    const filteredQuestions = session.exam.exam_questions.filter(
+      (eq) => !eq.package_id || eq.package_id === session.package_id,
+    );
+
+    // Sort questions by persisted question_order if available, otherwise by position
+    let orderedQuestions: typeof filteredQuestions;
+    if (session.question_order && Array.isArray(session.question_order)) {
+      const orderArray = session.question_order as string[];
+      orderedQuestions = orderArray
+        .map((id) => filteredQuestions.find((eq) => eq.id === id))
+        .filter(Boolean) as typeof filteredQuestions;
+    } else {
+      orderedQuestions = [...filteredQuestions].sort((a, b) => a.position - b.position);
+    }
+
+    const answerMap = new Map(session.answers.map((a) => [a.question_id, a]));
+
+    const questions = orderedQuestions.map((eq, index) => {
+      const q = eq.question;
+      const ans = answerMap.get(q.id);
+
+      return {
+        id: q.id,
+        number: index + 1,
+        type: q.type,
+        content: q.content,
+        image_url: q.image_url,
+        difficulty: q.difficulty,
+        explanation: q.explanation,
+        student_answer: ans?.answer_text ?? null,
+        is_correct: ans?.is_correct ?? false,
+        score: ans?.score ?? 0,
+        feedback: ans?.feedback ?? null,
+        options: q.options.map((opt) => ({
+          id: opt.id,
+          content: opt.content,
+          image_url: opt.image_url,
+          is_correct: opt.is_correct,
+          order: opt.order,
+        })),
+      };
+    });
+
+    return {
+      session_id: session.id,
+      exam_id: session.exam_id,
+      exam_title: session.exam.title,
+      subject_name: session.exam.subject.name,
+      total_score: session.score?.total_score ?? 0,
+      correct_count: session.score?.correct_count ?? 0,
+      wrong_count: session.score?.wrong_count ?? 0,
+      total_questions: questions.length,
+      submitted_at: session.submitted_at?.toISOString(),
+      end_at: session.exam.end_at.toISOString(),
+      questions,
+    };
   }
 
   async autoSubmit(sessionId: string) {

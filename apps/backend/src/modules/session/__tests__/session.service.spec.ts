@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { SessionService } from '../session.service';
 import { GradingService } from '../../grading/grading.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { SessionStatus, ExamStatus } from '@secure-cbt/shared';
+import { SessionStatus, ExamStatus, QuestionType } from '@secure-cbt/shared';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 function UUID() { return crypto.randomUUID?.() ?? '00000000-0000-0000-0000-000000000001'; }
@@ -238,6 +238,120 @@ describe('SessionService', () => {
       mockPrisma.examSession.findUnique.mockResolvedValue(null);
       const result = await service.autoSubmit(UUID());
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('getReview()', () => {
+    it('should return review questions and explanations when exam is finished', async () => {
+      const studentId = UUID();
+      const sessionId = UUID();
+      const qId = UUID();
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId });
+
+      const pastEnd = new Date(Date.now() - 3600000); // 1 hour ago
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        student_id: studentId,
+        status: SessionStatus.SUBMITTED,
+        question_order: null,
+        package_id: null,
+        submitted_at: new Date(),
+        student: { full_name: 'Test Student' },
+        score: { total_score: 100, correct_count: 1, wrong_count: 0 },
+        exam: {
+          id: UUID(),
+          title: 'Finished Exam',
+          status: ExamStatus.FINISHED,
+          end_at: pastEnd,
+          subject: { name: 'Matematika' },
+          exam_questions: [
+            {
+              id: 'eq-1',
+              position: 1,
+              package_id: null,
+              question: {
+                id: qId,
+                type: QuestionType.MULTIPLE_CHOICE,
+                content: 'Berapakah 2 + 2?',
+                image_url: null,
+                difficulty: 'EASY',
+                explanation: '2 + 2 = 4',
+                options: [
+                  { id: 'opt-1', content: '4', image_url: null, is_correct: true, order: 1 },
+                  { id: 'opt-2', content: '5', image_url: null, is_correct: false, order: 2 },
+                ],
+              },
+            },
+          ],
+        },
+        answers: [
+          {
+            question_id: qId,
+            answer_text: 'opt-1',
+            is_correct: true,
+            score: 100,
+            feedback: null,
+          },
+        ],
+      });
+
+      const result = await service.getReview(sessionId, 'user-1');
+      expect(result.exam_title).toBe('Finished Exam');
+      expect(result.total_score).toBe(100);
+      expect(result.questions).toHaveLength(1);
+      const firstQ: any = result.questions[0];
+      expect(firstQ.explanation).toBe('2 + 2 = 4');
+      expect(firstQ.student_answer).toBe('opt-1');
+      expect(firstQ.is_correct).toBe(true);
+    });
+
+    it('should throw ForbiddenException if exam is not finished yet', async () => {
+      const studentId = UUID();
+      const sessionId = UUID();
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId });
+
+      const futureEnd = new Date(Date.now() + 3600000); // 1 hour in the future
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        student_id: studentId,
+        status: SessionStatus.SUBMITTED,
+        exam: {
+          id: UUID(),
+          title: 'Active Exam',
+          status: ExamStatus.ONGOING,
+          end_at: futureEnd,
+          subject: { name: 'Matematika' },
+          exam_questions: [],
+        },
+        answers: [],
+        score: { total_score: 100 },
+        student: { full_name: 'Test Student' },
+      });
+
+      await expect(service.getReview(sessionId, 'user-1')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException if session is not submitted yet', async () => {
+      const studentId = UUID();
+      const sessionId = UUID();
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId });
+
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        student_id: studentId,
+        status: SessionStatus.ACTIVE,
+        exam: {
+          status: ExamStatus.FINISHED,
+          end_at: new Date(Date.now() - 3600000),
+          subject: { name: 'Matematika' },
+          exam_questions: [],
+        },
+        answers: [],
+        score: null,
+        student: { full_name: 'Test Student' },
+      });
+
+      await expect(service.getReview(sessionId, 'user-1')).rejects.toThrow(BadRequestException);
     });
   });
 });

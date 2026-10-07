@@ -131,15 +131,31 @@ class _TokenScreenState extends ConsumerState<TokenScreen> with SingleTickerProv
     final tokenText = _tokenController.text.toUpperCase();
     final canSubmit = !_isLoading && _rulesAgreed && tokenText.isNotEmpty;
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        title: const Text('Konfirmasi & Token'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: () => context.goNamed(RouteNames.exams),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.goNamed(RouteNames.exams);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.canvas,
+        appBar: AppBar(
+          title: const Text('Konfirmasi & Token'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.goNamed(RouteNames.exams);
+              }
+            },
+          ),
         ),
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -480,14 +496,16 @@ class _TokenScreenState extends ConsumerState<TokenScreen> with SingleTickerProv
           ),
         ),
       ),
+      ),
     );
   }
 }
 
 const _rules = [
-  'Dilarang meminimalkan aplikasi atau berpindah ke aplikasi lain selama ujian berlangsung.',
-  'Tangkapan layar (screenshot) dan perekaman layar otomatis diblokir oleh sistem.',
-  'Setiap indikasi kecurangan akan dicatat secara otomatis pada dasbor pengawas guru.',
-  'Jawaban Anda tersimpan otomatis (auto-save) ke server secara berkala.',
-  'Jika batas pelanggaran tercapai, lembar ujian akan langsung dikumpulkan secara otomatis.',
+  'Layar Penuh Terisolasi (Kiosk Mode): Dilarang meminimalkan aplikasi, membuka split-screen, jendela mengambang, atau beralih ke aplikasi lain.',
+  'Larangan Akses Bilah Status: Menarik bilah status atau panel notifikasi akan memicu penguncian layar penalti selama 10 detik.',
+  'Proteksi Layar & Tangkapan: Tangkapan layar (screenshot), perekaman video, dan tombol kembali diblokir oleh sistem keamanan Assessia.',
+  'Telemetri Pengawas Real-Time: Setiap indikasi pelanggaran dicatat seketika dan dipancarkan ke dasbor pengawas (Mission Control) guru.',
+  'Penyimpanan Jawaban Otomatis: Seluruh lembar jawaban tersimpan otomatis dan terenkripsi secara berkala ke server lokal dan cloud.',
+  'Batas Pelanggaran & Auto-Submit: Pelanggaran yang mencapai batas toleransi akan menyebabkan sesi ujian dikumpulkan otomatis oleh sistem.',
 ];

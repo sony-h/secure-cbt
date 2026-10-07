@@ -227,7 +227,7 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
   }
 
   void _openDetail(BuildContext context, Map<String, dynamic> exam) {
-    context.goNamed(RouteNames.examDetail, extra: exam);
+    context.pushNamed(RouteNames.examDetail, extra: exam);
   }
 }
 

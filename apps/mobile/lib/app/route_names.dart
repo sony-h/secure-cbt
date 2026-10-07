@@ -8,4 +8,5 @@ class RouteNames {
   static const token = 'token';
   static const exam = 'exam';
   static const result = 'result';
+  static const examReview = 'exam-review';
 }

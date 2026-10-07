@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/theme/subject_theme.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/utils/date_utils.dart';
@@ -49,7 +51,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           child: const EmptyState(
                             icon: Icons.history_rounded,
                             title: 'Belum Ada Riwayat Ujian',
-                            subtitle: 'Hasil dan rekaman nilai dari ujian yang telah diselesaikan\nakan tersimpan dan ditampilkan secara rapi di sini.',
+                            subtitle: 'Hasil dari ujian yang telah selesai akan tersimpan dan tampil di laman ini.',
                           ),
                         ),
                       ],
@@ -77,9 +79,48 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                               })()
                             : '-';
 
+                        final isExamFinished = h['is_exam_finished'] == true;
+                        final sessionId = h['id']?.toString() ?? '';
+                        final endAtStr = h['end_at'] as String?;
+                        final endAtFormatted = endAtStr != null
+                            ? (() {
+                                try {
+                                  return formatDateTimeWIB(DateTime.parse(endAtStr));
+                                } catch (_) {
+                                  return 'selesai';
+                                }
+                              })()
+                            : 'selesai';
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: AppCard(
+                            onTap: () {
+                              if (isExamFinished) {
+                                context.pushNamed(RouteNames.examReview, extra: {'sessionId': sessionId});
+                              } else {
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Row(
+                                      children: [
+                                        const Icon(Icons.lock_rounded, size: 16, color: Colors.white),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Pembahasan terkunci hingga $endAtFormatted demi kerahasiaan ujian.',
+                                            style: const TextStyle(fontSize: 12.5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: AppColors.textPrimary,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                );
+                              }
+                            },
                             padding: const EdgeInsets.all(16),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
@@ -175,7 +216,44 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    StatusPill.passOrFail(passed: passed, compact: true),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: isExamFinished ? AppColors.primaryContainer : AppColors.surfaceSubtle,
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(
+                                              color: isExamFinished
+                                                  ? AppColors.primary.withValues(alpha: 0.3)
+                                                  : AppColors.border,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                isExamFinished ? Icons.menu_book_rounded : Icons.lock_outline_rounded,
+                                                size: 10,
+                                                color: isExamFinished ? AppColors.primary : AppColors.textMuted,
+                                              ),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                isExamFinished ? 'Solusi' : 'Terkunci',
+                                                style: TextStyle(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isExamFinished ? AppColors.primary : AppColors.textMuted,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        StatusPill.passOrFail(passed: passed, compact: true),
+                                      ],
+                                    ),
                                   ],
                                 ),
                               ],

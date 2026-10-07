@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
-import { GradeEssayInput, gradeEssaySchema, QuestionType, SessionStatus, SocketEvent } from '@secure-cbt/shared';
+import { GradeEssayInput, gradeEssaySchema, QuestionType, SessionStatus, SocketEvent, ExamStatus } from '@secure-cbt/shared';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -180,6 +180,9 @@ export class GradingService {
     });
     if (!score) throw new NotFoundException('Score not found');
 
+    const now = new Date();
+    const isExamFinished = score.exam_session.exam.status === ExamStatus.FINISHED || now > new Date(score.exam_session.exam.end_at);
+
     return {
       session_id: sessionId,
       student_id: score.exam_session.student_id,
@@ -190,6 +193,8 @@ export class GradingService {
       wrong_count: score.wrong_count,
       essay_score: score.essay_score,
       graded_at: score.graded_at?.toISOString(),
+      end_at: score.exam_session.exam.end_at?.toISOString(),
+      is_exam_finished: isExamFinished,
     };
   }
 

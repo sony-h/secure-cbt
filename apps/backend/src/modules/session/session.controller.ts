@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { z } from 'zod';
 import { SessionService } from './session.service';
@@ -47,5 +47,13 @@ export class SessionController {
   async getHistory(@Req() req: AuthenticatedRequest) {
     const data = await this.sessionService.getHistory(req.user.sub);
     return { success: true, message: 'History retrieved', data };
+  }
+
+  @Get(':id/review')
+  @Roles(UserRole.STUDENT)
+  @ApiOperation({ summary: 'Get exam review and explanations (only when exam is finished)' })
+  async getReview(@Req() req: AuthenticatedRequest, @Param('id') sessionId: string) {
+    const data = await this.sessionService.getReview(sessionId, req.user.sub);
+    return { success: true, message: 'Review data retrieved', data };
   }
 }

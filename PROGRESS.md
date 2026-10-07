@@ -3,9 +3,9 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.3.1` (Mobile Android Build: `1.3.1+10`)  
+**Current Version:** `v1.4.0` (Mobile Android Build: `1.4.0+11`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 24 - Full Brand Overhaul: Assessia by Orivastra - COMPLETE  
+**Current Phase:** Phase 25 - Exam Review & Explanation, Navigation Hardening, and Security Copywriting  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
 **Last Updated:** 2026-10-07
@@ -1094,20 +1094,50 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 
 ---
 
+## Phase 25 — Exam Review & Explanations, Navigation Hardening, and Security Copywriting — COMPLETE
+
+**Target Platform:** Full-Stack (Backend + Mobile)  
+**Security Standard:** Strict Exam-End Lock Guard  
+**Version:** `v1.4.0` (Mobile Android Build: `1.4.0+11`)  
+**Date:** 2026-10-07
+
+### 1. Backend Exam Review API with Anti-Cheat Lock
+- Created `GET /api/v1/sessions/:id/review` endpoint in `SessionController` / `SessionService`.
+- **Exam-Finished Lock Guard:** Evaluates `session.exam.status === 'FINISHED' || now > session.exam.end_at`. If an exam is still active, throws `ForbiddenException`, completely blocking early answer leakages while peers are still testing.
+- Preserves student session question order (`session.question_order`) and returns student responses, correctness indicators, full option cards with answer keys, and teacher explanations (`explanation`).
+- Enriched `getHistory()` and `getResult()` with `is_exam_finished` boolean and `end_at` timestamp.
+- Unit tests added in `session.service.spec.ts` covering success and forbidden active locks (100% pass).
+
+### 2. Mobile Exam Review Screen (`exam_review_screen.dart`)
+- Created dedicated review screen (`RouteNames.examReview`) accessible from `HistoryScreen` and `ResultScreen`.
+- **Score Header Card:** Summary of exam title, subject, score badge, date, and correct/wrong/total count chips.
+- **Filter Segmented Pills:** `Semua (Total)` | `Benar (Count)` | `Salah (Count)` allowing students to focus immediately on mistakes.
+- **Rich Question Breakdown:** Renders KaTeX math formulas, pinch-to-zoom diagrams, color-coded option cards (Green = Answer Key, Red = Student Mistake), short answer accepted variants, matching pair comparisons, and teacher explanations in an elegant Soft Violet card.
+
+### 3. Route Stack & Back Navigation Hardening
+- Replaced `context.goNamed` with `context.pushNamed` on `HomeScreen` and `ExamsScreen` navigation to `ExamDetailScreen` and `TokenScreen`.
+- Wrapped `ExamDetailScreen` and `TokenScreen` with `PopScope(canPop: false)` and safe pop fallback (`if (context.canPop()) context.pop() else goNamed(...)`), preventing sudden app exits on Android back presses.
+
+### 4. Copywriting Refinements
+- **Empty History:** Shortened to balanced copy: *"Hasil dari ujian yang telah selesai akan tersimpan dan tampil di laman ini."*.
+- **Exam Rules & Security Checklist:** Modernized 6 security protocol rules on `TokenScreen` detailing kiosk isolation, status bar lock penalties, screenshot blocking, proctor telemetry, auto-save encryption, and auto-submit thresholds.
+
+---
+
 ## Future Phases (Planned & Prioritized Roadmap)
 
-### Phase 25: HOTS vs LOTS Cognitive Classification (Bloom's Taxonomy)
+### Phase 26: HOTS vs LOTS Cognitive Classification (Bloom's Taxonomy)
 - Tagging questions by cognitive level: LOTS (C1-C2), MOTS (C3), HOTS (C4-C6).
 - Exam Builder balance dial displaying cognitive distribution against school targets.
 
-### Phase 26: Random Question Pool per Exam (Sub-sampling)
+### Phase 27: Random Question Pool per Exam (Sub-sampling)
 - Teacher puts 60 questions into a Question Bank; exam randomly draws 30 unique questions per student session to eliminate neighboring screen cheating.
 
-### Phase 27: Bulk Question Operations
+### Phase 28: Bulk Question Operations
 - Multi-select checkboxes in `/dashboard/questions` to bulk-move questions between banks, bulk-change difficulty, and batch-assign tags.
 
-### Phase 28: Item Psychometrics (*Analisis Butir Soal*)
+### Phase 29: Item Psychometrics (*Analisis Butir Soal*)
 - Automated computation of Difficulty Index ($P$) and Discrimination Index ($D$) per question based on completed student sessions.
 
-### Phase 29: Word (.docx) & Excel (.xlsx) Template Importer
+### Phase 30: Word (.docx) & Excel (.xlsx) Template Importer
 - BullMQ worker parsing Microsoft Word table archives and Excel spreadsheets with embedded formulas directly into question banks.
