@@ -863,6 +863,69 @@ async function seed() {
           graded_at: new Date(),
         },
       });
+      // Create answer rows consistent with the recorded score (first N correct, rest wrong)
+      const ekoPkgQs = await prisma.examQuestion.findMany({
+        where: { package_id: pkg3.id },
+        orderBy: { position: 'asc' },
+      });
+      for (let qi = 0; qi < ekoPkgQs.length; qi++) {
+        const eq = ekoPkgQs[qi]!;
+        const isCorrect = qi < correctCount3;
+        const allOpts = await prisma.questionOption.findMany({ where: { question_id: eq.question_id }, orderBy: { order: 'asc' } });
+        const question = await prisma.question.findUnique({ where: { id: eq.question_id } });
+        const qType = question?.type || 'MULTIPLE_CHOICE';
+
+        let answerText = '';
+        let score: number | null = null;
+        let answerCorrect: boolean | null = null;
+
+        if (qType === 'ESSAY') {
+          answerText = 'Jawaban analisis esai terperinci oleh siswa.';
+        } else if (qType === 'SHORT_ANSWER') {
+          const accepted = allOpts.filter(o => o.is_correct);
+          answerText = isCorrect && accepted.length > 0 ? accepted[0]!.content : 'jawaban lain';
+          answerCorrect = isCorrect;
+          score = isCorrect ? 100 : 0;
+        } else if (qType === 'MATCHING') {
+          const matches: Record<string, string> = {};
+          for (let oi = 0; oi < allOpts.length; oi++) {
+            const opt = allOpts[oi]!;
+            if (isCorrect || oi === 0) {
+              matches[opt.id] = opt.id;
+            } else {
+              matches[opt.id] = allOpts[(oi + 1) % allOpts.length]!.id;
+            }
+          }
+          answerText = JSON.stringify(matches);
+          const correctPairs = isCorrect ? allOpts.length : 1;
+          score = Math.round((correctPairs / allOpts.length) * 100);
+          answerCorrect = score === 100;
+        } else if (qType === 'MULTI_SELECT') {
+          const correctOpts = allOpts.filter(o => o.is_correct);
+          answerText = isCorrect ? correctOpts.map(o => o.id).join(',') : (allOpts[0]?.id || '');
+          answerCorrect = isCorrect;
+          score = isCorrect ? 100 : 0;
+        } else {
+          // MULTIPLE_CHOICE or TRUE_FALSE
+          const correctOpt = allOpts.find(o => o.is_correct);
+          const wrongOpt = allOpts.find(o => !o.is_correct);
+          answerText = isCorrect && correctOpt ? correctOpt.id : (wrongOpt?.id || allOpts[0]?.id || '');
+          answerCorrect = isCorrect;
+          score = isCorrect ? 100 : 0;
+        }
+
+        await prisma.answer.create({
+          data: {
+            exam_session_id: session3.id,
+            question_id: eq.question_id,
+            answer_text: answerText,
+            is_correct: answerCorrect,
+            score: score,
+            answered_at: new Date(now.getTime() - 10 * 24 * 3600 * 1000 - si * 3600 * 1000 + qi * 60 * 1000),
+            synced_at: new Date(),
+          },
+        });
+      }
       await prisma.sessionLog.create({
         data: { exam_session_id: session3.id, event: 'SESSION_SUBMITTED', description: 'Ujian Ekonomi selesai dikerjakan' },
       });
