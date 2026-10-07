@@ -202,10 +202,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             AppCard.section(
               title: 'Tentang Aplikasi',
               children: const [
+                _InfoRow(label: 'Nama Aplikasi', value: AppInfo.fullName),
                 _InfoRow(label: 'Versi Aplikasi', value: 'v${AppInfo.versionString}'),
+                _InfoRow(label: 'Motto Asesmen', value: '"${AppInfo.tagline}"'),
                 _InfoRow(label: 'Pengembang', value: AppInfo.brand),
-                _InfoRow(label: 'Tagline', value: '"${AppInfo.tagline}"'),
-                _InfoRow(label: 'Hak Cipta', value: AppInfo.copyright, isLast: true),
+                _InfoRow(label: 'Hak Cipta', value: AppInfo.fullCopyright, isLast: true),
               ],
             ),
 
@@ -258,7 +259,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                   const SizedBox(height: 2),
                   const Text(
-                    '"${AppInfo.tagline}"',
+                    '"${AppInfo.parentTagline}"',
                     style: TextStyle(
                       fontSize: 11,
                       fontStyle: FontStyle.italic,

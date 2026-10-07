@@ -45,12 +45,19 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100 via-transparent to-transparent dark:from-indigo-950/30" />
       <Card className="relative overflow-hidden w-full max-w-md transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/10">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <GraduationCap className="h-6 w-6 text-primary" />
+          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl p-1 bg-white dark:bg-slate-900 shadow-md ring-1 ring-border">
+            <img
+              src="/logo-only-light.png"
+              alt="Assessia"
+              className="h-12 w-12 object-contain"
+            />
           </div>
-          <CardTitle className="text-2xl">Secure CBT</CardTitle>
-          <CardDescription>
-            Masuk ke panel admin untuk mengelola ujian
+          <CardTitle className="text-2xl font-extrabold tracking-tight text-foreground">Assessia</CardTitle>
+          <p className="text-xs font-semibold text-primary/90 mt-0.5 tracking-wide">
+            "{APP_INFO.tagline}"
+          </p>
+          <CardDescription className="text-xs mt-1">
+            Masuk ke panel institusi untuk mengelola asesmen &amp; ujian
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -91,7 +98,7 @@ export default function LoginPage() {
           {APP_INFO.brand}
         </span>
         <span className="text-[11px] text-muted-foreground italic">
-          "{APP_INFO.tagline}"
+          "{APP_INFO.parentTagline}"
         </span>
         <span className="text-[10px] text-muted-foreground/60 mt-0.5">
           {APP_INFO.builtBy} • {APP_INFO.copyright} • v{APP_INFO.version}

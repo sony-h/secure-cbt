@@ -7,8 +7,13 @@ import { ThemeProvider } from 'next-themes';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Secure CBT - Dashboard',
-  description: 'Computer-Based Test Platform for Indonesian Schools',
+  title: 'Assessia — Measure Learning. Empower Progress.',
+  description: 'Assessia by Orivastra — Modern Computer-Based Assessment Platform for Schools',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
+  },
 };
 
 export default function RootLayout({

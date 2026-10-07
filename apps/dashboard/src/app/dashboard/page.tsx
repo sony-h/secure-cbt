@@ -217,7 +217,7 @@ function DashboardHomeContent() {
                 {todayDateFormatted} • WIB
               </span>
               <span className="hidden sm:inline-flex px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold border border-emerald-500/30">
-                v{APP_INFO.version} Enterprise
+                Assessia v{APP_INFO.version}
               </span>
             </div>
 
@@ -225,7 +225,7 @@ function DashboardHomeContent() {
               Selamat Datang, {user?.full_name || user?.username || 'Administrator'} 👋
             </h1>
             <p className="text-sm text-indigo-200/80 leading-relaxed">
-              Pusat kendali ujian berbasis komputer Secure CBT by Orivastra siap beroperasi. Pantau integritas ujian siswa, kelola bank soal ANBK, dan jadwal secara real-time.
+              Pusat kendali platform asesmen modern Assessia by Orivastra siap beroperasi. Pantau integritas ujian siswa, kelola bank soal ANBK &amp; KaTeX, serta rilis jadwal secara real-time.
             </p>
           </div>
 
@@ -393,8 +393,8 @@ function DashboardHomeContent() {
       {/* ── 4. Bottom Executive Workflow Protocol ──────────────────── */}
       <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-xs">
         <div className="mb-4">
-          <h3 className="text-base font-bold text-foreground">Protokol Penyelenggaraan Ujian (Workflow CBT)</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Tiga tahapan standar pelaksanaan ujian sekolah berbasis komputer</p>
+          <h3 className="text-base font-bold text-foreground">Protokol Penyelenggaraan Asesmen (Workflow Assessia)</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Tiga tahapan standar operasional pelaksanaan asesmen digital Assessia by Orivastra</p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="flex gap-3.5 p-4 rounded-xl border border-border/60 bg-muted/20">

@@ -91,22 +91,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryDark],
-                ),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.school_rounded, color: Colors.white, size: 18),
+              padding: const EdgeInsets.all(4),
+              child: Image.asset(
+                'assets/images/logo_only_light.png',
+                fit: BoxFit.contain,
+              ),
             ),
             const SizedBox(width: 8),
             const Text(
-              'Secure CBT',
+              'Assessia',
               style: TextStyle(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+                fontSize: 19,
+                color: AppColors.textPrimary,
               ),
             ),
           ],

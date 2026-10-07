@@ -71,61 +71,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // App Brand Emblem
                   Center(
                     child: Container(
-                      width: 88,
-                      height: 88,
+                      width: 90,
+                      height: 90,
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        shape: BoxShape.circle,
-                        boxShadow: AppShadows.cardElevated,
-                        border: Border.all(color: AppColors.border, width: 1.5),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(26),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                        border: Border.all(color: AppColors.border, width: 1.2),
                       ),
-                      child: Center(
-                        child: Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [AppColors.primary, AppColors.primaryDark],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.35),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.school_rounded,
-                            size: 34,
-                            color: Colors.white,
-                          ),
-                        ),
+                      padding: const EdgeInsets.all(12),
+                      child: Image.asset(
+                        'assets/images/logo_only_light.png',
+                        fit: BoxFit.contain,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
                   const Text(
-                    'Secure CBT',
+                    'Assessia',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.6,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.8,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   const Text(
-                    'Platform Ujian Berbasis Komputer',
+                    'Measure Learning. Empower Progress.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2563EB),
+                      letterSpacing: -0.2,
                     ),
                   ),
                   const SizedBox(height: 28),
@@ -309,7 +295,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          '"${AppInfo.tagline}"',
+                          '"${AppInfo.parentTagline}"',
                           style: TextStyle(
                             fontSize: 11,
                             fontStyle: FontStyle.italic,

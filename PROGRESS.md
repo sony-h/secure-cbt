@@ -1,9 +1,11 @@
-# Progress Note: Secure CBT Platform (by Orivastra)
+# Progress Note: Assessia by Orivastra
 
+**Product Brand:** Assessia  
+**Official Slogan:** *"Measure Learning. Empower Progress."*  
+**Parent Technology:** Orivastra — *"From Origin to the Stars."*  
 **Current Version:** `v1.3.1` (Mobile Android Build: `1.3.1+10`)  
-**Brand Identity:** Orivastra — *"From Origin to the Stars."*  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 23 - Mobile Security Shield, Psychological Danger Overlay & Result Refinement - COMPLETE  
+**Current Phase:** Phase 24 - Full Brand Overhaul: Assessia by Orivastra - COMPLETE  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
 **Last Updated:** 2026-10-07
@@ -1054,20 +1056,58 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 
 ---
 
+## Phase 24 — Full Brand Overhaul: Assessia by Orivastra — COMPLETE
+
+**Target Platform:** Full-Stack (Android Mobile + Web Dashboard + Branding)  
+**Brand Identity:** Assessia — *"Measure Learning. Empower Progress."*  
+**Parent Company:** Orivastra — *"From Origin to the Stars."*  
+**Date:** 2026-10-07
+
+### 1. Official Brand Assets & Android Launcher Icon Generation
+- Exported and integrated 4 high-resolution official Assessia logo assets into `apps/dashboard/public/` and `apps/mobile/assets/images/`:
+  - `logo_light.png` & `logo_dark.png` (Full logo with wordmark and tagline).
+  - `logo_only_light.png` & `logo_only_dark.png` (Iconic 'A' emblem with floating orb).
+- Generated sharp vector-rendered Android launcher icons across all DPI densities:
+  - `mipmap-mdpi` (48px), `mipmap-hdpi` (72px), `mipmap-xhdpi` (96px), `mipmap-xxhdpi` (144px), `mipmap-xxxhdpi` (192px).
+- Updated Android application label in `AndroidManifest.xml` to `android:label="Assessia"`.
+
+### 2. Centralized App Constants (`AppInfo`)
+- Updated `apps/dashboard/src/lib/constants/app-info.ts` and `apps/mobile/lib/core/constants/app_info.dart`:
+  - Product Name: `Assessia`
+  - Full Name: `Assessia by Orivastra`
+  - Product Tagline: `"Measure Learning. Empower Progress."`
+  - Parent Brand: `Orivastra`
+  - Parent Tagline: `"From Origin to the Stars."`
+
+### 3. Dashboard UI Brand Integration (Next.js)
+- **Login Page (`/login`):** Replaced generic toga icon with crisp Assessia emblem, bold wordmark, official tagline, and Orivastra copyright footer.
+- **Sidebar Header:** Replaced generic book icon with Assessia emblem and `by Orivastra` subtext.
+- **Root Layout & Metadata:** Updated page title to `Assessia — Measure Learning. Empower Progress.` and wired favicon icons.
+- **Dashboard Home (`/dashboard`):** Updated hero launchpad banner with Assessia by Orivastra greeting and system badge.
+- **Command Palette (`Ctrl + K`):** Updated navigation hints to *Navigasi Cepat Assessia*.
+
+### 4. Mobile App UI Brand Integration (Flutter)
+- **Login Screen (`LoginScreen`):** Integrated Assessia emblem with soft blue depth shadow, official product tagline, and Orivastra parent signature.
+- **App Bar Header (`HomeScreen`):** Integrated mini Assessia emblem icon and bold product title.
+- **Profile Screen (`ProfileScreen`):** Updated "Tentang Aplikasi" card with `Assessia by Orivastra`, tagline, and Orivastra footer.
+- **Signature Gradient Tokens (`AppColors`):** Added `assessiaGradient` (`#7C3AED` Violet $\rightarrow$ `#2563EB` Sapphire $\rightarrow$ `#06B6D4` Cyan).
+
+---
+
 ## Future Phases (Planned & Prioritized Roadmap)
 
-### Phase 24: HOTS vs LOTS Cognitive Classification (Bloom's Taxonomy)
+### Phase 25: HOTS vs LOTS Cognitive Classification (Bloom's Taxonomy)
 - Tagging questions by cognitive level: LOTS (C1-C2), MOTS (C3), HOTS (C4-C6).
 - Exam Builder balance dial displaying cognitive distribution against school targets.
 
-### Phase 25: Random Question Pool per Exam (Sub-sampling)
+### Phase 26: Random Question Pool per Exam (Sub-sampling)
 - Teacher puts 60 questions into a Question Bank; exam randomly draws 30 unique questions per student session to eliminate neighboring screen cheating.
 
-### Phase 26: Bulk Question Operations
+### Phase 27: Bulk Question Operations
 - Multi-select checkboxes in `/dashboard/questions` to bulk-move questions between banks, bulk-change difficulty, and batch-assign tags.
 
-### Phase 27: Item Psychometrics (*Analisis Butir Soal*)
+### Phase 28: Item Psychometrics (*Analisis Butir Soal*)
 - Automated computation of Difficulty Index ($P$) and Discrimination Index ($D$) per question based on completed student sessions.
 
-### Phase 28: Word (.docx) & Excel (.xlsx) Template Importer
+### Phase 29: Word (.docx) & Excel (.xlsx) Template Importer
 - BullMQ worker parsing Microsoft Word table archives and Excel spreadsheets with embedded formulas directly into question banks.

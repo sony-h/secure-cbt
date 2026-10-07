@@ -117,11 +117,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       >
         {/* Logo */}
-        <div className="flex h-14 items-center gap-2 border-b border-slate-900 px-6">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
-            <BookOpen className="h-4 w-4 text-white" />
+        <div className="flex h-14 items-center gap-2.5 border-b border-slate-900 px-5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 p-0.5 ring-1 ring-white/10 shrink-0">
+            <img
+              src="/logo-only-light.png"
+              alt="Assessia"
+              className="h-6 w-6 object-contain"
+            />
           </div>
-          <span className="text-base font-bold text-slate-50">Secure CBT</span>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-extrabold text-white tracking-tight leading-tight">Assessia</span>
+            <span className="text-[10px] text-slate-400 font-medium">by Orivastra</span>
+          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -189,7 +196,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Button>
 
           <div className="mt-3 pt-3 border-t border-slate-900/80 flex items-center justify-between text-[11px] text-slate-500">
-            <span>v{APP_INFO.version}</span>
+            <span>Assessia v{APP_INFO.version}</span>
             <span className="font-semibold text-slate-400">by {APP_INFO.brand}</span>
           </div>
         </div>

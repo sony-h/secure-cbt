@@ -16,6 +16,16 @@ class AppColors {
   static const primaryContainer = Color(0xFFEEF2FF);// Soft Indigo Wash
   static const onPrimaryContainer = Color(0xFF3730A3);
 
+  // Assessia Brand Signature Gradient
+  static const assessiaPurple = Color(0xFF7C3AED);
+  static const assessiaBlue = Color(0xFF2563EB);
+  static const assessiaCyan = Color(0xFF06B6D4);
+  static const List<Color> assessiaGradient = [
+    Color(0xFF7C3AED), // Violet
+    Color(0xFF2563EB), // Sapphire
+    Color(0xFF06B6D4), // Cyan
+  ];
+
   // Status & Semantics
   static const success = Color(0xFF10B981);         // Emerald Green
   static const successContainer = Color(0xFFECFDF5);

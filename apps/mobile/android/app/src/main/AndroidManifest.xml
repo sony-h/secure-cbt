@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN" />
 
     <application
-        android:label="secure_cbt_mobile"
+        android:label="Assessia"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
