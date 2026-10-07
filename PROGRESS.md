@@ -1,12 +1,12 @@
 # Progress Note: Secure CBT Platform (by Orivastra)
 
-**Current Version:** `v1.3.0` (Mobile Android Build: `1.3.0+9`)  
+**Current Version:** `v1.3.1` (Mobile Android Build: `1.3.1+10`)  
 **Brand Identity:** Orivastra — *"From Origin to the Stars."*  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 22 - Dashboard Executive UI/UX Overhaul (Stripe & Apple Silicon Edition)  
+**Current Phase:** Phase 23 - Mobile Security Shield, Psychological Danger Overlay & Result Refinement - COMPLETE  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-07
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -1022,20 +1022,52 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 
 ---
 
+## Phase 23 — Mobile Security Shield, Psychological Danger Overlay & Result Refinement — COMPLETE
+
+**Target Platform:** Android Mobile App (`apps/mobile`)  
+**Security Standard:** Strict Banking-Grade Kiosk Enclosure & Anti-Loophole Guard  
+**Version:** `v1.3.1` (Android Build: `1.3.1+10`)  
+**Date:** 2026-10-07
+
+### 1. In-Exam Back Button Lockout (`exam_screen.dart`)
+- Fully disabled hardware back button and system edge back gestures inside `ExamScreen` via `PopScope(canPop: false)`.
+- Eliminates accidental exit attempts, dismissals, or unauthorized popups during live exam sessions.
+
+### 2. Double-Tap Back Exit on Home Shell (`scaffold_with_nav_bar.dart`)
+- Implemented Android standard 2-second double-tap back verification on the main bottom navigation shell.
+- Non-home tabs (Ujian, Riwayat, Profil) return to Home on back press; Home tab displays floating pill confirmation before exit.
+
+### 3. Balanced History Empty State Typography (`history_screen.dart` & `empty_state.dart`)
+- Eliminated edge-to-edge typography stretching by introducing 28px horizontal margins and a 320px maximum reading width constraint.
+- Updated copywriting to balanced two-line phrasing with refined typography.
+
+### 4. Psychological Danger Warning Overlay with Anti-Loophole Guard (`exam_screen.dart` & `exam_notifier.dart`)
+- Replaced light warning curtain with full-screen **Deep Crimson Danger Gradient** (`#7F1D1D` $\rightarrow$ `#991B1B` $\rightarrow$ `#881337`) with high-contrast pure white typography.
+- Displays pulsing danger emblem, violation strike badges, guilt-inducing proctor notification copy, and automatic 10-second countdown without click buttons.
+- Applied uniformly across both notification status bar drag and app minimization events.
+- **Anti-Loophole Security Guard:** When the 10-second timer elapses, the system immediately verifies if the notification shade is still pulled down. If so, a new violation strike is logged instantly, resetting the 10-second penalty and auto-submitting if threshold is reached.
+
+### 5. Post-Submit Transition & Result Refinements (`submission_transition_dialog.dart` & `result_screen.dart`)
+- Wrapped submission transition modal inside `Material(type: MaterialType.transparency)` and `DefaultTextStyle(decoration: TextDecoration.none)`, eliminating Flutter's default double yellow underlines.
+- Unified submission countdown timer to a prominent 10-second reading window for both clean submit and auto-submit penalties.
+- Redesigned `ResultScreen` summary metrics into separated elegant Bento Metric Tiles with pastel washes (`#ECFDF5`, `#FEF2F2`, `#EEF2FF`), replacing rigid divider lines.
+
+---
+
 ## Future Phases (Planned & Prioritized Roadmap)
 
-### Phase 23: HOTS vs LOTS Cognitive Classification (Bloom's Taxonomy)
+### Phase 24: HOTS vs LOTS Cognitive Classification (Bloom's Taxonomy)
 - Tagging questions by cognitive level: LOTS (C1-C2), MOTS (C3), HOTS (C4-C6).
 - Exam Builder balance dial displaying cognitive distribution against school targets.
 
-### Phase 24: Random Question Pool per Exam (Sub-sampling)
+### Phase 25: Random Question Pool per Exam (Sub-sampling)
 - Teacher puts 60 questions into a Question Bank; exam randomly draws 30 unique questions per student session to eliminate neighboring screen cheating.
 
-### Phase 25: Bulk Question Operations
+### Phase 26: Bulk Question Operations
 - Multi-select checkboxes in `/dashboard/questions` to bulk-move questions between banks, bulk-change difficulty, and batch-assign tags.
 
-### Phase 26: Item Psychometrics (*Analisis Butir Soal*)
+### Phase 27: Item Psychometrics (*Analisis Butir Soal*)
 - Automated computation of Difficulty Index ($P$) and Discrimination Index ($D$) per question based on completed student sessions.
 
-### Phase 27: Word (.docx) & Excel (.xlsx) Template Importer
+### Phase 28: Word (.docx) & Excel (.xlsx) Template Importer
 - BullMQ worker parsing Microsoft Word table archives and Excel spreadsheets with embedded formulas directly into question banks.

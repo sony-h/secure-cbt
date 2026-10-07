@@ -16,6 +16,8 @@ class ExamState {
   final bool isDualScreenBlocked;
   final bool isFocusLostBlocked;
   final bool isFocusViolationAckPending;
+  final bool isWarningOverlayActive;
+  final String? currentViolationEvent;
 
   const ExamState({
     this.isLoading = false,
@@ -35,6 +37,8 @@ class ExamState {
     this.isDualScreenBlocked = false,
     this.isFocusLostBlocked = false,
     this.isFocusViolationAckPending = false,
+    this.isWarningOverlayActive = false,
+    this.currentViolationEvent,
   });
 
   ExamState copyWith({
@@ -55,6 +59,8 @@ class ExamState {
     bool? isDualScreenBlocked,
     bool? isFocusLostBlocked,
     bool? isFocusViolationAckPending,
+    bool? isWarningOverlayActive,
+    String? currentViolationEvent,
   }) {
     return ExamState(
       isLoading: isLoading ?? this.isLoading,
@@ -74,6 +80,8 @@ class ExamState {
       isDualScreenBlocked: isDualScreenBlocked ?? this.isDualScreenBlocked,
       isFocusLostBlocked: isFocusLostBlocked ?? this.isFocusLostBlocked,
       isFocusViolationAckPending: isFocusViolationAckPending ?? this.isFocusViolationAckPending,
+      isWarningOverlayActive: isWarningOverlayActive ?? this.isWarningOverlayActive,
+      currentViolationEvent: currentViolationEvent ?? this.currentViolationEvent,
     );
   }
 }

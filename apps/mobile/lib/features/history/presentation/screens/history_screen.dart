@@ -49,7 +49,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           child: const EmptyState(
                             icon: Icons.history_rounded,
                             title: 'Belum Ada Riwayat Ujian',
-                            subtitle: 'Hasil dan skor ujian yang telah Anda selesaikan akan dicatat di sini.',
+                            subtitle: 'Hasil dan rekaman nilai dari ujian yang telah diselesaikan\nakan tersimpan dan ditampilkan secara rapi di sini.',
                           ),
                         ),
                       ],

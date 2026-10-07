@@ -14,7 +14,7 @@ void main() {
                   showSubmissionTransitionDialog(
                     context,
                     isAutoSubmit: false,
-                    durationSeconds: 5,
+                    durationSeconds: 10,
                   );
                 },
                 child: const Text('Submit'),
@@ -28,18 +28,18 @@ void main() {
     await tester.tap(find.text('Submit'));
     await tester.pump();
 
-    expect(find.text('Ujian Berhasil Dikumpulkan!'), findsOneWidget);
-    expect(find.textContaining('Memuat hasil ujian dalam 5 detik...'), findsOneWidget);
+    expect(find.text('Lembar Ujian Berhasil Dikumpulkan'), findsOneWidget);
+    expect(find.textContaining('Memuat lembar hasil ujian dalam 10 detik...'), findsOneWidget);
 
-    // Fast-forward 2 seconds
-    await tester.pump(const Duration(seconds: 2));
-    expect(find.textContaining('Memuat hasil ujian dalam 3 detik...'), findsOneWidget);
+    // Fast-forward 5 seconds
+    await tester.pump(const Duration(seconds: 5));
+    expect(find.textContaining('Memuat lembar hasil ujian dalam 5 detik...'), findsOneWidget);
 
-    // Fast-forward remaining 3 seconds to complete
-    await tester.pump(const Duration(seconds: 3));
+    // Fast-forward remaining 5 seconds to complete
+    await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ujian Berhasil Dikumpulkan!'), findsNothing);
+    expect(find.text('Lembar Ujian Berhasil Dikumpulkan'), findsNothing);
   });
 
   testWidgets('showSubmissionTransitionDialog renders auto-submit violation dialog', (tester) async {
@@ -69,18 +69,18 @@ void main() {
     await tester.tap(find.text('Auto Submit'));
     await tester.pump();
 
-    expect(find.text('Ujian Dihentikan & Dikumpulkan Otomatis!'), findsOneWidget);
+    expect(find.text('Sesi Ujian Selesai'), findsOneWidget);
     expect(find.text('Peringatan Pelanggaran: 3/3'), findsOneWidget);
-    expect(find.textContaining('Membuka lembar hasil dalam 10 detik...'), findsOneWidget);
+    expect(find.textContaining('Membuka lembar pengumuman hasil dalam 10 detik...'), findsOneWidget);
 
     // Fast-forward 5 seconds
     await tester.pump(const Duration(seconds: 5));
-    expect(find.textContaining('Membuka lembar hasil dalam 5 detik...'), findsOneWidget);
+    expect(find.textContaining('Membuka lembar pengumuman hasil dalam 5 detik...'), findsOneWidget);
 
     // Fast-forward remaining 5 seconds
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ujian Dihentikan & Dikumpulkan Otomatis!'), findsNothing);
+    expect(find.text('Sesi Ujian Selesai'), findsNothing);
   });
 }

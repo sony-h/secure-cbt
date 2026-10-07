@@ -153,26 +153,28 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 16),
-                                      Text(
-                                        passed ? 'Selamat, Ujian Selesai!' : 'Ujian Telah Terkumpul!',
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: -0.5,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        resultAsync.value?['exam_title'] ?? 'Ujian Selesai',
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
+                                       Text(
+                                         passed ? 'Selamat, Ujian Selesai!' : 'Ujian Telah Terkumpul!',
+                                         textAlign: TextAlign.center,
+                                         style: const TextStyle(
+                                           fontSize: 22,
+                                           fontWeight: FontWeight.w900,
+                                           letterSpacing: -0.5,
+                                           decoration: TextDecoration.none,
+                                           color: AppColors.textPrimary,
+                                         ),
+                                       ),
+                                       const SizedBox(height: 4),
+                                       Text(
+                                         resultAsync.value?['exam_title'] ?? 'Ujian Selesai',
+                                         textAlign: TextAlign.center,
+                                         style: const TextStyle(
+                                           fontSize: 14,
+                                           fontWeight: FontWeight.w600,
+                                           decoration: TextDecoration.none,
+                                           color: AppColors.primary,
+                                         ),
+                                       ),
                                     ],
                                   ),
                                 ),
@@ -261,54 +263,60 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
                                 const SizedBox(height: 22),
 
-                                // Summary Breakdown Section
-                                const Text(
-                                  'Statistik Pengerjaan',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -0.2,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                AppCard(
-                                  padding: const EdgeInsets.all(18),
-                                  child: Column(
-                                    children: [
-                                      _SummaryRow(
-                                        icon: Icons.check_circle_rounded,
-                                        iconColor: AppColors.success,
-                                        label: 'Jawaban Benar',
-                                        value: '${resultAsync.value?['correct_count'] ?? 0}',
-                                      ),
-                                      const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 12),
-                                        child: Divider(height: 1, color: AppColors.border),
-                                      ),
-                                      _SummaryRow(
-                                        icon: Icons.cancel_rounded,
-                                        iconColor: AppColors.error,
-                                        label: 'Jawaban Salah',
-                                        value: '${resultAsync.value?['wrong_count'] ?? 0}',
-                                      ),
-                                      if (resultAsync.value?['essay_score'] != null) ...[
-                                        const Padding(
-                                          padding: EdgeInsets.symmetric(vertical: 12),
-                                          child: Divider(height: 1, color: AppColors.border),
-                                        ),
-                                        _SummaryRow(
-                                          icon: Icons.edit_note_rounded,
-                                          iconColor: AppColors.primary,
-                                          label: 'Nilai Esai Guru',
-                                          value: ((resultAsync.value?['essay_score'] ?? 0.0) as num).toStringAsFixed(1),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
+                                 // Summary Breakdown Section
+                                 const Text(
+                                   'Statistik Pengerjaan',
+                                   style: TextStyle(
+                                     fontSize: 14,
+                                     fontWeight: FontWeight.w700,
+                                     letterSpacing: -0.2,
+                                     decoration: TextDecoration.none,
+                                     color: AppColors.textPrimary,
+                                   ),
+                                 ),
+                                 const SizedBox(height: 10),
 
-                                const SizedBox(height: 32),
+                                 // Separated Bento Metric Tiles (No rigid dividers!)
+                                 Row(
+                                   children: [
+                                     Expanded(
+                                       child: _BentoStatTile(
+                                         icon: Icons.check_circle_rounded,
+                                         label: 'Jawaban Benar',
+                                         value: '${resultAsync.value?['correct_count'] ?? 0}',
+                                         iconColor: AppColors.success,
+                                         backgroundColor: const Color(0xFFECFDF5),
+                                         borderColor: const Color(0xFFA7F3D0),
+                                       ),
+                                     ),
+                                     const SizedBox(width: 12),
+                                     Expanded(
+                                       child: _BentoStatTile(
+                                         icon: Icons.cancel_rounded,
+                                         label: 'Jawaban Salah',
+                                         value: '${resultAsync.value?['wrong_count'] ?? 0}',
+                                         iconColor: AppColors.error,
+                                         backgroundColor: const Color(0xFFFEF2F2),
+                                         borderColor: const Color(0xFFFECACA),
+                                       ),
+                                     ),
+                                   ],
+                                 ),
+
+                                 if (resultAsync.value?['essay_score'] != null) ...[
+                                   const SizedBox(height: 12),
+                                   _BentoStatTile(
+                                     icon: Icons.edit_note_rounded,
+                                     label: 'Nilai Esai Guru',
+                                     value: ((resultAsync.value?['essay_score'] ?? 0.0) as num).toStringAsFixed(1),
+                                     iconColor: AppColors.primary,
+                                     backgroundColor: const Color(0xFFEEF2FF),
+                                     borderColor: const Color(0xFFC7D2FE),
+                                     isFullWidth: true,
+                                   ),
+                                 ],
+
+                                 const SizedBox(height: 32),
 
                                 // Back to Home Button
                                 BouncingButton(
@@ -349,51 +357,127 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   }
 }
 
-class _SummaryRow extends StatelessWidget {
+class _BentoStatTile extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
+  final Color backgroundColor;
+  final Color borderColor;
   final String label;
   final String value;
+  final bool isFullWidth;
 
-  const _SummaryRow({
+  const _BentoStatTile({
     required this.icon,
     required this.iconColor,
+    required this.backgroundColor,
+    required this.borderColor,
     required this.label,
     required this.value,
+    this.isFullWidth = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(7),
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: iconColor, size: 18),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-            fontSize: 13,
-          ),
-        ),
-        const Spacer(),
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-            fontSize: 15,
-            fontFeatures: [FontFeature.tabularFigures()],
-          ),
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1.2),
+        boxShadow: AppShadows.card,
+      ),
+      child: isFullWidth
+          ? Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: iconColor.withValues(alpha: 0.15),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.none,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                          decoration: TextDecoration.none,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          color: iconColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: iconColor.withValues(alpha: 0.15),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon, color: iconColor, size: 20),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.6,
+                    decoration: TextDecoration.none,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: iconColor,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.none,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

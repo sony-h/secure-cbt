@@ -18,6 +18,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
   final LocalDatabase _db;
   bool _timerPaused = false;
   bool _isAppPaused = false;
+  bool _hasWindowFocus = true;
   DateTime? _lastViolationTime;
   String? _lastViolationEvent;
 
@@ -33,6 +34,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
     _autosaveTimer?.cancel();
     _focusGraceTimer?.cancel();
     _isAppPaused = false;
+    _hasWindowFocus = true;
     _lastViolationTime = null;
     _lastViolationEvent = null;
     state = state.copyWith(
@@ -51,6 +53,8 @@ class ExamNotifier extends StateNotifier<ExamState> {
       isDualScreenBlocked: false,
       isFocusLostBlocked: false,
       isFocusViolationAckPending: false,
+      isWarningOverlayActive: false,
+      currentViolationEvent: null,
     );
     state = state.copyWith(isLoading: false);
     _dio = dio;
@@ -120,17 +124,33 @@ class ExamNotifier extends StateNotifier<ExamState> {
       // When the app is minimized / sent to background, cancel any pending status bar timer.
       // App minimization is the primary event and takes full precedence over window focus.
       _focusGraceTimer?.cancel();
-      if (state.isFocusLostBlocked && !state.isFocusViolationAckPending) {
+      if (state.isFocusLostBlocked && !state.isWarningOverlayActive) {
         state = state.copyWith(isFocusLostBlocked: false);
       }
     }
   }
 
+  void triggerWarningOverlay(String event) {
+    if (state.isSubmitted) return;
+    pauseTimer();
+    state = state.copyWith(
+      isWarningOverlayActive: true,
+      currentViolationEvent: event,
+      isFocusLostBlocked: false,
+    );
+  }
+
   void setWindowFocus(bool hasFocus) {
+    _hasWindowFocus = hasFocus;
     if (state.isSubmitted) return;
     if (_isAppPaused) return;
 
     if (!hasFocus) {
+      if (state.isWarningOverlayActive) {
+        // Warning overlay is already active and counting down.
+        // It will inspect _hasWindowFocus when the countdown ends.
+        return;
+      }
       if (state.isFocusLostBlocked) return;
       state = state.copyWith(isFocusLostBlocked: true);
       pauseTimer();
@@ -138,31 +158,53 @@ class ExamNotifier extends StateNotifier<ExamState> {
       _focusGraceTimer?.cancel();
       _focusGraceTimer = Timer(const Duration(milliseconds: 1000), () {
         if (!state.isFocusLostBlocked || state.isSubmitted || _isAppPaused) return;
-        state = state.copyWith(isFocusViolationAckPending: true);
+        state = state.copyWith(
+          isWarningOverlayActive: true,
+          currentViolationEvent: 'STATUS_BAR_EXPANDED',
+          isFocusLostBlocked: false,
+        );
         logViolation('STATUS_BAR_EXPANDED');
       });
     } else {
       _focusGraceTimer?.cancel();
-      // If no violation was logged yet (accidental touch restored < 1000ms),
-      // dismiss the curtain immediately without penalty.
-      if (!state.isFocusViolationAckPending) {
+      // If no warning overlay was triggered yet (accidental touch restored < 1000ms),
+      // dismiss the peek curtain immediately without penalty.
+      if (!state.isWarningOverlayActive) {
         if (!state.isFocusLostBlocked) return;
         state = state.copyWith(isFocusLostBlocked: false);
         resumeTimer();
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       }
-      // If a violation was logged, keep the curtain locked until the student explicitly acknowledges it.
     }
   }
 
-  void acknowledgeFocusViolation() {
+  void finishWarningOverlayCountdown() {
     if (state.isSubmitted) return;
+
+    if (!_hasWindowFocus) {
+      // Anti-loophole check: student is STILL dragging/expanding the notification panel!
+      // Reset cooldown so the completion penalty is guaranteed to register immediately.
+      _lastViolationTime = null;
+      logViolation('STATUS_BAR_EXPANDED');
+      state = state.copyWith(
+        isWarningOverlayActive: true,
+        currentViolationEvent: 'STATUS_BAR_EXPANDED',
+      );
+      return;
+    }
+
     state = state.copyWith(
+      isWarningOverlayActive: false,
       isFocusLostBlocked: false,
       isFocusViolationAckPending: false,
+      currentViolationEvent: null,
     );
     resumeTimer();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  void acknowledgeFocusViolation() {
+    finishWarningOverlayCountdown();
   }
 
   Future<void> saveAnswer({

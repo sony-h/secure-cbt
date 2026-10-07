@@ -20,7 +20,6 @@ import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submit_dial
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_submit_handler.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_violation_handler.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
-import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 import 'package:secure_cbt_mobile/core/security/screen_security.dart';
 
 class ExamScreen extends ConsumerStatefulWidget {
@@ -227,59 +226,59 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final examState = ref.read(examProvider);
-        final ok = await showSubmitDialog(context, answered: examState.answers.length, total: examState.questions.length, isWarning: true);
-        if (ok == true && _submitHandler != null) {
-          final handler = _submitHandler!;
-          if (!handler.isSubmitting) handler.submitExam();
-        }
+      onPopInvokedWithResult: (didPop, result) {
+        // Back gesture / hardware button is completely disabled during exam
       },
       child: Scaffold(
         backgroundColor: AppColors.canvas,
         appBar: ExamAppBar(title: widget.examTitle, examState: examState),
         body: examState.isDualScreenBlocked
             ? _DualScreenBlockedOverlay(examState: examState)
-            : examState.isFocusLostBlocked
-                ? _FocusLostBlockedOverlay(
+            : examState.isWarningOverlayActive
+                ? _WarningDangerOverlay(
                     examState: examState,
-                    onAcknowledge: () {
-                      ref.read(examProvider.notifier).acknowledgeFocusViolation();
+                    onCountdownComplete: () {
+                      ref.read(examProvider.notifier).finishWarningOverlayCountdown();
                     },
                   )
-                : examState.isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : examState.questions.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.assignment_late, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
-                                const SizedBox(height: 16),
-                                const Text('Tidak ada soal tersedia'),
-                              ],
-                            ),
-                          )
-                        : PageView.builder(
-                            controller: _pageController,
-                            itemCount: examState.questions.length,
-                            onPageChanged: (i) => ref.read(examProvider.notifier).setCurrentIndex(i),
-                            itemBuilder: (context, index) => ExamQuestionCard(
-                              question: examState.questions[index],
-                              examState: examState,
-                              index: index,
-                              onSaveAnswer: (qId, answer) {
-                                ref.read(examProvider.notifier).saveAnswer(
-                                  questionId: qId, answer: answer, dio: _dio, onSaved: () {},
-                                );
-                              },
-                              onToggleFlag: (qId) {
-                                ref.read(examProvider.notifier).toggleFlag(qId);
-                              },
-                            ),
-                          ),
-        bottomNavigationBar: (examState.isDualScreenBlocked || examState.isFocusLostBlocked || examState.isLoading || examState.questions.isEmpty)
+                : examState.isFocusLostBlocked
+                    ? _FocusLostBlockedOverlay(examState: examState)
+                    : examState.isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : examState.questions.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.assignment_late, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+                                    const SizedBox(height: 16),
+                                    const Text('Tidak ada soal tersedia'),
+                                  ],
+                                ),
+                              )
+                            : PageView.builder(
+                                controller: _pageController,
+                                itemCount: examState.questions.length,
+                                onPageChanged: (i) => ref.read(examProvider.notifier).setCurrentIndex(i),
+                                itemBuilder: (context, index) => ExamQuestionCard(
+                                  question: examState.questions[index],
+                                  examState: examState,
+                                  index: index,
+                                  onSaveAnswer: (qId, answer) {
+                                    ref.read(examProvider.notifier).saveAnswer(
+                                      questionId: qId, answer: answer, dio: _dio, onSaved: () {},
+                                    );
+                                  },
+                                  onToggleFlag: (qId) {
+                                    ref.read(examProvider.notifier).toggleFlag(qId);
+                                  },
+                                ),
+                              ),
+        bottomNavigationBar: (examState.isDualScreenBlocked ||
+                examState.isWarningOverlayActive ||
+                examState.isFocusLostBlocked ||
+                examState.isLoading ||
+                examState.questions.isEmpty)
             ? null
             : ExamBottomBar(
                 total: examState.questions.length,
@@ -438,35 +437,95 @@ class _DualScreenBlockedOverlay extends StatelessWidget {
   }
 }
 
-class _FocusLostBlockedOverlay extends StatefulWidget {
+class _FocusLostBlockedOverlay extends StatelessWidget {
   final ExamState examState;
-  final VoidCallback onAcknowledge;
 
-  const _FocusLostBlockedOverlay({
+  const _FocusLostBlockedOverlay({required this.examState});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.canvas,
+      width: double.infinity,
+      height: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceSubtle,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.border, width: 2),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.notifications_paused_rounded,
+                    size: 38,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Bilah Status / Panel Notifikasi Terdeteksi',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Akses ke soal ditutup sementara. Geser kembali ke atas sekarang untuk melanjutkan ujian.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WarningDangerOverlay extends StatefulWidget {
+  final ExamState examState;
+  final VoidCallback onCountdownComplete;
+
+  const _WarningDangerOverlay({
     required this.examState,
-    required this.onAcknowledge,
+    required this.onCountdownComplete,
   });
 
   @override
-  State<_FocusLostBlockedOverlay> createState() => _FocusLostBlockedOverlayState();
+  State<_WarningDangerOverlay> createState() => _WarningDangerOverlayState();
 }
 
-class _FocusLostBlockedOverlayState extends State<_FocusLostBlockedOverlay> {
+class _WarningDangerOverlayState extends State<_WarningDangerOverlay> {
   int _countdown = 10;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    if (widget.examState.isFocusViolationAckPending) {
-      _startCountdown();
-    }
+    _startCountdown();
   }
 
   @override
-  void didUpdateWidget(covariant _FocusLostBlockedOverlay oldWidget) {
+  void didUpdateWidget(covariant _WarningDangerOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.examState.isFocusViolationAckPending && widget.examState.isFocusViolationAckPending) {
+    // If a new violation strike was logged (e.g. anti-loophole retrigger), restart countdown!
+    if (oldWidget.examState.warningCount != widget.examState.warningCount) {
       _startCountdown();
     }
   }
@@ -490,6 +549,7 @@ class _FocusLostBlockedOverlayState extends State<_FocusLostBlockedOverlay> {
           _countdown = 0;
         });
         timer.cancel();
+        widget.onCountdownComplete();
       }
     });
   }
@@ -502,196 +562,176 @@ class _FocusLostBlockedOverlayState extends State<_FocusLostBlockedOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final isAckPending = widget.examState.isFocusViolationAckPending;
+    final isMinimized = widget.examState.currentViolationEvent == 'APP_MINIMIZED';
+    final reasonTitle = isMinimized
+        ? 'Aplikasi Diminimalkan / Pindah Aplikasi'
+        : 'Bilah Status / Panel Notifikasi Dibuka';
+    final reasonDesc = isMinimized
+        ? 'Anda terdeteksi meminimalkan aplikasi Secure CBT atau beralih ke aplikasi lain selama ujian berlangsung.'
+        : 'Anda terdeteksi menarik bilah status atau membuka panel notifikasi di atas layar ujian.';
 
     return Container(
-      color: AppColors.canvas,
       width: double.infinity,
       height: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF7F1D1D), Color(0xFF991B1B), Color(0xFF881337)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: Center(
         child: SingleChildScrollView(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Warning Emblem
+              // Pulsing Danger Emblem
               Container(
-                width: 80,
-                height: 80,
+                width: 86,
+                height: 86,
                 decoration: BoxDecoration(
-                  color: AppColors.errorContainer,
+                  color: Colors.white.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: AppColors.error.withValues(alpha: 0.3),
-                    width: 2,
+                    color: Colors.white.withValues(alpha: 0.35),
+                    width: 3,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.error.withValues(alpha: 0.15),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
-                child: Center(
+                child: const Center(
                   child: Icon(
-                    isAckPending ? Icons.warning_amber_rounded : Icons.notifications_paused_rounded,
-                    size: 42,
-                    color: AppColors.error,
+                    Icons.gavel_rounded,
+                    size: 46,
+                    color: Colors.white,
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
 
               // Title
-              Text(
-                isAckPending
-                    ? 'Peringatan Pelanggaran Terdeteksi!'
-                    : 'Bilah Status / Panel Notifikasi Terdeteksi!',
+              const Text(
+                'PERINGATAN KEAMANAN UJIAN!',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.3,
+                  color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
-              // Description
-              Text(
-                isAckPending
-                  ? 'Aplikasi mendeteksi interaksi dengan bilah status atau panel notifikasi. Sistem telah mencatat 1 poin pelanggaran dan waktu ujian Anda dijeda.'
-                  : 'Aplikasi mendeteksi interaksi dengan bilah status atau panel notifikasi. Akses ke soal ditutup sementara demi menjaga integritas ujian.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  height: 1.5,
-                  color: AppColors.textSecondary,
+              // Strike Counter Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
+                ),
+                child: Text(
+                  'PELANGGARAN #${widget.examState.warningCount} DARI ${widget.examState.warningLimit}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Violation count badge
+              // Detailed Reason Card
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.errorContainer,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                  color: Colors.black.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                 ),
-                child: Text(
-                  'Peringatan Pelanggaran: ${widget.examState.warningCount}/${widget.examState.warningLimit}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.error,
-                  ),
+                child: Column(
+                  children: [
+                    Text(
+                      reasonTitle,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFFFDE047), // Amber warning
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      reasonDesc,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        height: 1.45,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Guilt & Proctor Report Notice
+              Text(
+                'Pelanggaran ini telah dicatat dan dilaporkan langsung ke pengawas ujian secara real-time. Layar Anda terkunci selama 10 detik sebagai sanksi penalti.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.5,
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontWeight: FontWeight.w400,
                 ),
               ),
               const SizedBox(height: 24),
 
-              // Action Box or Acknowledgment Button
-              if (!isAckPending)
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                    boxShadow: AppShadows.card,
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.swipe_up_rounded,
-                        color: AppColors.primary,
-                        size: 24,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Geser kembali ke atas atau tutup panel notifikasi sekarang untuk melanjutkan ujian.',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                            height: 1.35,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else ...[
-                if (_countdown > 0)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceSubtle,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textMuted),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Tunggu ($_countdown detik)...',
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+              // Automatic Timer Countdown Box (No Click Button!)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     ),
-                  )
-                else
-                  BouncingButton(
-                    onTap: widget.onAcknowledge,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.25),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
-                            SizedBox(width: 8),
-                            Text(
-                              'Saya Mengerti & Lanjutkan Ujian',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13.5,
-                              ),
-                            ),
-                          ],
+                    const SizedBox(width: 14),
+                    Flexible(
+                      child: Text(
+                        'Layar ujian akan dibuka kembali otomatis dalam $_countdown detik...',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
                         ),
                       ),
                     ),
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ],
           ),
         ),

@@ -95,7 +95,7 @@ class ExamSubmitHandler {
       await showSubmissionTransitionDialog(
         context,
         isAutoSubmit: false,
-        durationSeconds: 5,
+        durationSeconds: 10,
       );
       if (context.mounted) context.goNamed(RouteNames.result, extra: {'sessionId': sessionId});
     }

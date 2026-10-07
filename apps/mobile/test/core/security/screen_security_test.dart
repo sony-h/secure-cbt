@@ -123,7 +123,7 @@ void main() {
       expect(violations, isEmpty);
     });
 
-    test('focus lost past 1000ms logs STATUS_BAR_EXPANDED violation and requires explicit acknowledgment to unblock', () async {
+    test('focus lost past 1000ms logs STATUS_BAR_EXPANDED violation and triggers danger warning overlay', () async {
       final violations = <String>[];
       notifier.setOnViolation((event, count, sessionId) {
         violations.add(event);
@@ -132,27 +132,31 @@ void main() {
       notifier.setWindowFocus(false);
 
       expect(notifier.state.isFocusLostBlocked, isTrue);
-      expect(notifier.state.isFocusViolationAckPending, isFalse);
+      expect(notifier.state.isWarningOverlayActive, isFalse);
       expect(notifier.state.warningCount, 0);
 
       // Wait beyond the 1000ms grace period
       await Future.delayed(const Duration(milliseconds: 1100));
 
-      expect(notifier.state.isFocusLostBlocked, isTrue);
-      expect(notifier.state.isFocusViolationAckPending, isTrue);
+      expect(notifier.state.isWarningOverlayActive, isTrue);
       expect(notifier.state.warningCount, 1);
       expect(violations, ['STATUS_BAR_EXPANDED']);
 
-      // Restoring window focus does NOT auto-dismiss the warning curtain
-      notifier.setWindowFocus(true);
-      expect(notifier.state.isFocusLostBlocked, isTrue);
-      expect(notifier.state.isFocusViolationAckPending, isTrue);
+      // 1. If countdown ends but window focus is STILL lost (status bar still down):
+      // Anti-loophole: re-triggers violation!
+      notifier.finishWarningOverlayCountdown();
+      expect(notifier.state.isWarningOverlayActive, isTrue);
+      expect(notifier.state.warningCount, 2);
+      expect(violations, ['STATUS_BAR_EXPANDED', 'STATUS_BAR_EXPANDED']);
 
-      // Student taps "Saya Mengerti & Lanjutkan Ujian"
-      notifier.acknowledgeFocusViolation();
-      expect(notifier.state.isFocusLostBlocked, isFalse);
-      expect(notifier.state.isFocusViolationAckPending, isFalse);
-      expect(notifier.state.warningCount, 1);
+      // 2. Student now closes status bar (window focus restored)
+      notifier.setWindowFocus(true);
+      expect(notifier.state.isWarningOverlayActive, isTrue);
+
+      // 3. Countdown completes while window focus is restored:
+      notifier.finishWarningOverlayCountdown();
+      expect(notifier.state.isWarningOverlayActive, isFalse);
+      expect(notifier.state.warningCount, 2);
     });
 
     test('app pause cancels focus grace timer and debounces cascading violations to prevent double warnings', () async {

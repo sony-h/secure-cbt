@@ -1,8 +1,8 @@
 class AppInfo {
   static const String appName = 'Secure CBT';
-  static const String version = '1.3.0';
-  static const int buildNumber = 9;
-  static const String versionString = '1.3.0+9';
+  static const String version = '1.3.1';
+  static const int buildNumber = 10;
+  static const String versionString = '1.3.1+10';
   static const String brand = 'Orivastra';
   static const String tagline = 'From Origin to the Stars.';
   static const String builtBy = 'Built with care by Orivastra';

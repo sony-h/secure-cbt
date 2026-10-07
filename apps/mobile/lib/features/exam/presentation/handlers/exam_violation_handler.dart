@@ -26,31 +26,22 @@ class ExamViolationHandler {
         if (!_violationPending) {
           _violationPending = true;
           notifier.logViolation('APP_MINIMIZED');
-          _showSnackbar('Peringatan! Aplikasi tidak boleh diminimalkan.');
         }
         break;
       case AppLifecycleState.resumed:
-        _violationPending = false;
-        notifier.setAppPaused(false);
-        notifier.resumeTimer();
+        if (_violationPending) {
+          _violationPending = false;
+          notifier.setAppPaused(false);
+          notifier.triggerWarningOverlay('APP_MINIMIZED');
+        } else {
+          notifier.setAppPaused(false);
+          notifier.resumeTimer();
+        }
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
         break;
       case AppLifecycleState.inactive:
       case AppLifecycleState.detached:
         break;
     }
-  }
-
-  void _showSnackbar(String message) {
-    if (!context.mounted) return;
-    final theme = Theme.of(context);
-    final examState = ref.read(examProvider);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$message (Peringatan ${examState.warningCount}/${examState.warningLimit})'),
-        backgroundColor: theme.colorScheme.error,
-        duration: const Duration(seconds: 3),
-      ),
-    );
   }
 }
