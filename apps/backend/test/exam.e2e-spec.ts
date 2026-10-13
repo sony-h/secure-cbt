@@ -34,23 +34,20 @@ describe('Exam Flow (e2e)', () => {
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
 
-    // Setup initial data
-    await prisma.refreshToken.deleteMany({});
-    await prisma.score.deleteMany({});
-    await prisma.answer.deleteMany({});
-    await prisma.sessionLog.deleteMany({});
-    await prisma.examSession.deleteMany({});
-    await prisma.examClass.deleteMany({});
-    await prisma.examQuestion.deleteMany({});
-    await prisma.examPackage.deleteMany({});
-    await prisma.examToken.deleteMany({});
-    await prisma.exam.deleteMany({});
-    await prisma.questionOption.deleteMany({});
-    await prisma.question.deleteMany({});
-    await prisma.questionBank.deleteMany({});
-    await prisma.teacherSubject.deleteMany({});
-    await prisma.student.deleteMany({});
-    
+    // Setup initial data - ONLY cleanup test-specific artifacts
+    const testExams = await prisma.exam.findMany({ where: { title: 'Ujian Matematika Harian' } });
+    for (const e of testExams) {
+      await prisma.score.deleteMany({ where: { exam_session: { exam_id: e.id } } });
+      await prisma.answer.deleteMany({ where: { exam_session: { exam_id: e.id } } });
+      await prisma.sessionLog.deleteMany({ where: { exam_session: { exam_id: e.id } } });
+      await prisma.examSession.deleteMany({ where: { exam_id: e.id } });
+      await prisma.examClass.deleteMany({ where: { exam_id: e.id } });
+      await prisma.examQuestion.deleteMany({ where: { exam_id: e.id } });
+      await prisma.examPackage.deleteMany({ where: { exam_id: e.id } });
+      await prisma.examToken.deleteMany({ where: { exam_id: e.id } });
+      await prisma.exam.delete({ where: { id: e.id } });
+    }
+
     // Cleanup any teachers and users with test usernames to prevent unique key constraints
     const users = await prisma.user.findMany({
       where: {
@@ -206,8 +203,8 @@ describe('Exam Flow (e2e)', () => {
   }, 30000);
 
   afterAll(async () => {
-    await prisma.$disconnect();
-    await app.close();
+    if (prisma) await prisma.$disconnect();
+    if (app) await app.close();
   });
 
   let createdExamId: string;

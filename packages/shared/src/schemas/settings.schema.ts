@@ -8,6 +8,8 @@ export const updateSettingsSchema = z.object({
   autosave_interval: z.number().int().min(1, { message: 'Minimal 1 detik' }).max(60, { message: 'Maksimal 60 detik' }).optional(),
   session_timeout: z.number().int().min(5, { message: 'Minimal 5 menit' }).max(120, { message: 'Maksimal 120 menit' }).optional(),
   passing_grade: z.number().int().min(0, { message: 'Nilai minimal 0' }).max(100, { message: 'Nilai maksimal 100' }).optional(),
+  template_docx_url: z.string().nullable().optional(),
+  template_xlsx_url: z.string().nullable().optional(),
 });
 
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;

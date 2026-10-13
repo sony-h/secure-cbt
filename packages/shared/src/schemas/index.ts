@@ -11,3 +11,4 @@ export * from './monitoring.schema';
 export * from './grading.schema';
 export * from './report.schema';
 export * from './settings.schema';
+export * from './question-import.schema';

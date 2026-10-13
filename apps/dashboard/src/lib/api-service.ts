@@ -83,6 +83,16 @@ export const questionBankApi = {
   updateQuestion: (id: string, data: Partial<{ type: string; content: string; image_url: string | null; difficulty: string; explanation: string | null; options: { content: string; is_correct: boolean; image_url?: string | null }[]; tags: string[] }>) => api.patch(`/questions/${id}`, data),
   deleteQuestion: (id: string) => api.delete(`/questions/${id}`),
   duplicateQuestion: (id: string) => api.post(`/questions/${id}/duplicate`),
+  previewImport: (formData: FormData) =>
+    api.post('/questions/import/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  confirmImport: (data: { bank_id: string; questions: any[] }) =>
+    api.post('/questions/import/confirm', data),
+  downloadTemplateWord: () =>
+    api.get('/questions/template/word', { responseType: 'blob' }),
+  downloadTemplateExcel: () =>
+    api.get('/questions/template/excel', { responseType: 'blob' }),
 };
 
 export const uploadApi = {
@@ -113,4 +123,14 @@ export const gradingApi = {
 export const settingsApi = {
   get: () => api.get('/settings'),
   update: (data: Record<string, unknown>) => api.patch('/settings', data),
+  uploadWordTemplate: (formData: FormData) =>
+    api.post('/settings/templates/word', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  uploadExcelTemplate: (formData: FormData) =>
+    api.post('/settings/templates/excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  resetWordTemplate: () => api.delete('/settings/templates/word'),
+  resetExcelTemplate: () => api.delete('/settings/templates/excel'),
 };

@@ -494,6 +494,8 @@ model Setting {
   autosave_interval   Int      @default(5)
   session_timeout     Int      @default(30)
   passing_grade       Int      @default(70)
+  template_docx_url   String?  @db.Text
+  template_xlsx_url   String?  @db.Text
   created_at          DateTime @default(now())
   updated_at          DateTime @updatedAt
 

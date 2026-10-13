@@ -23,11 +23,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, Copy, Image as ImageIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, Image as ImageIcon, FileUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import { MathRenderer } from '@/components/ui/math-renderer';
 import { questionTypes, difficultyLevels } from '@/components/questions/question-modal';
+import { ImportQuestionsModal } from '@/components/questions/import-questions-modal';
 
 interface QuestionBank {
   id: string;
@@ -62,6 +63,7 @@ function QuestionsPageContent() {
   const queryClient = useQueryClient();
   const [newBankName, setNewBankName] = useState('');
   const [newBankSubject, setNewBankSubject] = useState('');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const { data: banks } = useQuery({
     queryKey: ['question-banks'],
@@ -213,10 +215,16 @@ function QuestionsPageContent() {
           <h1 className="text-3xl font-bold tracking-tight">Bank Soal</h1>
           <p className="text-muted-foreground">Kelola bank soal dan pertanyaan ujian</p>
         </div>
-        <Button onClick={handleAdd}>
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Soal
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+            <FileUp className="mr-2 h-4 w-4" />
+            Import Soal
+          </Button>
+          <Button onClick={handleAdd}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Soal
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="questions" className="space-y-4">
@@ -325,6 +333,12 @@ function QuestionsPageContent() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ImportQuestionsModal
+        open={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
+        banks={banks || []}
+      />
     </div>
   );
 }

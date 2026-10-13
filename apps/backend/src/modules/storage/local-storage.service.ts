@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -10,10 +10,10 @@ export class LocalStorageService implements IStorageService {
   private readonly uploadRootDir: string;
   private readonly baseUrl: string;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(@Optional() private readonly config?: ConfigService) {
     this.uploadRootDir = path.join(process.cwd(), 'storage', 'uploads');
-    this.baseUrl = (this.config.get<string>('API_URL') ||
-      this.config.get<string>('APP_URL') ||
+    this.baseUrl = (this.config?.get<string>('API_URL') ||
+      this.config?.get<string>('APP_URL') ||
       '').replace(/\/+$/, '');
 
     if (!fs.existsSync(this.uploadRootDir)) {

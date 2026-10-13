@@ -1,22 +1,93 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Req,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { z } from 'zod';
 import { QuestionBankService } from './question-bank.service';
+import { QuestionImportService } from './question-import.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../../common/guards/roles.guard';
-import { UserRole, createQuestionSchema, updateQuestionSchema, createQuestionBankSchema, PaginationQuery, QuestionType } from '@secure-cbt/shared';
+import {
+  UserRole,
+  createQuestionSchema,
+  updateQuestionSchema,
+  createQuestionBankSchema,
+  confirmImportQuestionsSchema,
+  PaginationQuery,
+  QuestionType,
+} from '@secure-cbt/shared';
 import type { AuthenticatedRequest } from '../../common/types';
 
 type CreateQuestionDto = z.infer<typeof createQuestionSchema>;
 type UpdateQuestionDto = z.infer<typeof updateQuestionSchema>;
 type CreateQuestionBankDto = z.infer<typeof createQuestionBankSchema>;
+type ConfirmImportQuestionsDto = z.infer<typeof confirmImportQuestionsSchema>;
 
 @ApiTags('questions')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('questions')
 export class QuestionBankController {
-  constructor(private readonly questionBankService: QuestionBankService) {}
+  constructor(
+    private readonly questionBankService: QuestionBankService,
+    private readonly questionImportService: QuestionImportService,
+  ) {}
+
+  @Get('template/word')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Download Word question template' })
+  async downloadTemplateWord(@Res() res: Response) {
+    const file = await this.questionImportService.getTemplateFile('word');
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    res.send(file.buffer);
+  }
+
+  @Get('template/excel')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Download Excel question template' })
+  async downloadTemplateExcel(@Res() res: Response) {
+    const file = await this.questionImportService.getTemplateFile('excel');
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    res.send(file.buffer);
+  }
+
+  @Post('import/preview')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Preview and validate Word/Excel questions import' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file'))
+  async previewImport(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('bank_id') bankId?: string,
+  ) {
+    const data = await this.questionImportService.preview(file, bankId);
+    return { success: true, message: 'File berhasil dianalisis', data };
+  }
+
+  @Post('import/confirm')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Confirm and insert parsed questions into bank' })
+  async confirmImport(@Body() body: ConfirmImportQuestionsDto) {
+    const validated = confirmImportQuestionsSchema.parse(body);
+    const data = await this.questionImportService.confirm(validated);
+    return { success: true, message: 'Soal berhasil diimpor ke bank soal', data };
+  }
 
   @Get('banks')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)

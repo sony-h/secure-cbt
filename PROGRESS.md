@@ -5,10 +5,10 @@
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
 **Current Version:** `v1.4.0` (Mobile Android Build: `1.4.0+11`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 25 - Exam Review & Explanation, Navigation Hardening, and Security Copywriting  
+**Current Phase:** Phase 26 - Word (.docx) & Excel (.xlsx) Question Importer & Admin Master Template Manager  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
-**Last Updated:** 2026-10-07
+**Last Updated:** 2026-10-08
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -1121,6 +1121,55 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 ### 4. Copywriting Refinements
 - **Empty History:** Shortened to balanced copy: *"Hasil dari ujian yang telah selesai akan tersimpan dan tampil di laman ini."*.
 - **Exam Rules & Security Checklist:** Modernized 6 security protocol rules on `TokenScreen` detailing kiosk isolation, status bar lock penalties, screenshot blocking, proctor telemetry, auto-save encryption, and auto-submit thresholds.
+
+---
+
+## Phase 26 — Word (.docx) & Excel (.xlsx) Question Importer & Admin Master Template Manager — COMPLETE
+
+**Target Platform:** Full-Stack (Backend + Shared + Dashboard)  
+**Standard:** Indonesian CBT Grid Standard (BIMASOFT / CANDY CBT / BEESMART)  
+**Date:** 2026-10-08
+
+### 1. Database & Domain Schema
+- Added `template_docx_url` and `template_xlsx_url` (`TEXT`) nullable columns to `Setting` model in `schema.prisma`.
+- Created Prisma migration `20261008000000_add_template_urls_to_settings`.
+- Added shared Zod validation schemas in `packages/shared/src/schemas/question-import.schema.ts` (`importQuestionOptionSchema`, `importQuestionItemSchema`, `previewImportQuestionsResponseSchema`, `confirmImportQuestionsSchema`).
+- Updated `updateSettingsSchema` in `settings.schema.ts`.
+
+### 2. High-Precision Parsers & Image Extractor
+- **`WordParserService`:**
+  - Converts Word `.docx` to structured HTML via `mammoth`.
+  - Automatically intercepts embedded images/diagrams from table cells and uploads them to WebP storage via `StorageService`.
+  - Parses 2-column table grids (Row 1: Question, Rows 2–6: Options A–E, Row 7: KUNCI, Row 8: PEMBAHASAN).
+  - Built-in fallback paragraph parser for unstructured Aiken/ExamView format text.
+- **`ExcelParserService`:**
+  - Reads worksheets baris demi baris via `xlsx` (SheetJS).
+  - Flexible case-insensitive header mapping (`Soal`/`Pertanyaan`, `Opsi A`–`E`, `Kunci`/`Jawaban`, `Pembahasan`, `Tingkat Kesulitan`).
+- **Bundled Master Templates:**
+  - `default-template-soal.docx`: Standard table grid with Calibri font, explicit column widths (1.4cm & 14.6cm), instructions, and sample questions.
+  - `default-template-soal.xlsx`: 8-column spreadsheet with predefined column widths and sample questions.
+
+### 3. Backend Question Importer & Template Management Endpoints
+- `POST /api/v1/questions/import/preview`: In-memory file analysis returning detected questions count, validity flag, and per-item error reasons.
+- `POST /api/v1/questions/import/confirm`: Atomic `$transaction` batch insert for questions and options into the target question bank.
+- `GET /api/v1/questions/template/word`: Downloads active school Word template.
+- `GET /api/v1/questions/template/excel`: Downloads active school Excel template.
+- `POST /api/v1/settings/templates/word` & `excel`: Admin-only master template upload.
+- `DELETE /api/v1/settings/templates/word` & `excel`: Admin-only reset to system default template.
+
+### 4. Dashboard Web Experience
+- **`ImportQuestionsModal` (`/dashboard/questions`):**
+  - Instant official template download buttons for Word & Excel.
+  - Target Question Bank dropdown selector.
+  - Drag-and-drop file upload zone supporting `.docx`, `.xlsx`, `.xls`.
+  - Live Validation & Preview Screen with summary cards (Total, Siap Diimpor, Butuh Perbaikan), question content, options pills with green badge on answer key, diagram image previews, and error alerts.
+- **Master Template Configuration Card (`/dashboard/settings`):**
+  - Dedicated administrator card displaying active template badges (*Template Kustom Aktif* vs *Bawaan Sistem*).
+  - Download, Upload New Template, and Reset to Default actions for both Word and Excel.
+
+### 5. Automated Verification
+- Unit test suite: **45/45 passing** (including Word & Excel parsers and real template verification).
+- Monorepo compile check: **0 errors** across shared, backend (`nest build`), and dashboard (`next build` across all 16 routes).
 
 ---
 

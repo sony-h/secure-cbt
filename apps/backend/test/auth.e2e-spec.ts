@@ -29,14 +29,7 @@ describe('Authentication (e2e)', () => {
     await app.init();
 
     prisma = moduleFixture.get<PrismaService>(PrismaService);
-  }, 20000);
 
-  afterAll(async () => {
-    await prisma.$disconnect();
-    await app.close();
-  });
-
-  beforeAll(async () => {
     // Clean up any leftover test users from previous runs
     await prisma.refreshToken.deleteMany({});
     
@@ -71,6 +64,11 @@ describe('Authentication (e2e)', () => {
       }
       await prisma.user.delete({ where: { id: u.id } });
     }
+  }, 20000);
+
+  afterAll(async () => {
+    if (prisma) await prisma.$disconnect();
+    if (app) await app.close();
   });
 
   it('/auth/login (POST) - login successfully', async () => {
@@ -102,17 +100,6 @@ describe('Authentication (e2e)', () => {
   });
 
   it('/auth/login (POST) - invalid password', async () => {
-    const passwordHash = await argon2.hash('password123');
-    await prisma.user.create({
-      data: {
-        username: 'test_student',
-        email: 'test_student_wrong@securecbt.id',
-        password_hash: passwordHash,
-        role: UserRole.STUDENT,
-        is_active: true,
-      },
-    });
-
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as Minio from 'minio';
 import { IStorageService, UploadResult } from './storage.interface';
@@ -10,14 +10,14 @@ export class S3StorageService implements IStorageService {
   private readonly bucketName: string;
   private readonly publicUrl: string;
 
-  constructor(private readonly config: ConfigService) {
-    const endPoint = this.config.get<string>('S3_ENDPOINT') || this.config.get<string>('MINIO_ENDPOINT') || 'localhost';
-    const port = Number(this.config.get<string>('S3_PORT') || this.config.get<string>('MINIO_PORT') || 9000);
-    const useSSL = this.config.get<string>('S3_USE_SSL') === 'true';
-    const accessKey = this.config.get<string>('S3_ACCESS_KEY') || this.config.get<string>('MINIO_ACCESS_KEY') || '';
-    const secretKey = this.config.get<string>('S3_SECRET_KEY') || this.config.get<string>('MINIO_SECRET_KEY') || '';
-    this.bucketName = this.config.get<string>('S3_BUCKET') || 'secure-cbt-media';
-    this.publicUrl = (this.config.get<string>('S3_PUBLIC_URL') || '').replace(/\/+$/, '');
+  constructor(@Optional() private readonly config?: ConfigService) {
+    const endPoint = this.config?.get<string>('S3_ENDPOINT') || this.config?.get<string>('MINIO_ENDPOINT') || 'localhost';
+    const port = Number(this.config?.get<string>('S3_PORT') || this.config?.get<string>('MINIO_PORT') || 9000);
+    const useSSL = this.config?.get<string>('S3_USE_SSL') === 'true';
+    const accessKey = this.config?.get<string>('S3_ACCESS_KEY') || this.config?.get<string>('MINIO_ACCESS_KEY') || '';
+    const secretKey = this.config?.get<string>('S3_SECRET_KEY') || this.config?.get<string>('MINIO_SECRET_KEY') || '';
+    this.bucketName = this.config?.get<string>('S3_BUCKET') || 'secure-cbt-media';
+    this.publicUrl = (this.config?.get<string>('S3_PUBLIC_URL') || '').replace(/\/+$/, '');
 
     if (accessKey && secretKey) {
       this.client = new Minio.Client({
