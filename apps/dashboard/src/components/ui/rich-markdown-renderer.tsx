@@ -123,7 +123,7 @@ export function RichMarkdownRenderer({
       if (piece.type === 'code') {
         const codeBlockMatch = piece.raw.match(/^```([a-zA-Z0-9_\-#+]*)\r?\n([\s\S]*?)```$/);
         const language = codeBlockMatch ? codeBlockMatch[1] || 'code' : 'code';
-        const code = codeBlockMatch ? codeBlockMatch[2] : '';
+        const code = codeBlockMatch && codeBlockMatch[2] ? codeBlockMatch[2] : '';
         return (
           <CodeBlock
             key={`cb-${pieceIdx}`}

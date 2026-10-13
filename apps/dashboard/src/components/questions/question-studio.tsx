@@ -33,6 +33,8 @@ import { toast } from 'sonner';
 import { EquationBuilderModal } from './equation-builder-modal';
 import { ImageDropzone } from './image-dropzone';
 import { QuestionPhonePreview } from './question-phone-preview';
+import { RichQuestionEditor } from './rich-question-editor';
+import { RichOptionEditor } from './rich-option-editor';
 
 export interface QuestionStudioData {
   id?: string;
@@ -487,30 +489,22 @@ export function QuestionStudio({
           {/* Card 2: Konten Pertanyaan & Gambar Stimulus */}
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold">2. Teks Pertanyaan & Stimulus</CardTitle>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleOpenEquationBuilder('content')}
-                  className="gap-1.5 text-xs text-primary border-primary/30 hover:bg-primary/5"
-                >
-                  <Sigma className="h-3.5 w-3.5 text-primary" />
-                  + Rumus Matematika
-                </Button>
+              <div>
+                <CardTitle className="text-base font-semibold">2. Teks Pertanyaan & Stimulus</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Mendukung Markdown, cuplikan kode program (Python, SQL, JS, dll.), rumus LaTeX, dan pemformatan teks lengkap.
+                </p>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Textarea */}
+              {/* Rich Question Editor */}
               <div className="space-y-1.5">
-                <textarea
-                  ref={contentTextareaRef}
+                <RichQuestionEditor
                   value={form.content}
-                  onChange={(e) => setForm({ ...form, content: e.target.value })}
-                  placeholder="Ketik teks pertanyaan di sini... Gunakan $rumus$ untuk rumus matematika inline atau $$rumus$$ untuk rumus blok."
-                  rows={5}
-                  className="w-full rounded-xl border border-input bg-background p-3.5 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-y"
+                  onChange={(val) => setForm({ ...form, content: val })}
+                  placeholder="Ketik teks pertanyaan atau potongan kode program di sini... Gunakan toolbar atau format Markdown."
+                  minHeight="220px"
+                  onOpenFormulaBuilder={() => handleOpenEquationBuilder('content')}
                 />
               </div>
 
@@ -778,10 +772,10 @@ export function QuestionStudio({
                           : 'border-border bg-card'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-start gap-3">
                         {/* Option Alphabet Circle */}
                         <div
-                          className={`h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                          className={`h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 mt-1.5 ${
                             isCorrect
                               ? 'bg-emerald-600 text-white'
                               : 'bg-muted text-muted-foreground'
@@ -790,32 +784,22 @@ export function QuestionStudio({
                           {label}
                         </div>
 
-                        {/* Content Input */}
-                        <Input
-                          value={opt.content}
-                          onChange={(e) => {
-                            const next = [...form.options];
-                            next[idx] = { ...next[idx]!, content: e.target.value };
-                            setForm({ ...form, options: next });
-                          }}
-                          placeholder={`Pilihan ${label}`}
-                          className="flex-1 text-sm font-medium"
-                        />
-
-                        {/* Formula Button for Option */}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenEquationBuilder(idx)}
-                          className="h-8 w-8 text-primary hover:bg-primary/10 shrink-0"
-                          title="Sisipkan Rumus ke Opsi Ini"
-                        >
-                          <Sigma className="h-4 w-4" />
-                        </Button>
+                        {/* Multi-line Rich Option Editor */}
+                        <div className="flex-1 min-w-0">
+                          <RichOptionEditor
+                            value={opt.content}
+                            onChange={(val) => {
+                              const next = [...form.options];
+                              next[idx] = { ...next[idx]!, content: val };
+                              setForm({ ...form, options: next });
+                            }}
+                            label={label}
+                            onOpenFormulaBuilder={() => handleOpenEquationBuilder(idx)}
+                          />
+                        </div>
 
                         {/* Correct Answer Checkbox/Radio */}
-                        <div className="flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-lg bg-background border border-border">
+                        <div className="flex items-center gap-1.5 shrink-0 px-2 py-1.5 rounded-lg bg-background border border-border mt-1">
                           <Checkbox
                             id={`opt-correct-${idx}`}
                             checked={isCorrect}
@@ -849,7 +833,7 @@ export function QuestionStudio({
                               const next = form.options.filter((_, i) => i !== idx);
                               setForm({ ...form, options: next });
                             }}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 mt-1"
                             title="Hapus opsi"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -888,27 +872,17 @@ export function QuestionStudio({
               <div>
                 <CardTitle className="text-base font-semibold">4. Pembahasan Jawaban (Opsional)</CardTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Ditampilkan kepada siswa pada riwayat nilai setelah ujian selesai.
+                  Ditampilkan kepada siswa pada riwayat nilai setelah ujian selesai. Mendukung format kode dan teks kaya.
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => handleOpenEquationBuilder('explanation')}
-                className="gap-1.5 text-xs text-primary border-primary/30"
-              >
-                <Sigma className="h-3.5 w-3.5 text-primary" />
-                + Rumus
-              </Button>
             </CardHeader>
             <CardContent>
-              <textarea
+              <RichQuestionEditor
                 value={form.explanation}
-                onChange={(e) => setForm({ ...form, explanation: e.target.value })}
-                placeholder="Tuliskan langkah-langkah penyelesaian atau pembahasan jawaban..."
-                rows={3}
-                className="w-full rounded-xl border border-input bg-background p-3.5 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-y"
+                onChange={(val) => setForm({ ...form, explanation: val })}
+                placeholder="Tuliskan langkah-langkah penyelesaian, penjelasan konsep, atau cuplikan kode jawaban..."
+                minHeight="140px"
+                onOpenFormulaBuilder={() => handleOpenEquationBuilder('explanation')}
               />
             </CardContent>
           </Card>
