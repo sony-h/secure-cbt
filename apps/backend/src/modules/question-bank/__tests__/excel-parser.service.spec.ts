@@ -129,4 +129,28 @@ describe('ExcelParserService', () => {
     expect(result[1].difficulty).toBe(DifficultyLevel.MEDIUM);
     expect(result[1].valid).toBe(true);
   });
+
+  it('should correctly extract answer key when prefixed with JAWABAN: or KUNCI: (C-1)', () => {
+    const data = [
+      ['No', 'Soal', 'Opsi A', 'Opsi B', 'Opsi C', 'Opsi D', 'Opsi E', 'Kunci Jawaban'],
+      [1, 'Soal dengan prefiks Jawaban', 'Opsi 1', 'Opsi 2', 'Opsi 3', 'Opsi 4', 'Opsi 5', 'JAWABAN: B'],
+      [2, 'Soal dengan prefiks Kunci', 'Opsi 1', 'Opsi 2', 'Opsi 3', 'Opsi 4', 'Opsi 5', 'Kunci: E'],
+    ];
+
+    const ws = xlsx.utils.aoa_to_sheet(data);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, 'Soal');
+    const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    const result = service.parse(buffer);
+    expect(result).toHaveLength(2);
+
+    // Q1 key must be B, NOT A (from J-A-W-A-B-A-N)
+    expect(result[0].options[1].is_correct).toBe(true);
+    expect(result[0].options[0].is_correct).toBe(false);
+
+    // Q2 key must be E, NOT C (from K-U-N-C-I)
+    expect(result[1].options[4].is_correct).toBe(true);
+    expect(result[1].options[2].is_correct).toBe(false);
+  });
 });

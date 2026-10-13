@@ -155,9 +155,9 @@ export class WordParserService {
         }
       });
 
-      // Construct question item only if it has valid options or question structure
-      if (rawOptions.length === 0 && !correctKey) {
-        return; // Skip decorative or non-question table
+      // Construct question item only if it has at least 2 valid options (avoids admin/note tables)
+      if (rawOptions.length < 2) {
+        return;
       }
 
       const options: ImportQuestionOptionInput[] = rawOptions.map((opt, idx) => ({
@@ -174,9 +174,6 @@ export class WordParserService {
       if (!questionContent && !questionImageUrl) {
         isValid = false;
         error = 'Pertanyaan tidak boleh kosong';
-      } else if (options.length < 2) {
-        isValid = false;
-        error = 'Minimal harus memiliki 2 opsi jawaban';
       } else if (!hasCorrect) {
         isValid = false;
         error = `Kunci jawaban '${correctKey || '-'}' tidak ditemukan di opsi`;
@@ -247,8 +244,8 @@ export class WordParserService {
       );
 
       // 2. Check Option Line:
-      // Examples: A. Pilihan, B) Pilihan, C : Pilihan, a. Pilihan
-      const optionMatch = text.match(/^([A-E])[\.\)\:\s]\s*(.*)/i);
+      // Examples: A. Pilihan, B) Pilihan, C : Pilihan, a. Pilihan (requires punctuation to avoid 'A cat...')
+      const optionMatch = text.match(/^([A-E])\s*[\.\)\:]\s*(.*)/i);
 
       // 3. Check Key Line:
       // Examples: KUNCI: B, KUNCI JAWABAN = C, KEY: A, ANSWER: D
@@ -297,14 +294,17 @@ export class WordParserService {
           currentQuestion.difficulty = DifficultyLevel.MEDIUM;
         }
       } else if (currentQuestion) {
-        // Non-boundary content: could be stimulus paragraph or image
+        // Non-boundary content: could be stimulus paragraph, subsequent explanation paragraph, or image
         if (b.imageUrl && !currentQuestion.imageUrl) {
           currentQuestion.imageUrl = b.imageUrl;
         }
 
         if (text) {
-          // If no options have been recorded yet, this belongs to the question content
-          if (currentQuestion.options.length === 0) {
+          // If an explanation was previously declared, subsequent non-boundary text appends to explanation
+          if (currentQuestion.explanation !== null) {
+            currentQuestion.explanation = `${currentQuestion.explanation}\n${text}`;
+          } else if (currentQuestion.options.length === 0) {
+            // If no options have been recorded yet, this belongs to the question content
             currentQuestion.content = currentQuestion.content
               ? `${currentQuestion.content}\n${text}`
               : text;

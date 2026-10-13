@@ -155,4 +155,80 @@ describe('WordParserService', () => {
     expect(result[0].options[1].is_correct).toBe(true);
     expect(result[0].valid).toBe(true);
   });
+
+  it('should cleanly strip colon in "A : Pilihan" and not treat English sentences as options (C-2)', async () => {
+    const mockHtml = `
+      <p>[SOAL 1]</p>
+      <p>Read the following text carefully:</p>
+      <p>A student conducted a chemical reaction in the laboratory yesterday.</p>
+      <p>What did the student do?</p>
+      <p>A : Conducted a chemical reaction</p>
+      <p>B : Slept in the classroom</p>
+      <p>KUNCI: A</p>
+    `;
+
+    vi.mocked(mammoth.convertToHtml).mockResolvedValueOnce({
+      value: mockHtml,
+      messages: [],
+    });
+
+    const result = await service.parse(Buffer.from('fake-docx-data'));
+
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toContain('A student conducted a chemical reaction');
+    expect(result[0].options).toHaveLength(2);
+    expect(result[0].options[0].content).toBe('Conducted a chemical reaction');
+    expect(result[0].options[0].content).not.toContain(':');
+    expect(result[0].options[0].is_correct).toBe(true);
+  });
+
+  it('should keep multi-paragraph PEMBAHASAN within explanation instead of polluting last option (C-3)', async () => {
+    const mockHtml = `
+      <p>[SOAL 1]</p>
+      <p>Apakah ibu kota Indonesia?</p>
+      <p>A. Jakarta</p>
+      <p>B. Nusantara</p>
+      <p>KUNCI: B</p>
+      <p>PEMBAHASAN: Paragraf pertama penjelasan tentang Nusantara.</p>
+      <p>Paragraf kedua penjelasan mengenai lokasi di Kalimantan Timur.</p>
+    `;
+
+    vi.mocked(mammoth.convertToHtml).mockResolvedValueOnce({
+      value: mockHtml,
+      messages: [],
+    });
+
+    const result = await service.parse(Buffer.from('fake-docx-data'));
+
+    expect(result).toHaveLength(1);
+    expect(result[0].options[1].content).toBe('Nusantara');
+    expect(result[0].options[1].content).not.toContain('Paragraf kedua');
+    expect(result[0].explanation).toContain('Paragraf pertama');
+    expect(result[0].explanation).toContain('Paragraf kedua penjelasan mengenai lokasi');
+  });
+
+  it('should ignore administrative table with KUNCI but zero options and fallback to paragraphs (I-3)', async () => {
+    const mockHtml = `
+      <table>
+        <tr><td>KUNCI</td><td>Disimpan oleh pengawas ruangan ujian</td></tr>
+      </table>
+      <p>[SOAL 1]</p>
+      <p>2 + 2 = ?</p>
+      <p>A. 3</p>
+      <p>B. 4</p>
+      <p>KUNCI: B</p>
+    `;
+
+    vi.mocked(mammoth.convertToHtml).mockResolvedValueOnce({
+      value: mockHtml,
+      messages: [],
+    });
+
+    const result = await service.parse(Buffer.from('fake-docx-data'));
+
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe('2 + 2 = ?');
+    expect(result[0].options).toHaveLength(2);
+    expect(result[0].options[1].is_correct).toBe(true);
+  });
 });

@@ -15,16 +15,21 @@ export class ExcelParserService {
       return [];
     }
 
-    // 1. Intelligent Sheet Selection
-    // Prioritize sheets named 'Input Soal', 'Soal', 'Questions', etc.
-    const priorityNames = workbook.SheetNames.filter((name) =>
-      /input|soal|lembar|pertanyaan|question/i.test(name),
-    );
+    // 1. Intelligent Sheet Ranking & Selection
+    // Prioritize 'Input Soal', then other question sheets, deprioritizing 'Contoh' or 'Panduan'
+    const isInput = (name: string) => /input/i.test(name);
+    const isContoh = (name: string) => /contoh|sample|panduan/i.test(name);
+    const isSoal = (name: string) => /soal|lembar|pertanyaan|question/i.test(name);
 
-    const sheetCandidates = [
-      ...priorityNames,
-      ...workbook.SheetNames.filter((name) => !priorityNames.includes(name)),
-    ];
+    const sheetCandidates = [...workbook.SheetNames].sort((a, b) => {
+      if (isInput(a) && !isInput(b)) return -1;
+      if (!isInput(a) && isInput(b)) return 1;
+      if (!isContoh(a) && isContoh(b)) return -1;
+      if (isContoh(a) && !isContoh(b)) return 1;
+      if (isSoal(a) && !isSoal(b)) return -1;
+      if (!isSoal(a) && isSoal(b)) return 1;
+      return 0;
+    });
 
     for (const sheetName of sheetCandidates) {
       const sheet = workbook.Sheets[sheetName];
@@ -36,16 +41,6 @@ export class ExcelParserService {
       const questions = this.parseRows(rows);
       if (questions.length > 0) {
         return questions;
-      }
-    }
-
-    // Fallback: If no candidate yielded questions, try first sheet
-    const firstSheetName = workbook.SheetNames[0];
-    if (firstSheetName) {
-      const firstSheet = workbook.Sheets[firstSheetName];
-      if (firstSheet) {
-        const rows: any[][] = xlsx.utils.sheet_to_json(firstSheet, { header: 1 });
-        return this.parseRows(rows);
       }
     }
 
@@ -92,11 +87,11 @@ export class ExcelParserService {
         if (headerRow) {
           for (let c = 0; c < headerRow.length; c++) {
             const val = String(headerRow[c] || '').toLowerCase().trim();
-            if (val === 'opsi a' || val === 'pilihan a' || val === 'a') colA = c;
-            else if (val === 'opsi b' || val === 'pilihan b' || val === 'b') colB = c;
-            else if (val === 'opsi c' || val === 'pilihan c' || val === 'c') colC = c;
-            else if (val === 'opsi d' || val === 'pilihan d' || val === 'd') colD = c;
-            else if (val === 'opsi e' || val === 'pilihan e' || val === 'e') colE = c;
+            if (val === 'opsi a' || val === 'pilihan a' || val === 'option a' || val === 'a') colA = c;
+            else if (val === 'opsi b' || val === 'pilihan b' || val === 'option b' || val === 'b') colB = c;
+            else if (val === 'opsi c' || val === 'pilihan c' || val === 'option c' || val === 'c') colC = c;
+            else if (val === 'opsi d' || val === 'pilihan d' || val === 'option d' || val === 'd') colD = c;
+            else if (val === 'opsi e' || val === 'pilihan e' || val === 'option e' || val === 'e') colE = c;
             else if (
               val === 'kunci' ||
               val === 'kunci jawaban' ||
@@ -116,13 +111,14 @@ export class ExcelParserService {
       }
     }
 
-    if (detectedHeaderRowIdx === -1) {
+    // Require detected header, question column, at least option A, and answer key column
+    if (detectedHeaderRowIdx === -1 || colQuestion === -1 || colA === -1 || colKey === -1) {
       return [];
     }
 
     const questions: ImportQuestionItemInput[] = [];
 
-    for (let r = detectedHeaderRowIdx + 1; r < rows.length; r++) {
+    for (let r = detectedHeaderRowIdx + 1; r < targetRowsLength(rows); r++) {
       const row = rows[r];
       if (!row || !Array.isArray(row) || !row.length) continue;
 
@@ -159,8 +155,16 @@ export class ExcelParserService {
       if (optD) rawOptions.push({ label: 'D', text: optD });
       if (optE) rawOptions.push({ label: 'E', text: optE });
 
-      const correctKeyMatch = keyRaw.match(/[A-E]/i);
-      const correctKey = correctKeyMatch ? correctKeyMatch[0].toUpperCase() : keyRaw;
+      // Robust answer key extraction: strip prefixes like 'JAWABAN:' or 'KUNCI:' before searching
+      const sanitizedKey = keyRaw
+        .replace(/^(?:KUNCI(?:\s*JAWABAN)?|JAWABAN|KEY|ANSWER)[\s\:\=\-]*/i, '')
+        .trim();
+      const correctKeyMatch =
+        sanitizedKey.match(/^[A-E]\b/i) ||
+        keyRaw.match(/(?:^|[\s\:\=\-\(\[])([A-E])(?:\b|[\.\)\]]|$)/i);
+      const correctKey = correctKeyMatch
+        ? (correctKeyMatch[1] || correctKeyMatch[0]).toUpperCase()
+        : sanitizedKey;
 
       const options: ImportQuestionOptionInput[] = rawOptions.map((opt, idx) => ({
         order: idx + 1,
@@ -199,4 +203,8 @@ export class ExcelParserService {
 
     return questions;
   }
+}
+
+function targetRowsLength(rows: any[][]): number {
+  return rows.length;
 }
