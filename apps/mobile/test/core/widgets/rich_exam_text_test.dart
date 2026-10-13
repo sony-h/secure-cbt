@@ -39,4 +39,41 @@ void main() {
 
     expect(find.byType(RichExamText), findsOneWidget);
   });
+
+  testWidgets('RichExamText renders fenced code block with horizontal scrollable container', (tester) async {
+    const codeQuestion = '''
+Perhatikan kode program berikut:
+```python
+def hitung(a, b):
+    return a + b
+```
+Apakah nilai kembalian fungsi di atas?
+''';
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: RichExamText(text: codeQuestion),
+        ),
+      ),
+    );
+
+    expect(find.textContaining('def hitung(a, b):'), findsOneWidget);
+    expect(find.text('PYTHON'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsWidgets);
+  });
+
+  testWidgets('RichExamText renders bold, italic, underline, and inline code formatting', (tester) async {
+    const formattedText = 'Kata **tebal**, kata *miring*, <u>garis bawah</u>, dan `kode_inline`.';
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: RichExamText(text: formattedText),
+        ),
+      ),
+    );
+
+    expect(find.byType(RichExamText), findsOneWidget);
+    expect(find.textContaining('tebal'), findsWidgets);
+  });
 }
