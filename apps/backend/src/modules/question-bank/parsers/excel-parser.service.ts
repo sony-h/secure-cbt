@@ -26,7 +26,35 @@ export class ExcelParserService {
       ...workbook.SheetNames.filter((name) => !priorityNames.includes(name)),
     ];
 
-    let targetRows: any[][] = [];
+    for (const sheetName of sheetCandidates) {
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet) continue;
+
+      const rows: any[][] = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+      if (!rows || rows.length < 2) continue;
+
+      const questions = this.parseRows(rows);
+      if (questions.length > 0) {
+        return questions;
+      }
+    }
+
+    // Fallback: If no candidate yielded questions, try first sheet
+    const firstSheetName = workbook.SheetNames[0];
+    if (firstSheetName) {
+      const firstSheet = workbook.Sheets[firstSheetName];
+      if (firstSheet) {
+        const rows: any[][] = xlsx.utils.sheet_to_json(firstSheet, { header: 1 });
+        return this.parseRows(rows);
+      }
+    }
+
+    return [];
+  }
+
+  private parseRows(rows: any[][]): ImportQuestionItemInput[] {
+    if (!rows || rows.length < 2) return [];
+
     let detectedHeaderRowIdx = -1;
     let colQuestion = -1;
     let colA = -1;
@@ -38,36 +66,30 @@ export class ExcelParserService {
     let colExplanation = -1;
     let colDifficulty = -1;
 
-    for (const sheetName of sheetCandidates) {
-      const sheet = workbook.Sheets[sheetName];
-      if (!sheet) continue;
+    // Scan first 10 rows for header
+    for (let r = 0; r < Math.min(rows.length, 10); r++) {
+      const row = rows[r];
+      if (!row || !Array.isArray(row)) continue;
 
-      const rows: any[][] = xlsx.utils.sheet_to_json(sheet, { header: 1 });
-      if (!rows || rows.length < 2) continue;
-
-      // Scan first 10 rows for header
-      for (let r = 0; r < Math.min(rows.length, 10); r++) {
-        const row = rows[r];
-        if (!row || !Array.isArray(row)) continue;
-
-        let foundQuestionHeader = false;
-        for (let c = 0; c < row.length; c++) {
-          const val = String(row[c] || '').toLowerCase().trim();
-          if (
-            val === 'soal' ||
-            val === 'pertanyaan' ||
-            val === 'question' ||
-            val.includes('pertanyaan')
-          ) {
-            colQuestion = c;
-            detectedHeaderRowIdx = r;
-            foundQuestionHeader = true;
-            break;
-          }
+      let foundQuestionHeader = false;
+      for (let c = 0; c < row.length; c++) {
+        const val = String(row[c] || '').toLowerCase().trim();
+        if (
+          val === 'soal' ||
+          val === 'pertanyaan' ||
+          val === 'question' ||
+          val.includes('pertanyaan')
+        ) {
+          colQuestion = c;
+          detectedHeaderRowIdx = r;
+          foundQuestionHeader = true;
+          break;
         }
+      }
 
-        if (foundQuestionHeader) {
-          const headerRow = rows[detectedHeaderRowIdx];
+      if (foundQuestionHeader) {
+        const headerRow = rows[detectedHeaderRowIdx];
+        if (headerRow) {
           for (let c = 0; c < headerRow.length; c++) {
             const val = String(headerRow[c] || '').toLowerCase().trim();
             if (val === 'opsi a' || val === 'pilihan a' || val === 'a') colA = c;
@@ -89,39 +111,19 @@ export class ExcelParserService {
               colDifficulty = c;
             }
           }
-
-          targetRows = rows;
-          break;
         }
-      }
-
-      if (detectedHeaderRowIdx !== -1) {
-        break; // Successfully located question sheet
+        break;
       }
     }
 
-    // Fallback to first sheet if no sheet matched header keywords
     if (detectedHeaderRowIdx === -1) {
-      const firstSheetName = workbook.SheetNames[0];
-      if (!firstSheetName) return [];
-      const firstSheet = workbook.Sheets[firstSheetName];
-      if (!firstSheet) return [];
-      targetRows = xlsx.utils.sheet_to_json(firstSheet, { header: 1 });
-      detectedHeaderRowIdx = 0;
-      colQuestion = 1;
-      colA = 2;
-      colB = 3;
-      colC = 4;
-      colD = 5;
-      colE = 6;
-      colKey = 7;
-      colExplanation = 8;
+      return [];
     }
 
     const questions: ImportQuestionItemInput[] = [];
 
-    for (let r = detectedHeaderRowIdx + 1; r < targetRows.length; r++) {
-      const row = targetRows[r];
+    for (let r = detectedHeaderRowIdx + 1; r < rows.length; r++) {
+      const row = rows[r];
       if (!row || !Array.isArray(row) || !row.length) continue;
 
       const questionContent = String(row[colQuestion] || '').trim();

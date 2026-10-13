@@ -97,7 +97,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
                         spacing: { after: 60 },
                         children: [
                           new TextRun({
-                            text: '1. Nomor Soal: Awali dengan [SOAL 1], [SOAL 2], atau nomor standar (1., 2.).',
+                            text: '• Nomor Soal: Awali dengan [SOAL 1], [SOAL 2], atau nomor standar (1., 2.).',
                             size: 18,
                             font: 'Arial',
                             color: '334155',
@@ -108,7 +108,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
                         spacing: { after: 60 },
                         children: [
                           new TextRun({
-                            text: '2. Teks Pertanyaan: Tuliskan pertanyaan tepat di bawah nomor soal. Gambar/diagram dapat langsung di-paste di sini.',
+                            text: '• Teks Pertanyaan: Tuliskan pertanyaan tepat di bawah nomor soal. Gambar/diagram dapat langsung di-paste di sini.',
                             size: 18,
                             font: 'Arial',
                             color: '334155',
@@ -119,7 +119,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
                         spacing: { after: 60 },
                         children: [
                           new TextRun({
-                            text: '3. Pilihan Opsi: Tuliskan opsi A s.d. E diawali huruf kapital (contoh: A. Pilihan satu).',
+                            text: '• Pilihan Opsi: Tuliskan opsi A s.d. E diawali huruf kapital (contoh: A. Pilihan satu).',
                             size: 18,
                             font: 'Arial',
                             color: '334155',
@@ -130,7 +130,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
                         spacing: { after: 60 },
                         children: [
                           new TextRun({
-                            text: '4. Kunci Jawaban: Tuliskan baris KUNCI: [A/B/C/D/E] di bawah opsi jawaban.',
+                            text: '• Kunci Jawaban: Tuliskan baris KUNCI: [A/B/C/D/E] di bawah opsi jawaban.',
                             bold: true,
                             size: 18,
                             font: 'Arial',
@@ -142,7 +142,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
                         spacing: { after: 0 },
                         children: [
                           new TextRun({
-                            text: '5. Metadata Opsional: Tambahkan PEMBAHASAN: [teks] dan KESULITAN: [MUDAH/SEDANG/SULIT] (default: SEDANG).',
+                            text: '• Metadata Opsional: Tambahkan PEMBAHASAN: [teks] dan KESULITAN: [MUDAH/SEDANG/SULIT] (default: SEDANG).',
                             size: 18,
                             font: 'Arial',
                             color: '64748B',
@@ -561,6 +561,32 @@ export async function generateExcelTemplate(): Promise<Buffer> {
       c.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
     });
   }
+
+  // Pre-seed 2 sample questions in Input Soal so teachers immediately have working examples
+  inputSheet.getRow(2).values = [
+    1,
+    'Perangkat lunak berikut ini yang berfungsi sebagai sistem operasi pada komputer adalah...',
+    'Microsoft Word',
+    'Microsoft Windows',
+    'Google Chrome',
+    'Adobe Photoshop',
+    'Visual Studio Code',
+    'B',
+    'Microsoft Windows merupakan sistem operasi yang mengelola perangkat lunak dan keras.',
+    'MUDAH',
+  ];
+  inputSheet.getRow(3).values = [
+    2,
+    'Jika diketahui persamaan kuadrat 2x² + 5x - 3 = 0, maka nilai diskriminan (D) adalah...',
+    '1',
+    '49',
+    '25',
+    '36',
+    '-1',
+    'B',
+    'Rumus diskriminan D = b² - 4ac. Nilai D = (5)² - 4(2)(-3) = 25 + 24 = 49.',
+    'SEDANG',
+  ];
 
   // ─────────────────────────────────────────────────────────
   // SHEET 3: Contoh Soal

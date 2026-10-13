@@ -235,6 +235,11 @@ export class WordParserService {
     for (const b of blocks) {
       const text = b.text;
 
+      // Ignore instruction/header banners
+      if (/^(?:PETUNJUK|PANDUAN|INSTRUKSI|CARA PENULISAN)/i.test(text)) {
+        continue;
+      }
+
       // 1. Check Question Boundary:
       // Examples: [SOAL 1], [NOMOR 1], [NO 1], 1., 1), SOAL 1:, NO. 1
       const questionMatch = text.match(
@@ -258,8 +263,8 @@ export class WordParserService {
       const diffMatch = text.match(/^(?:KESULITAN|TINGKAT(?:\s*KESULITAN)?|DIFFICULTY)[\s\:\=\-]+(.*)/i);
 
       if (questionMatch) {
-        // Finalize previous question if one was active
-        if (currentQuestion) {
+        // Finalize previous question if one was active and had options/key
+        if (currentQuestion && (currentQuestion.options.length > 0 || currentQuestion.correctKey)) {
           questions.push(this.buildQuestionFromBlock(currentQuestion, questions.length + 1));
         }
 
@@ -272,13 +277,13 @@ export class WordParserService {
           explanation: null,
           difficulty: DifficultyLevel.MEDIUM,
         };
-      } else if (optionMatch && currentQuestion) {
+      } else if (optionMatch && optionMatch[1] && currentQuestion) {
         currentQuestion.options.push({
           label: optionMatch[1].toUpperCase(),
           content: optionMatch[2] ? optionMatch[2].trim() : '',
           imageUrl: b.imageUrl || null,
         });
-      } else if (keyMatch && currentQuestion) {
+      } else if (keyMatch && keyMatch[1] && currentQuestion) {
         currentQuestion.correctKey = keyMatch[1].toUpperCase();
       } else if (expMatch && currentQuestion) {
         currentQuestion.explanation = expMatch[1] ? expMatch[1].trim() : null;
@@ -314,7 +319,7 @@ export class WordParserService {
       }
     }
 
-    if (currentQuestion) {
+    if (currentQuestion && (currentQuestion.options.length > 0 || currentQuestion.correctKey)) {
       questions.push(this.buildQuestionFromBlock(currentQuestion, questions.length + 1));
     }
 
