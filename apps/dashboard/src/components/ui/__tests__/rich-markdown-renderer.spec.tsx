@@ -38,4 +38,12 @@ describe('RichMarkdownRenderer', () => {
     expect(container.textContent).toContain('Baris 1');
     expect(container.textContent).toContain('Baris 2 dengan indent');
   });
+
+  it('renders fenced code blocks with Windows CRLF (\\r\\n) line endings correctly', () => {
+    const crlfContent = 'Berikut kode:\r\n```python\r\ndef tes():\r\n    print("ok")\r\n```\r\nSelesai';
+    const { container } = render(<RichMarkdownRenderer content={crlfContent} />);
+    expect(container.querySelector('pre')).toBeTruthy();
+    expect(container.textContent).toContain('PYTHON');
+    expect(container.textContent).toContain('def tes():');
+  });
 });

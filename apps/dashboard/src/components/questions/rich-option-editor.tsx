@@ -56,22 +56,61 @@ export function RichOptionEditor({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Tab') {
-      e.preventDefault();
       const el = textareaRef.current;
       if (!el) return;
 
       const start = el.selectionStart;
       const end = el.selectionEnd;
 
-      if (!e.shiftKey) {
-        const nextValue = value.substring(0, start) + '    ' + value.substring(end);
-        onChange(nextValue);
-        setTimeout(() => el.setSelectionRange(start + 4, start + 4), 0);
+      if (e.shiftKey) {
+        // Shift + Tab: Dedent if there are leading spaces, otherwise allow natural tab focus navigation
+        const before = value.substring(0, start);
+        const after = value.substring(end);
+        const selected = value.substring(start, end);
+
+        if (start === end) {
+          const lineStart = before.lastIndexOf('\n') + 1;
+          const lineBeforeCursor = before.substring(lineStart);
+          const spacesToRemove = lineBeforeCursor.match(/ {1,4}$/);
+          if (spacesToRemove) {
+            e.preventDefault();
+            const cutLen = spacesToRemove[0].length;
+            const nextValue = before.substring(0, before.length - cutLen) + after;
+            onChange(nextValue);
+            setTimeout(() => el.setSelectionRange(start - cutLen, start - cutLen), 0);
+          }
+        } else {
+          e.preventDefault();
+          const lines = selected.split('\n');
+          const dedented = lines.map((l) => l.replace(/^ {1,4}/, '')).join('\n');
+          onChange(before + dedented + after);
+          setTimeout(() => el.setSelectionRange(start, start + dedented.length), 0);
+        }
+      } else {
+        // Tab key: indent 4 spaces
+        e.preventDefault();
+        if (start === end) {
+          const nextValue = value.substring(0, start) + '    ' + value.substring(end);
+          onChange(nextValue);
+          setTimeout(() => el.setSelectionRange(start + 4, start + 4), 0);
+        } else {
+          const before = value.substring(0, start);
+          const after = value.substring(end);
+          const selected = value.substring(start, end);
+          const lines = selected.split('\n');
+          const indented = lines.map((l) => `    ${l}`).join('\n');
+          onChange(before + indented + after);
+          setTimeout(() => el.setSelectionRange(start, start + indented.length), 0);
+        }
       }
     }
   };
 
-  const hasCode = value.includes('```') || value.includes('`') || value.includes('def ') || value.includes('function ');
+  const hasCode =
+    value.includes('```') ||
+    value.includes('`') ||
+    /\b(def|function|class)\s+[a-zA-Z_]\w*\s*\(/.test(value) ||
+    /SELECT\s+.+\s+FROM\s+/i.test(value);
 
   return (
     <div
@@ -91,7 +130,7 @@ export function RichOptionEditor({
         />
 
         {/* Mini Formatting Toolbar on the Right */}
-        <div className="flex items-center gap-0.5 bg-muted/40 rounded-md p-0.5 border border-border/40 shrink-0 self-center">
+        <div className="flex items-center gap-0.5 bg-muted/40 rounded-md p-0.5 border border-border/40 shrink-0 self-start mt-0.5">
           <Button
             type="button"
             variant="ghost"

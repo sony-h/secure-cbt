@@ -32,4 +32,26 @@ describe('RichOptionEditor', () => {
     const calledVal = handleChange.mock.calls[0][0];
     expect(calledVal).toContain('```');
   });
+
+  it('indents multiline selected code with Tab instead of replacing text', () => {
+    const handleChange = vi.fn();
+    render(<RichOptionEditor value={'a = 1\nb = 2'} onChange={handleChange} label="A" />);
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    textarea.setSelectionRange(0, 11);
+
+    fireEvent.keyDown(textarea, { key: 'Tab' });
+    expect(handleChange).toHaveBeenCalledWith('    a = 1\n    b = 2');
+  });
+
+  it('allows natural focus shift on Shift+Tab without trapped selection', () => {
+    const handleChange = vi.fn();
+    render(<RichOptionEditor value="Option text" onChange={handleChange} label="A" />);
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    textarea.setSelectionRange(0, 0);
+
+    const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true });
+    textarea.dispatchEvent(event);
+    // default should NOT be prevented
+    expect(event.defaultPrevented).toBe(false);
+  });
 });

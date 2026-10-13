@@ -98,7 +98,6 @@ export function QuestionStudio({
   const [equationModalOpen, setEquationModalOpen] = useState(false);
   const [equationTarget, setEquationTarget] = useState<'content' | 'explanation' | number | string>('content');
   const tagInputRef = useRef<HTMLInputElement>(null);
-  const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: banks = [] } = useQuery({
     queryKey: ['question-banks'],

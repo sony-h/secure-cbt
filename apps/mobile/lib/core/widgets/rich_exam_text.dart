@@ -230,7 +230,7 @@ class RichExamText extends StatelessWidget {
     // Regex for inline styles:
     // `code` | **bold** | *italic* | ~~strike~~ | <u>underline</u> | <sub>sub</sub> | <sup>sup</sup>
     final tokenRegex = RegExp(
-      r'(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|~~[^~]+~~|<u>[\s\S]*?<\/u>|<sub>[\s\S]*?<\/sub>|<sup>[\s\S]*?<\/sup>)',
+      r'(`[^`]+`|\*\*(?!\s)[^*\n]+?(?<!\s)\*\*|\*(?!\s)[^*\n]+?(?<!\s)\*|~~(?!\s)[^~\n]+?(?<!\s)~~|<u>[\s\S]*?<\/u>|<sub>[\s\S]*?<\/sub>|<sup>[\s\S]*?<\/sup>)',
     );
     final matches = tokenRegex.allMatches(text);
 
@@ -249,27 +249,16 @@ class RichExamText extends StatelessWidget {
       final token = m.group(0) ?? '';
 
       if (token.startsWith('`') && token.endsWith('`')) {
-        // Inline code
+        // Inline code: use TextSpan with background so it wraps naturally without WidgetSpan overflow
         spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-              margin: const EdgeInsets.symmetric(horizontal: 1.5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFFCBD5E1)),
-              ),
-              child: Text(
-                token.substring(1, token.length - 1),
-                style: baseStyle.copyWith(
-                  fontFamily: 'monospace',
-                  fontSize: (baseStyle.fontSize ?? 14) * 0.88,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1E3A8A),
-                ),
-              ),
+          TextSpan(
+            text: token.substring(1, token.length - 1),
+            style: baseStyle.copyWith(
+              fontFamily: 'monospace',
+              fontSize: (baseStyle.fontSize ?? 14) * 0.9,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1E3A8A),
+              backgroundColor: const Color(0xFFE2E8F0),
             ),
           ),
         );

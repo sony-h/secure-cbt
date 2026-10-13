@@ -24,10 +24,24 @@ function CodeBlock({ language, code, showLineNumbers = true }: CodeBlockProps) {
       navigator.clipboard.writeText(code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } else if (typeof document !== 'undefined') {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = code;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // fallback silent
+      }
     }
   };
 
-  const lines = code.split('\n');
+  const normalizedCode = code.replace(/\r\n/g, '\n').replace(/\n$/, '');
+  const lines = normalizedCode.split('\n');
   const langDisplay = (language || 'code').toUpperCase();
 
   return (
@@ -88,7 +102,7 @@ export function RichMarkdownRenderer({
     // First, split content into major blocks:
     // 1. Block math: $$ ... $$
     // 2. Fenced code block: ```[lang] ... ```
-    const majorBlockRegex = /(```(?:[a-zA-Z0-9_\-#+]+)?\n[\s\S]*?```|\$\$[\s\S]*?\$\$)/g;
+    const majorBlockRegex = /(```(?:[a-zA-Z0-9_\-#+]+)?\r?\n[\s\S]*?```|\$\$[\s\S]*?\$\$)/g;
     const pieces: { type: 'code' | 'math-block' | 'text'; raw: string }[] = [];
 
     let lastIdx = 0;
@@ -277,7 +291,8 @@ function parseTypographyAndLinebreaks(text: string, keyPrefix: string): React.Re
 function parseInlineSpans(text: string, keyPrefix: string): React.ReactNode[] {
   // Regex to match inline tags:
   // `code` | **bold** | *italic* | ~~strike~~ | <u>underline</u> | <sub>sub</sub> | <sup>sup</sup>
-  const tokenRegex = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|~~[^~]+~~|<u>[\s\S]*?<\/u>|<sub>[\s\S]*?<\/sub>|<sup>[\s\S]*?<\/sup>)/g;
+  // Non-space lookaheads prevent arithmetic like `5 * 4 * 3` from falsely matching as italic
+  const tokenRegex = /(`[^`]+`|\*\*(?!\s)[^*\n]+?(?<!\s)\*\*|\*(?!\s)[^*\n]+?(?<!\s)\*|~~(?!\s)[^~\n]+?(?<!\s)~~|<u>[\s\S]*?<\/u>|<sub>[\s\S]*?<\/sub>|<sup>[\s\S]*?<\/sup>)/g;
   const nodes: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
