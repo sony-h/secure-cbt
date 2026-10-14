@@ -30,7 +30,7 @@ import {
   X,
   FileUp,
 } from 'lucide-react';
-import { PreviewImportQuestionsResponse, ImportQuestionItemInput } from '@secure-cbt/shared';
+import { PreviewImportQuestionsResponse, ImportQuestionItemInput, QuestionType } from '@secure-cbt/shared';
 
 interface QuestionBankOption {
   id: string;
@@ -396,94 +396,9 @@ export function ImportQuestionsModal({
                 </div>
 
                 <div className="space-y-3 max-h-[46vh] overflow-y-auto pr-1">
-                  {previewData?.questions.map((q: ImportQuestionItemInput, idx: number) => {
-                    const letters = ['A', 'B', 'C', 'D', 'E'];
-                    return (
-                      <div
-                        key={idx}
-                        className={`rounded-xl border p-4 transition-all duration-150 ${
-                          q.valid
-                            ? 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/70'
-                            : 'border-rose-200 bg-rose-50/30 dark:border-rose-900/50 dark:bg-rose-950/20'
-                        }`}
-                      >
-                        {/* Header */}
-                        <div className="flex items-start justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/60 mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="h-6 w-6 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-bold flex items-center justify-center text-slate-700 dark:text-slate-300">
-                              {q.number || idx + 1}
-                            </span>
-                            <Badge variant={q.valid ? 'secondary' : 'destructive'} className="text-[10px] h-5">
-                              {q.valid ? 'Valid' : 'Gagal Validasi'}
-                            </Badge>
-                          </div>
-
-                          {!q.valid && q.error && (
-                            <span className="text-xs text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
-                              <AlertCircle className="h-3.5 w-3.5" /> {q.error}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Question Content */}
-                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-3">
-                          <MathRenderer content={q.content} />
-                          {q.image_url && (
-                            <div className="mt-2">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={q.image_url}
-                                alt="Diagram Soal"
-                                className="max-h-36 rounded-lg border object-contain"
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Options */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {q.options.map((opt, oIdx) => (
-                            <div
-                              key={oIdx}
-                              className={`flex items-start gap-2 p-2 rounded-lg text-xs transition-colors ${
-                                opt.is_correct
-                                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-900 font-medium dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200'
-                                  : 'bg-slate-50 border border-slate-100 text-slate-700 dark:bg-slate-800/50 dark:border-slate-800 dark:text-slate-300'
-                              }`}
-                            >
-                              <span
-                                className={`h-5 w-5 rounded flex items-center justify-center font-bold text-[10px] shrink-0 ${
-                                  opt.is_correct
-                                    ? 'bg-emerald-600 text-white'
-                                    : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                                }`}
-                              >
-                                {letters[oIdx] || opt.order}
-                              </span>
-                              <div className="flex-1 truncate">
-                                <MathRenderer content={opt.content} />
-                              </div>
-                              {opt.is_correct && (
-                                <Badge className="bg-emerald-600 text-white text-[9px] h-4 px-1 shrink-0 ml-auto">
-                                  KUNCI
-                                </Badge>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Explanation */}
-                        {q.explanation && (
-                          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-muted-foreground">
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">
-                              Pembahasan:{' '}
-                            </span>
-                            <MathRenderer content={q.explanation} />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {previewData?.questions.map((q: ImportQuestionItemInput, idx: number) => (
+                    <QuestionImportPreviewItem key={idx} question={q} index={idx} />
+                  ))}
                 </div>
               </div>
             </div>
@@ -556,5 +471,211 @@ export function ImportQuestionsModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function QuestionImportPreviewItem({
+  question: q,
+  index,
+}: {
+  question: ImportQuestionItemInput;
+  index: number;
+}) {
+  const letters = ['A', 'B', 'C', 'D', 'E'];
+
+  const typeConfig: Record<QuestionType, { label: string; className: string }> = {
+    [QuestionType.MULTIPLE_CHOICE]: {
+      label: 'Pilihan Ganda',
+      className:
+        'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+    },
+    [QuestionType.MULTI_SELECT]: {
+      label: 'PG Kompleks',
+      className:
+        'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+    },
+    [QuestionType.TRUE_FALSE]: {
+      label: 'Benar / Salah',
+      className:
+        'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+    },
+    [QuestionType.SHORT_ANSWER]: {
+      label: 'Isian Singkat',
+      className:
+        'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
+    },
+    [QuestionType.MATCHING]: {
+      label: 'Menjodohkan',
+      className:
+        'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+    },
+    [QuestionType.ESSAY]: {
+      label: 'Esai / Uraian',
+      className:
+        'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+    },
+  };
+
+  const badgeConfig = typeConfig[q.type] || {
+    label: q.type,
+    className: 'bg-slate-100 text-slate-800',
+  };
+
+  return (
+    <div
+      className={`rounded-xl border p-4 transition-all duration-150 ${
+        q.valid
+          ? 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/70'
+          : 'border-rose-200 bg-rose-50/30 dark:border-rose-900/50 dark:bg-rose-950/20'
+      }`}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800/60 mb-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="h-6 w-6 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-bold flex items-center justify-center text-slate-700 dark:text-slate-300">
+            {q.number || index + 1}
+          </span>
+          <Badge variant="outline" className={`text-[10px] h-5 font-semibold ${badgeConfig.className}`}>
+            {badgeConfig.label}
+          </Badge>
+          <Badge variant={q.valid ? 'secondary' : 'destructive'} className="text-[10px] h-5">
+            {q.valid ? 'Valid' : 'Gagal Validasi'}
+          </Badge>
+        </div>
+
+        {!q.valid && q.error && (
+          <span className="text-xs text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
+            <AlertCircle className="h-3.5 w-3.5" /> {q.error}
+          </span>
+        )}
+      </div>
+
+      {/* Question Content */}
+      <div className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-3">
+        <MathRenderer content={q.content} />
+        {q.image_url && (
+          <div className="mt-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={q.image_url}
+              alt="Diagram Soal"
+              className="max-h-36 rounded-lg border object-contain"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Options Body based on QuestionType */}
+      {q.type === QuestionType.ESSAY ? (
+        <div className="p-3 rounded-lg border border-dashed border-rose-200 bg-rose-50/40 dark:border-rose-900/50 dark:bg-rose-950/20 text-xs text-rose-900 dark:text-rose-300 flex items-center gap-2">
+          <FileText className="h-4 w-4 shrink-0 text-rose-600" />
+          <span>Soal bertipe esai / uraian bebas dinilai secara manual oleh guru atau via rubrik penilaian.</span>
+        </div>
+      ) : q.type === QuestionType.SHORT_ANSWER ? (
+        <div className="p-3 rounded-lg border border-cyan-200 bg-cyan-50/40 dark:border-cyan-900/50 dark:bg-cyan-950/20 text-xs text-cyan-900 dark:text-cyan-200 space-y-1.5">
+          <div className="font-semibold text-cyan-800 dark:text-cyan-300 flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5 text-cyan-600" />
+            <span>Kunci Jawaban yang Diterima:</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {q.options.map((opt, oIdx) => (
+              <Badge
+                key={oIdx}
+                variant="outline"
+                className="bg-white dark:bg-slate-900 border-cyan-300 text-cyan-950 dark:text-cyan-100 text-xs py-0.5 px-2"
+              >
+                {opt.content}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      ) : q.type === QuestionType.MATCHING ? (
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 flex items-center gap-1">
+            <span>Pasangan Jawaban:</span>
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            {q.options.map((opt, oIdx) => {
+              let left = opt.content;
+              let right = '';
+              try {
+                const parsed = JSON.parse(opt.content);
+                left = parsed.left || opt.content;
+                right = parsed.right || '';
+              } catch {
+                if (opt.content.includes('->')) {
+                  const parts = opt.content.split('->');
+                  left = (parts[0] || '').trim();
+                  right = (parts[1] || '').trim();
+                }
+              }
+              return (
+                <div
+                  key={oIdx}
+                  className="flex items-center gap-2 p-2.5 rounded-lg border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/50 dark:bg-indigo-950/30 text-xs"
+                >
+                  <span className="h-5 w-5 rounded bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200 flex items-center justify-center font-bold text-[10px] shrink-0">
+                    {oIdx + 1}
+                  </span>
+                  <div className="flex-1 font-medium text-slate-800 dark:text-slate-200 truncate">
+                    <MathRenderer content={left} />
+                  </div>
+                  <ArrowRight className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                  <div className="flex-1 font-semibold text-indigo-900 dark:text-indigo-300 truncate">
+                    <MathRenderer content={right} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        /* MULTIPLE_CHOICE, MULTI_SELECT, TRUE_FALSE */
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {q.options.map((opt, oIdx) => (
+            <div
+              key={oIdx}
+              className={`flex items-start gap-2 p-2 rounded-lg text-xs transition-colors ${
+                opt.is_correct
+                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-900 font-medium dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200'
+                  : 'bg-slate-50 border border-slate-100 text-slate-700 dark:bg-slate-800/50 dark:border-slate-800 dark:text-slate-300'
+              }`}
+            >
+              <span
+                className={`h-5 w-5 rounded flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                  opt.is_correct
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                }`}
+              >
+                {q.type === QuestionType.TRUE_FALSE
+                  ? opt.content.startsWith('B')
+                    ? 'B'
+                    : 'S'
+                  : letters[oIdx] || opt.order}
+              </span>
+              <div className="flex-1 truncate">
+                <MathRenderer content={opt.content} />
+              </div>
+              {opt.is_correct && (
+                <Badge className="bg-emerald-600 text-white text-[9px] h-4 px-1 shrink-0 ml-auto">
+                  KUNCI
+                </Badge>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Explanation */}
+      {q.explanation && (
+        <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-muted-foreground">
+          <span className="font-semibold text-slate-700 dark:text-slate-300">
+            Pembahasan:{' '}
+          </span>
+          <MathRenderer content={q.explanation} />
+        </div>
+      )}
+    </div>
   );
 }
