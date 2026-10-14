@@ -69,13 +69,245 @@ export class WordParserService {
     return this.parseFromParagraphs($);
   }
 
+  private normalizeType(typeStr?: string | null): QuestionType | null {
+    if (!typeStr) return null;
+    const clean = typeStr.toUpperCase().replace(/[\s\-_]+/g, '');
+    if (clean.includes('PILIHANGANDA') || clean === 'MCQ' || clean === 'MULTIPLECHOICE') {
+      return QuestionType.MULTIPLE_CHOICE;
+    }
+    if (clean.includes('PGKOMPLEKS') || clean.includes('MULTISELECT') || clean.includes('KOMPLEKS')) {
+      return QuestionType.MULTI_SELECT;
+    }
+    if (clean.includes('BENARSALAH') || clean.includes('TRUEFALSE') || clean === 'TF' || clean === 'BS') {
+      return QuestionType.TRUE_FALSE;
+    }
+    if (clean.includes('ISIANSINGKAT') || clean.includes('SHORTANSWER') || clean === 'ISIAN') {
+      return QuestionType.SHORT_ANSWER;
+    }
+    if (clean.includes('MENJODOHKAN') || clean.includes('MATCHING') || clean === 'JODOHKAN') {
+      return QuestionType.MATCHING;
+    }
+    if (clean.includes('ESAI') || clean.includes('ESSAY') || clean.includes('URAIAN')) {
+      return QuestionType.ESSAY;
+    }
+    return null;
+  }
+
+  private inferQuestionType(
+    explicitType: QuestionType | null,
+    keyText: string,
+    rawOptions: Array<{ content: string; label?: string }>,
+  ): QuestionType {
+    if (explicitType) {
+      return explicitType;
+    }
+    const cleanKey = (keyText || '').trim().toUpperCase();
+
+    // 1. Check if options contain matching syntax (e.g. "A -> B" or "A = B")
+    if (
+      rawOptions.length > 0 &&
+      rawOptions.some((o) => o.content.includes('->') || /^[^\=]+\=[^\=]+$/.test(o.content))
+    ) {
+      return QuestionType.MATCHING;
+    }
+
+    // 2. Check if key is True/False
+    if (/^(?:BENAR|SALAH|TRUE|FALSE|B|S)$/i.test(cleanKey) && rawOptions.length <= 2) {
+      return QuestionType.TRUE_FALSE;
+    }
+
+    // 3. Check if key is comma-separated letters e.g. "A, B" or "A, B, D"
+    const isMultiKey = /^[A-E](?:[\s,;]+[A-E])+$/i.test(cleanKey);
+    if (isMultiKey) {
+      return QuestionType.MULTI_SELECT;
+    }
+
+    // 4. If options are empty but key exists
+    if (rawOptions.length === 0 && cleanKey.length > 0) {
+      return QuestionType.SHORT_ANSWER;
+    }
+
+    // 5. Default
+    return QuestionType.MULTIPLE_CHOICE;
+  }
+
+  private buildQuestionItem(params: {
+    number: number;
+    explicitType: QuestionType | null;
+    content: string;
+    imageUrl: string | null;
+    options: { label: string; content: string; imageUrl?: string | null }[];
+    correctKey: string;
+    explanation: string | null;
+    difficulty: DifficultyLevel;
+  }): ImportQuestionItemInput {
+    const {
+      number,
+      explicitType,
+      content: rawContent,
+      imageUrl,
+      options: rawOptions,
+      correctKey,
+      explanation,
+      difficulty,
+    } = params;
+
+    const questionType = this.inferQuestionType(explicitType, correctKey, rawOptions);
+    const content = rawContent || (imageUrl ? 'Perhatikan gambar berikut:' : '');
+
+    let options: ImportQuestionOptionInput[] = [];
+    let isValid = true;
+    let error: string | null = null;
+
+    if (!content && !imageUrl) {
+      isValid = false;
+      error = 'Pertanyaan tidak boleh kosong';
+    }
+
+    if (questionType === QuestionType.ESSAY) {
+      options = [];
+      if (!content && !imageUrl) {
+        isValid = false;
+        error = 'Pertanyaan tidak boleh kosong';
+      }
+    } else if (questionType === QuestionType.SHORT_ANSWER) {
+      if (rawOptions.length > 0) {
+        options = rawOptions.map((opt, idx) => ({
+          order: idx + 1,
+          content: opt.content,
+          image_url: opt.imageUrl || null,
+          is_correct: true,
+        }));
+      } else {
+        const answers = correctKey
+          .split(/[,;\n]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const effectiveAnswers =
+          answers.length > 0 ? answers : correctKey.trim() ? [correctKey.trim()] : [];
+
+        options = effectiveAnswers.map((ans, idx) => ({
+          order: idx + 1,
+          content: ans,
+          image_url: null,
+          is_correct: true,
+        }));
+      }
+
+      if (options.length === 0) {
+        isValid = false;
+        error = 'Kunci jawaban isian singkat wajib diisi';
+      }
+    } else if (questionType === QuestionType.TRUE_FALSE) {
+      if (rawOptions.length === 0) {
+        const keyUpper = correctKey.trim().toUpperCase();
+        const isTrue = keyUpper === 'BENAR' || keyUpper === 'TRUE' || keyUpper === 'B';
+        const isFalse = keyUpper === 'SALAH' || keyUpper === 'FALSE' || keyUpper === 'S';
+
+        options = [
+          { order: 1, content: 'Benar', image_url: null, is_correct: isTrue },
+          { order: 2, content: 'Salah', image_url: null, is_correct: isFalse },
+        ];
+      } else {
+        const keyUpper = correctKey.trim().toUpperCase();
+        options = rawOptions.map((opt, idx) => {
+          const optContentUpper = opt.content.trim().toUpperCase();
+          const isCorrect =
+            opt.label === keyUpper ||
+            optContentUpper === keyUpper ||
+            (keyUpper.startsWith('B') && optContentUpper.startsWith('BENAR')) ||
+            (keyUpper.startsWith('S') && optContentUpper.startsWith('SALAH'));
+          return {
+            order: idx + 1,
+            content: opt.content || `Opsi ${opt.label}`,
+            image_url: opt.imageUrl || null,
+            is_correct: isCorrect,
+          };
+        });
+      }
+
+      if (!options.some((o) => o.is_correct)) {
+        isValid = false;
+        error = `Kunci jawaban '${correctKey || '-'}' tidak valid untuk Benar / Salah`;
+      }
+    } else if (questionType === QuestionType.MATCHING) {
+      options = rawOptions.map((opt, idx) => {
+        const rawText = opt.content || '';
+        const delimiter = rawText.includes('->') ? '->' : '=';
+        const parts = rawText.split(delimiter);
+        const left = (parts[0] || '').trim();
+        const right = (parts.slice(1).join(delimiter) || '').trim();
+
+        return {
+          order: idx + 1,
+          content: JSON.stringify({ left, right }),
+          image_url: opt.imageUrl || null,
+          is_correct: true,
+        };
+      });
+
+      if (options.length < 2) {
+        isValid = false;
+        error = 'Soal menjodohkan memerlukan minimal 2 pasangan';
+      }
+    } else if (questionType === QuestionType.MULTI_SELECT) {
+      const targetKeys = correctKey.toUpperCase().match(/[A-E]/g) || [];
+      options = rawOptions.map((opt, idx) => ({
+        order: idx + 1,
+        content: opt.content || `Opsi ${opt.label}`,
+        image_url: opt.imageUrl || null,
+        is_correct: targetKeys.includes(opt.label),
+      }));
+
+      if (options.length < 2) {
+        isValid = false;
+        error = 'Minimal harus memiliki 2 opsi jawaban';
+      } else if (!options.some((o) => o.is_correct)) {
+        isValid = false;
+        error = `Kunci jawaban '${correctKey || '-'}' tidak ditemukan di opsi`;
+      }
+    } else {
+      // MULTIPLE_CHOICE
+      const keyMatch = correctKey.toUpperCase().match(/[A-E]/);
+      const targetKey = keyMatch ? keyMatch[0] : correctKey.toUpperCase().trim();
+
+      options = rawOptions.map((opt, idx) => ({
+        order: idx + 1,
+        content: opt.content || `Opsi ${opt.label}`,
+        image_url: opt.imageUrl || null,
+        is_correct: opt.label === targetKey,
+      }));
+
+      if (options.length < 2) {
+        isValid = false;
+        error = 'Minimal harus memiliki 2 opsi jawaban';
+      } else if (!options.some((o) => o.is_correct)) {
+        isValid = false;
+        error = `Kunci jawaban '${correctKey || '-'}' tidak ditemukan di opsi`;
+      }
+    }
+
+    return {
+      number,
+      content,
+      image_url: imageUrl,
+      type: questionType,
+      difficulty,
+      explanation,
+      options,
+      valid: isValid,
+      error,
+    };
+  }
+
   private parseFromTables($: cheerio.CheerioAPI, tables: cheerio.Cheerio<any>): ImportQuestionItemInput[] {
     const questions: ImportQuestionItemInput[] = [];
 
-    tables.each((tableIdx, tableElem) => {
+    tables.each((_, tableElem) => {
       const rows = $(tableElem).find('tr');
       if (rows.length < 2) return;
 
+      let explicitType: QuestionType | null = null;
       let questionContent = '';
       let questionImageUrl: string | null = null;
       let explanation: string | null = null;
@@ -104,16 +336,19 @@ export class WordParserService {
 
         // Identify row type
         if (
+          leftNormalized === 'TIPE' ||
+          leftNormalized === 'TIPE SOAL' ||
+          leftNormalized === 'TYPE'
+        ) {
+          explicitType = this.normalizeType(cellText);
+        } else if (
           leftNormalized === 'KUNCI' ||
           leftNormalized === 'KUNCI JAWABAN' ||
           leftNormalized === 'JAWABAN' ||
           leftNormalized === 'KEY' ||
           leftNormalized === 'ANSWER'
         ) {
-          const keyMatch = rightCell.text().trim().toUpperCase().match(/[A-Z0-9]+/);
-          if (keyMatch) {
-            correctKey = keyMatch[0];
-          }
+          correctKey = rightCell.text().trim();
         } else if (
           leftNormalized === 'PEMBAHASAN' ||
           leftNormalized === 'EXPLANATION'
@@ -139,13 +374,11 @@ export class WordParserService {
             imageUrl: cellImageUrl,
           });
         } else if (/^\d+$/.test(leftNormalized) || leftNormalized.startsWith('SOAL') || leftNormalized.startsWith('NO')) {
-          // Explicit question row
           questionContent = cellText;
           if (cellImageUrl) {
             questionImageUrl = cellImageUrl;
           }
         } else if (!questionContent && rawOptions.length === 0) {
-          // Header row or first row treated as question
           if (leftNormalized !== 'NO' && leftNormalized !== 'NOMOR') {
             questionContent = cellText || rawLeft;
             if (cellImageUrl) {
@@ -155,41 +388,27 @@ export class WordParserService {
         }
       });
 
-      // Construct question item only if it has at least 2 valid options (avoids admin/note tables)
-      if (rawOptions.length < 2) {
+      // Avoid non-question administrative tables
+      const isEssayOrShort =
+        explicitType === QuestionType.ESSAY ||
+        explicitType === QuestionType.SHORT_ANSWER ||
+        explicitType === QuestionType.TRUE_FALSE;
+      if (rawOptions.length < 2 && !isEssayOrShort && !correctKey) {
         return;
       }
 
-      const options: ImportQuestionOptionInput[] = rawOptions.map((opt, idx) => ({
-        order: idx + 1,
-        content: opt.content || `Opsi ${opt.label}`,
-        image_url: opt.imageUrl || null,
-        is_correct: opt.label === correctKey,
-      }));
-
-      const hasCorrect = options.some((o) => o.is_correct);
-      let isValid = true;
-      let error: string | null = null;
-
-      if (!questionContent && !questionImageUrl) {
-        isValid = false;
-        error = 'Pertanyaan tidak boleh kosong';
-      } else if (!hasCorrect) {
-        isValid = false;
-        error = `Kunci jawaban '${correctKey || '-'}' tidak ditemukan di opsi`;
-      }
-
-      questions.push({
-        number: questions.length + 1,
-        content: questionContent || (questionImageUrl ? 'Perhatikan gambar berikut:' : ''),
-        image_url: questionImageUrl,
-        type: QuestionType.MULTIPLE_CHOICE,
-        difficulty,
-        explanation,
-        options,
-        valid: isValid,
-        error,
-      });
+      questions.push(
+        this.buildQuestionItem({
+          number: questions.length + 1,
+          explicitType,
+          content: questionContent,
+          imageUrl: questionImageUrl,
+          options: rawOptions,
+          correctKey,
+          explanation,
+          difficulty,
+        }),
+      );
     });
 
     return questions;
@@ -204,7 +423,6 @@ export class WordParserService {
     }
     const blocks: BlockItem[] = [];
 
-    // Traverse paragraphs, headings, list items
     $('p, h1, h2, h3, h4, h5, h6, li').each((_, elem) => {
       const img = $(elem).find('img').first();
       const imageUrl = img.length > 0 ? img.attr('src') || null : null;
@@ -219,6 +437,7 @@ export class WordParserService {
     });
 
     interface ActiveQuestion {
+      explicitType: QuestionType | null;
       content: string;
       imageUrl: string | null;
       options: { label: string; content: string; imageUrl?: string | null }[];
@@ -229,44 +448,52 @@ export class WordParserService {
 
     let currentQuestion: ActiveQuestion | null = null;
 
+    const finalizeActiveQuestion = () => {
+      if (!currentQuestion) return;
+      const hasContent = currentQuestion.content.trim().length > 0;
+      const hasOptions = currentQuestion.options.length > 0;
+      const hasKey = currentQuestion.correctKey.trim().length > 0;
+      const isEssay = currentQuestion.explicitType === QuestionType.ESSAY;
+
+      if (hasContent || hasOptions || hasKey || isEssay) {
+        questions.push(
+          this.buildQuestionItem({
+            number: questions.length + 1,
+            explicitType: currentQuestion.explicitType,
+            content: currentQuestion.content,
+            imageUrl: currentQuestion.imageUrl,
+            options: currentQuestion.options,
+            correctKey: currentQuestion.correctKey,
+            explanation: currentQuestion.explanation,
+            difficulty: currentQuestion.difficulty,
+          }),
+        );
+      }
+      currentQuestion = null;
+    };
+
     for (const b of blocks) {
       const text = b.text;
 
-      // Ignore instruction/header banners
       if (/^(?:PETUNJUK|PANDUAN|INSTRUKSI|CARA PENULISAN)/i.test(text)) {
         continue;
       }
 
-      // 1. Check Question Boundary:
-      // Examples: [SOAL 1], [NOMOR 1], [NO 1], 1., 1), SOAL 1:, NO. 1
       const questionMatch = text.match(
         /^(?:\[(?:SOAL|NOMOR|NO)\s*(\d+)\]|(?:SOAL|NOMOR|NO)\.?\s*(\d+)[\.\:]?|(\d+)[\.\)])\s*(.*)/i,
       );
-
-      // 2. Check Option Line:
-      // Examples: A. Pilihan, B) Pilihan, C : Pilihan, a. Pilihan (requires punctuation to avoid 'A cat...')
+      const typeMatch = text.match(/^(?:TIPE(?:\s*SOAL)?|TYPE)[\s\:\=\-]+(.*)/i);
       const optionMatch = text.match(/^([A-E])\s*[\.\)\:]\s*(.*)/i);
-
-      // 3. Check Key Line:
-      // Examples: KUNCI: B, KUNCI JAWABAN = C, KEY: A, ANSWER: D
-      const keyMatch = text.match(/^(?:KUNCI(?:\s*JAWABAN)?|JAWABAN|KEY|ANSWER)[\s\:\=\-]+([A-E])/i);
-
-      // 4. Check Explanation Line:
-      // Examples: PEMBAHASAN: Penjelasan ..., EXPLANATION: ...
+      const keyMatch = text.match(/^(?:KUNCI(?:\s*JAWABAN)?|JAWABAN|KEY|ANSWER)[\s\:\=\-]+(.*)/i);
       const expMatch = text.match(/^(?:PEMBAHASAN|EXPLANATION)[\s\:\=\-]+(.*)/i);
-
-      // 5. Check Difficulty Line:
-      // Examples: KESULITAN: MUDAH, TINGKAT: SEDANG, DIFFICULTY: HARD
       const diffMatch = text.match(/^(?:KESULITAN|TINGKAT(?:\s*KESULITAN)?|DIFFICULTY)[\s\:\=\-]+(.*)/i);
 
       if (questionMatch) {
-        // Finalize previous question if one was active and had options/key
-        if (currentQuestion && (currentQuestion.options.length > 0 || currentQuestion.correctKey)) {
-          questions.push(this.buildQuestionFromBlock(currentQuestion, questions.length + 1));
-        }
+        finalizeActiveQuestion();
 
         const remainingText = questionMatch[4] ? questionMatch[4].trim() : '';
         currentQuestion = {
+          explicitType: null,
           content: remainingText,
           imageUrl: b.imageUrl || null,
           options: [],
@@ -274,14 +501,19 @@ export class WordParserService {
           explanation: null,
           difficulty: DifficultyLevel.MEDIUM,
         };
+      } else if (typeMatch && currentQuestion) {
+        const parsedType = this.normalizeType(typeMatch[1].trim());
+        if (parsedType) {
+          currentQuestion.explicitType = parsedType;
+        }
       } else if (optionMatch && optionMatch[1] && currentQuestion) {
         currentQuestion.options.push({
           label: optionMatch[1].toUpperCase(),
           content: optionMatch[2] ? optionMatch[2].trim() : '',
           imageUrl: b.imageUrl || null,
         });
-      } else if (keyMatch && keyMatch[1] && currentQuestion) {
-        currentQuestion.correctKey = keyMatch[1].toUpperCase();
+      } else if (keyMatch && currentQuestion) {
+        currentQuestion.correctKey = keyMatch[1] ? keyMatch[1].trim() : '';
       } else if (expMatch && currentQuestion) {
         currentQuestion.explanation = expMatch[1] ? expMatch[1].trim() : null;
       } else if (diffMatch && currentQuestion) {
@@ -294,22 +526,18 @@ export class WordParserService {
           currentQuestion.difficulty = DifficultyLevel.MEDIUM;
         }
       } else if (currentQuestion) {
-        // Non-boundary content: could be stimulus paragraph, subsequent explanation paragraph, or image
         if (b.imageUrl && !currentQuestion.imageUrl) {
           currentQuestion.imageUrl = b.imageUrl;
         }
 
         if (text) {
-          // If an explanation was previously declared, subsequent non-boundary text appends to explanation
           if (currentQuestion.explanation !== null) {
             currentQuestion.explanation = `${currentQuestion.explanation}\n${text}`;
           } else if (currentQuestion.options.length === 0) {
-            // If no options have been recorded yet, this belongs to the question content
             currentQuestion.content = currentQuestion.content
               ? `${currentQuestion.content}\n${text}`
               : text;
           } else {
-            // If options are already in progress, append to the last option
             const lastOpt = currentQuestion.options[currentQuestion.options.length - 1];
             if (lastOpt) {
               lastOpt.content = `${lastOpt.content}\n${text}`;
@@ -319,58 +547,8 @@ export class WordParserService {
       }
     }
 
-    if (currentQuestion && (currentQuestion.options.length > 0 || currentQuestion.correctKey)) {
-      questions.push(this.buildQuestionFromBlock(currentQuestion, questions.length + 1));
-    }
+    finalizeActiveQuestion();
 
     return questions;
-  }
-
-  private buildQuestionFromBlock(
-    block: {
-      content: string;
-      imageUrl: string | null;
-      options: { label: string; content: string; imageUrl?: string | null }[];
-      correctKey: string;
-      explanation: string | null;
-      difficulty: DifficultyLevel;
-    },
-    number: number,
-  ): ImportQuestionItemInput {
-    const options: ImportQuestionOptionInput[] = block.options.map((opt, idx) => ({
-      order: idx + 1,
-      content: opt.content || `Opsi ${opt.label}`,
-      image_url: opt.imageUrl || null,
-      is_correct: opt.label === block.correctKey,
-    }));
-
-    const hasCorrect = options.some((o) => o.is_correct);
-    let isValid = true;
-    let error: string | null = null;
-
-    const content = block.content || (block.imageUrl ? 'Perhatikan gambar berikut:' : '');
-
-    if (!content && !block.imageUrl) {
-      isValid = false;
-      error = 'Pertanyaan tidak boleh kosong';
-    } else if (options.length < 2) {
-      isValid = false;
-      error = 'Minimal harus memiliki 2 opsi jawaban';
-    } else if (!hasCorrect) {
-      isValid = false;
-      error = `Kunci jawaban '${block.correctKey || '-'}' tidak ditemukan di opsi`;
-    }
-
-    return {
-      number,
-      content,
-      image_url: block.imageUrl || null,
-      type: QuestionType.MULTIPLE_CHOICE,
-      difficulty: block.difficulty,
-      explanation: block.explanation,
-      options,
-      valid: isValid,
-      error,
-    };
   }
 }
