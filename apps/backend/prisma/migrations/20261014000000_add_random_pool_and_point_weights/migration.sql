@@ -1,0 +1,14 @@
+-- CreateEnum
+CREATE TYPE "PoolMode" AS ENUM ('BALANCED', 'PURE_RANDOM');
+
+-- AlterTable
+ALTER TABLE "exams" ADD COLUMN "is_random_pool" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "pool_question_count" INTEGER,
+ADD COLUMN "pool_mode" "PoolMode" NOT NULL DEFAULT 'BALANCED',
+ADD COLUMN "points_easy" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN "points_medium" INTEGER NOT NULL DEFAULT 2,
+ADD COLUMN "points_hard" INTEGER NOT NULL DEFAULT 3;
+
+-- AlterTable
+ALTER TABLE "scores" ADD COLUMN "raw_points_earned" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN "raw_points_possible" DOUBLE PRECISION NOT NULL DEFAULT 0;

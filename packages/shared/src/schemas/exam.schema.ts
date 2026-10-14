@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PoolMode } from '../enums';
 
 export const createExamSchema = z.object({
   title: z.string().min(1, { message: 'Judul ujian wajib diisi' }).max(200, { message: 'Judul ujian maksimal 200 karakter' }),
@@ -15,6 +16,12 @@ export const createExamSchema = z.object({
   auto_submit_enabled: z.boolean().optional().default(true),
   fullscreen_required: z.boolean().optional().default(true),
   package_count: z.number().int().min(1, { message: 'Minimal 1 paket' }).max(10, { message: 'Maksimal 10 paket' }).optional().default(1),
+  is_random_pool: z.boolean().optional().default(false),
+  pool_question_count: z.number().int().min(1, { message: 'Jumlah soal minimal 1' }).optional(),
+  pool_mode: z.nativeEnum(PoolMode).optional().default(PoolMode.BALANCED),
+  points_easy: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional().default(1),
+  points_medium: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional().default(2),
+  points_hard: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional().default(3),
 });
 
 export const updateExamSchema = z.object({
@@ -31,6 +38,12 @@ export const updateExamSchema = z.object({
   warning_limit: z.number().int().min(1, { message: 'Minimal 1 peringatan' }).max(10, { message: 'Maksimal 10 peringatan' }).optional(),
   auto_submit_enabled: z.boolean().optional(),
   fullscreen_required: z.boolean().optional(),
+  is_random_pool: z.boolean().optional(),
+  pool_question_count: z.number().int().min(1, { message: 'Jumlah soal minimal 1' }).nullable().optional(),
+  pool_mode: z.nativeEnum(PoolMode).optional(),
+  points_easy: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional(),
+  points_medium: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional(),
+  points_hard: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional(),
 });
 
 export const generateTokenSchema = z.object({

@@ -54,6 +54,11 @@ enum DifficultyLevel {
   HARD
 }
 
+enum PoolMode {
+  BALANCED
+  PURE_RANDOM
+}
+
 // ── users ────────────────────────────────────────────────────────
 
 model User {
@@ -305,6 +310,12 @@ model Exam {
   auto_submit_enabled  Boolean    @default(true)
   fullscreen_required  Boolean    @default(true)
   package_count        Int        @default(1)
+  is_random_pool       Boolean    @default(false)
+  pool_question_count  Int?
+  pool_mode            PoolMode   @default(BALANCED)
+  points_easy          Int        @default(1)
+  points_medium        Int        @default(2)
+  points_hard          Int        @default(3)
   created_at           DateTime   @default(now())
   updated_at           DateTime   @updatedAt
   deleted_at           DateTime?
@@ -466,6 +477,8 @@ model Score {
   id                        String    @id @default(uuid()) @db.Uuid
   exam_session_id           String    @unique @db.Uuid
   total_score               Float     @default(0)
+  raw_points_earned         Float     @default(0)
+  raw_points_possible       Float     @default(0)
   correct_count             Int       @default(0)
   wrong_count               Int       @default(0)
   essay_score               Float?

@@ -52,6 +52,12 @@ export enum DifficultyLevel {
   HARD = 'HARD',
 }
 
+/** Mode for random pool question sampling */
+export enum PoolMode {
+  BALANCED = 'BALANCED',
+  PURE_RANDOM = 'PURE_RANDOM',
+}
+
 /** Violation event types stored in session_logs */
 export enum ViolationEvent {
   APP_BACKGROUND = 'APP_BACKGROUND',
