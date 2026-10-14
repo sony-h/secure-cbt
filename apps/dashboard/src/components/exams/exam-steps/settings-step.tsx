@@ -3,6 +3,7 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RandomPoolCard } from '../random-pool-card';
 import type { ExamFormData } from '../create-exam-modal';
 
 interface Props {
@@ -20,6 +21,12 @@ const settings = [
 export function SettingsStep({ form, setForm }: Props) {
   return (
     <div className="space-y-4">
+      <RandomPoolCard
+        form={form}
+        setForm={setForm}
+        totalSelectedQuestions={form.question_ids?.length || 0}
+      />
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Jumlah Paket Soal</Label>

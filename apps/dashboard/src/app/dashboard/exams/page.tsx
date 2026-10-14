@@ -15,7 +15,7 @@ import {
   AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
   AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
-import { Plus, Pencil, Trash2, Key, Clock, Calendar, Copy, Check, FileCheck, Layers } from 'lucide-react';
+import { Plus, Pencil, Trash2, Key, Clock, Calendar, Copy, Check, FileCheck, Layers, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { CreateExamModal, emptyExamForm, type ExamFormData } from '@/components/exams/create-exam-modal';
 import { TokenModal } from '@/components/exams/token-modal';
@@ -35,6 +35,12 @@ interface Exam {
   auto_submit_enabled: boolean;
   fullscreen_required: boolean;
   package_count: number;
+  is_random_pool?: boolean;
+  pool_question_count?: number | null;
+  pool_mode?: string;
+  points_easy?: number;
+  points_medium?: number;
+  points_hard?: number;
   created_at: string;
   classes?: { class: { id: string; name: string } }[];
   exam_token?: { token: string; expires_at: string } | null;
@@ -146,6 +152,12 @@ function ExamsPageContent() {
         package_count: full.package_count || 1, randomize_questions: full.randomize_questions,
         randomize_answers: full.randomize_answers, warning_limit: full.warning_limit,
         auto_submit_enabled: full.auto_submit_enabled, fullscreen_required: full.fullscreen_required,
+        is_random_pool: full.is_random_pool ?? false,
+        pool_question_count: full.pool_question_count ?? null,
+        pool_mode: full.pool_mode ?? 'BALANCED',
+        points_easy: full.points_easy ?? 1,
+        points_medium: full.points_medium ?? 2,
+        points_hard: full.points_hard ?? 3,
       });
       setModalOpen(true);
     } catch {
@@ -221,7 +233,22 @@ function ExamsPageContent() {
       accessorKey: 'status', header: 'Status', enableSorting: true,
       cell: ({ row }: any) => (<Badge variant={statusColors[row.original.status] || 'default'}>{statusLabels[row.original.status] || row.original.status}</Badge>),
     },
-    { accessorKey: '_count.exam_questions', header: 'Soal', enableSorting: true, cell: ({ row }: any) => <Badge>{row.original._count?.exam_questions || 0}</Badge> },
+    {
+      accessorKey: '_count.exam_questions',
+      header: 'Soal',
+      enableSorting: true,
+      cell: ({ row }: any) => {
+        if (row.original.is_random_pool && row.original.pool_question_count) {
+          return (
+            <Badge variant="outline" className="gap-1 border-primary/50 text-primary font-semibold">
+              <Sparkles className="w-3 h-3 text-primary" />
+              {row.original.pool_question_count} / {row.original._count?.exam_questions || 0}
+            </Badge>
+          );
+        }
+        return <Badge>{row.original._count?.exam_questions || 0}</Badge>;
+      },
+    },
     {
       id: 'actions', header: 'Aksi',
       cell: ({ row }: any) => (

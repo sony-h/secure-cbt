@@ -31,6 +31,12 @@ export interface ExamFormData {
   warning_limit: number;
   auto_submit_enabled: boolean;
   fullscreen_required: boolean;
+  is_random_pool: boolean;
+  pool_question_count: number | null;
+  pool_mode: 'BALANCED' | 'PURE_RANDOM';
+  points_easy: number;
+  points_medium: number;
+  points_hard: number;
 }
 
 export const emptyExamForm: ExamFormData = {
@@ -38,6 +44,8 @@ export const emptyExamForm: ExamFormData = {
   start_at: '', end_at: '', class_ids: [], question_ids: [],
   package_count: 1, randomize_questions: false, randomize_answers: false,
   warning_limit: 3, auto_submit_enabled: true, fullscreen_required: true,
+  is_random_pool: false, pool_question_count: null, pool_mode: 'BALANCED',
+  points_easy: 1, points_medium: 2, points_hard: 3,
 };
 
 export function CreateExamModal({
