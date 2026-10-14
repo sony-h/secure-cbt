@@ -65,22 +65,75 @@ export class GradingService {
       include: {
         answers: { include: { question: true } },
         package: true,
-        exam: { include: { exam_questions: { select: { id: true, package_id: true } } } },
+        exam: {
+          include: {
+            exam_questions: {
+              include: {
+                question: { select: { id: true, difficulty: true } },
+              },
+            },
+          },
+        },
       },
     });
     if (!session) throw new NotFoundException('Session not found');
 
+    const exam = session.exam;
+    const pointsConfig = {
+      EASY: exam?.points_easy ?? 1,
+      MEDIUM: exam?.points_medium ?? 2,
+      HARD: exam?.points_hard ?? 3,
+    };
+
+    const getQuestionWeight = (diff?: string | null) => {
+      const d = (diff || '').toUpperCase();
+      if (d === 'EASY') return pointsConfig.EASY;
+      if (d === 'HARD') return pointsConfig.HARD;
+      return pointsConfig.MEDIUM;
+    };
+
+    const allExamQuestions = exam?.exam_questions ?? [];
+    const packageId = session.package_id;
+    let assignedExamQuestions = packageId
+      ? allExamQuestions.filter((eq) => !eq.package_id || eq.package_id === packageId)
+      : allExamQuestions;
+
+    if (
+      session.question_order &&
+      Array.isArray(session.question_order) &&
+      (session.question_order as string[]).length > 0
+    ) {
+      const orderIds = new Set(session.question_order as string[]);
+      assignedExamQuestions = allExamQuestions.filter((eq) => orderIds.has(eq.id));
+    }
+
+    let rawPointsPossible = 0;
+    for (const eq of assignedExamQuestions) {
+      rawPointsPossible += getQuestionWeight(eq.question?.difficulty);
+    }
+    if (rawPointsPossible === 0) {
+      for (const ans of session.answers) {
+        rawPointsPossible += getQuestionWeight(ans.question?.difficulty);
+      }
+    }
+    if (rawPointsPossible === 0) {
+      rawPointsPossible = 1;
+    }
+
     const answers = session.answers;
-    let totalScore = 0;
+    let rawPointsEarned = 0;
     let correctCount = 0;
     let wrongCount = 0;
     let essayScore = 0;
 
     for (const answer of answers) {
+      const weight = getQuestionWeight(answer.question?.difficulty);
+
       if (answer.question.type === QuestionType.ESSAY) {
         if (answer.score !== null) {
           essayScore += answer.score;
-          totalScore += answer.score;
+          const earned = weight * (answer.score / 100);
+          rawPointsEarned += earned;
           if (answer.score >= 50) correctCount++;
           else wrongCount++;
         }
@@ -134,7 +187,8 @@ export class GradingService {
         } else {
           wrongCount++;
         }
-        totalScore += score;
+        const earned = weight * (score / 100);
+        rawPointsEarned += earned;
 
         await tx.answer.update({
           where: { id: answer.id },
@@ -142,23 +196,25 @@ export class GradingService {
         });
       } else if (answer.is_correct || (answer.score !== null && answer.score >= 50)) {
         correctCount++;
-        totalScore += (answer.score ?? 100);
+        const itemScore = answer.score ?? 100;
+        const earned = weight * (itemScore / 100);
+        rawPointsEarned += earned;
       } else {
         wrongCount++;
-        totalScore += (answer.score ?? 0);
+        const itemScore = answer.score ?? 0;
+        const earned = weight * (itemScore / 100);
+        rawPointsEarned += earned;
       }
     }
 
-    const examQuestions = session.exam.exam_questions;
-    const packageId = session.package_id;
-    const studentQuestionCount = packageId
-      ? examQuestions.filter((eq) => eq.package_id === packageId).length
-      : examQuestions.length;
-    const totalQuestions = studentQuestionCount || answers.length || 1;
-    const finalScore = totalQuestions > 0 ? (totalScore / totalQuestions) : 0;
+    const totalQuestions = assignedExamQuestions.length || answers.length || 1;
+    const normalizedScore = (rawPointsEarned / rawPointsPossible) * 100;
+    const finalScore = Math.max(0, Math.min(100, Math.round(normalizedScore * 100) / 100));
 
     return {
       total_score: finalScore,
+      raw_points_earned: Math.round(rawPointsEarned * 100) / 100,
+      raw_points_possible: Math.round(rawPointsPossible * 100) / 100,
       correct_count: correctCount,
       wrong_count: wrongCount,
       essay_score: essayScore,
@@ -189,6 +245,8 @@ export class GradingService {
       student_name: score.exam_session.student.full_name,
       exam_title: score.exam_session.exam.title,
       total_score: score.total_score,
+      raw_points_earned: score.raw_points_earned,
+      raw_points_possible: score.raw_points_possible,
       correct_count: score.correct_count,
       wrong_count: score.wrong_count,
       essay_score: score.essay_score,
