@@ -48,7 +48,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
             spacing: { after: 300 },
             children: [
               new TextRun({
-                text: 'MASTER TEMPLATE SOAL UJIAN (MICROSOFT WORD)',
+                text: 'MASTER TEMPLATE SOAL UJIAN MULTI-TIPE (MICROSOFT WORD)',
                 bold: true,
                 size: 22, // 11pt
                 color: '475569',
@@ -85,7 +85,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
                         spacing: { after: 100 },
                         children: [
                           new TextRun({
-                            text: '📌 PETUNJUK PENULISAN SOAL (FORMAT NASKAH ALAMI):',
+                            text: '📌 PETUNJUK PENULISAN SOAL MULTI-TIPE (FORMAT NASKAH ALAMI):',
                             bold: true,
                             size: 20,
                             color: '1E293B',
@@ -97,7 +97,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
                         spacing: { after: 60 },
                         children: [
                           new TextRun({
-                            text: '• Nomor Soal: Awali dengan [SOAL 1], [SOAL 2], atau nomor standar (1., 2.).',
+                            text: '• Awali setiap butir soal dengan: [SOAL 1], [SOAL 2], atau 1., 2.',
                             size: 18,
                             font: 'Arial',
                             color: '334155',
@@ -108,33 +108,77 @@ export async function generateWordTemplate(): Promise<Buffer> {
                         spacing: { after: 60 },
                         children: [
                           new TextRun({
-                            text: '• Teks Pertanyaan: Tuliskan pertanyaan tepat di bawah nomor soal. Gambar/diagram dapat langsung di-paste di sini.',
-                            size: 18,
-                            font: 'Arial',
-                            color: '334155',
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        spacing: { after: 60 },
-                        children: [
-                          new TextRun({
-                            text: '• Pilihan Opsi: Tuliskan opsi A s.d. E diawali huruf kapital (contoh: A. Pilihan satu).',
-                            size: 18,
-                            font: 'Arial',
-                            color: '334155',
-                          }),
-                        ],
-                      }),
-                      new Paragraph({
-                        spacing: { after: 60 },
-                        children: [
-                          new TextRun({
-                            text: '• Kunci Jawaban: Tuliskan baris KUNCI: [A/B/C/D/E] di bawah opsi jawaban.',
+                            text: '• Tipe Soal (Opsional): Tuliskan tag TIPE: [PILIHAN_GANDA / PG_KOMPLEKS / BENAR_SALAH / ISIAN_SINGKAT / MENJODOHKAN / ESAI]. Parser akan otomatis mendeteksi jika tag tidak ditulis.',
                             bold: true,
                             size: 18,
                             font: 'Arial',
-                            color: '1E3A8A',
+                            color: '2563EB',
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        spacing: { after: 60 },
+                        children: [
+                          new TextRun({
+                            text: '• Pilihan Ganda Biasa: Opsi A s.d. E, baris KUNCI: [A/B/C/D/E].',
+                            size: 18,
+                            font: 'Arial',
+                            color: '334155',
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        spacing: { after: 60 },
+                        children: [
+                          new TextRun({
+                            text: '• PG Kompleks: Opsi A s.d. E, baris KUNCI: A, B, D (kunci dipisahkan koma).',
+                            size: 18,
+                            font: 'Arial',
+                            color: '334155',
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        spacing: { after: 60 },
+                        children: [
+                          new TextRun({
+                            text: '• Benar / Salah: Baris KUNCI: BENAR atau KUNCI: SALAH (opsi tidak perlu ditulis manual).',
+                            size: 18,
+                            font: 'Arial',
+                            color: '334155',
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        spacing: { after: 60 },
+                        children: [
+                          new TextRun({
+                            text: '• Isian Singkat: Baris KUNCI: [kata kunci jawaban] (opsi tidak perlu ditulis).',
+                            size: 18,
+                            font: 'Arial',
+                            color: '334155',
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        spacing: { after: 60 },
+                        children: [
+                          new TextRun({
+                            text: '• Menjodohkan: Tuliskan pasangan opsi dengan tanda panah: A. Pernyataan -> Pasangan.',
+                            size: 18,
+                            font: 'Arial',
+                            color: '334155',
+                          }),
+                        ],
+                      }),
+                      new Paragraph({
+                        spacing: { after: 60 },
+                        children: [
+                          new TextRun({
+                            text: '• Esai / Uraian: Tuliskan pertanyaan dan pembahasan, tanpa opsi dan kunci jawaban.',
+                            size: 18,
+                            font: 'Arial',
+                            color: '334155',
                           }),
                         ],
                       }),
@@ -142,7 +186,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
                         spacing: { after: 0 },
                         children: [
                           new TextRun({
-                            text: '• Metadata Opsional: Tambahkan PEMBAHASAN: [teks] dan KESULITAN: [MUDAH/SEDANG/SULIT] (default: SEDANG).',
+                            text: '• Metadata: Tambahkan PEMBAHASAN: [teks] dan KESULITAN: [MUDAH/SEDANG/SULIT] (default: SEDANG). Gambar diagram dapat langsung di-paste.',
                             size: 18,
                             font: 'Arial',
                             color: '64748B',
@@ -158,9 +202,11 @@ export async function generateWordTemplate(): Promise<Buffer> {
 
           new Paragraph({ spacing: { after: 300 } }),
 
-          // Question 1
+          // ─────────────────────────────────────────────────────────
+          // SOAL 1: Pilihan Ganda (MULTIPLE_CHOICE)
+          // ─────────────────────────────────────────────────────────
           new Paragraph({
-            spacing: { before: 100, after: 80 },
+            spacing: { before: 120, after: 80 },
             children: [
               new TextRun({
                 text: '[SOAL 1]',
@@ -175,7 +221,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
             spacing: { after: 120 },
             children: [
               new TextRun({
-                text: 'Perangkat lunak berikut ini yang berfungsi sebagai sistem operasi pada komputer adalah...',
+                text: 'Ibu kota negara Indonesia saat ini berlokasi di Provinsi Kalimantan Timur dengan nama...',
                 size: 21,
                 font: 'Arial',
               }),
@@ -183,29 +229,29 @@ export async function generateWordTemplate(): Promise<Buffer> {
           }),
           new Paragraph({
             spacing: { after: 60 },
-            children: [new TextRun({ text: 'A. Microsoft Word', size: 20, font: 'Arial' })],
+            children: [new TextRun({ text: 'A. Jakarta', size: 20, font: 'Arial' })],
           }),
           new Paragraph({
             spacing: { after: 60 },
-            children: [new TextRun({ text: 'B. Microsoft Windows', size: 20, font: 'Arial' })],
+            children: [new TextRun({ text: 'B. Surabaya', size: 20, font: 'Arial' })],
           }),
           new Paragraph({
             spacing: { after: 60 },
-            children: [new TextRun({ text: 'C. Google Chrome', size: 20, font: 'Arial' })],
+            children: [new TextRun({ text: 'C. Nusantara', size: 20, font: 'Arial' })],
           }),
           new Paragraph({
             spacing: { after: 60 },
-            children: [new TextRun({ text: 'D. Adobe Photoshop', size: 20, font: 'Arial' })],
+            children: [new TextRun({ text: 'D. Medan', size: 20, font: 'Arial' })],
           }),
           new Paragraph({
             spacing: { after: 100 },
-            children: [new TextRun({ text: 'E. Visual Studio Code', size: 20, font: 'Arial' })],
+            children: [new TextRun({ text: 'E. Makassar', size: 20, font: 'Arial' })],
           }),
           new Paragraph({
             spacing: { after: 60 },
             children: [
               new TextRun({ text: 'KUNCI: ', bold: true, size: 20, font: 'Arial', color: '15803D' }),
-              new TextRun({ text: 'B', bold: true, size: 20, font: 'Arial', color: '15803D' }),
+              new TextRun({ text: 'C', bold: true, size: 20, font: 'Arial', color: '15803D' }),
             ],
           }),
           new Paragraph({
@@ -213,7 +259,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
             children: [
               new TextRun({ text: 'PEMBAHASAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
               new TextRun({
-                text: 'Microsoft Windows merupakan sistem operasi yang mengelola sumber daya perangkat keras dan perangkat lunak.',
+                text: 'Ibu Kota Nusantara (IKN) berlokasi di wilayah Kabupaten Penajam Paser Utara dan Kutai Kartanegara, Kalimantan Timur.',
                 size: 19,
                 font: 'Arial',
                 color: '475569',
@@ -221,7 +267,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
             ],
           }),
           new Paragraph({
-            spacing: { after: 300 },
+            spacing: { after: 260 },
             children: [
               new TextRun({ text: 'KESULITAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
               new TextRun({ text: 'MUDAH', size: 19, font: 'Arial', color: '475569' }),
@@ -231,7 +277,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
           // Divider
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 300 },
+            spacing: { after: 260 },
             children: [
               new TextRun({
                 text: '────────────────────────────────────────────────────────',
@@ -240,7 +286,9 @@ export async function generateWordTemplate(): Promise<Buffer> {
             ],
           }),
 
-          // Question 2
+          // ─────────────────────────────────────────────────────────
+          // SOAL 2: PG Kompleks (MULTI_SELECT)
+          // ─────────────────────────────────────────────────────────
           new Paragraph({
             spacing: { before: 100, after: 80 },
             children: [
@@ -254,10 +302,22 @@ export async function generateWordTemplate(): Promise<Buffer> {
             ],
           }),
           new Paragraph({
+            spacing: { after: 80 },
+            children: [
+              new TextRun({
+                text: 'TIPE: PG_KOMPLEKS',
+                bold: true,
+                size: 19,
+                color: '7C3AED',
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
             spacing: { after: 120 },
             children: [
               new TextRun({
-                text: 'Jika diketahui persamaan kuadrat 2x² + 5x - 3 = 0, maka nilai diskriminan (D) dari persamaan tersebut adalah...',
+                text: 'Manakah dari bahasa pemrograman berikut ini yang umumnya dieksekusi menggunakan interpreter (diinterpretasi)?',
                 size: 21,
                 font: 'Arial',
               }),
@@ -265,29 +325,25 @@ export async function generateWordTemplate(): Promise<Buffer> {
           }),
           new Paragraph({
             spacing: { after: 60 },
-            children: [new TextRun({ text: 'A. 1', size: 20, font: 'Arial' })],
+            children: [new TextRun({ text: 'A. Python', size: 20, font: 'Arial' })],
           }),
           new Paragraph({
             spacing: { after: 60 },
-            children: [new TextRun({ text: 'B. 49', size: 20, font: 'Arial' })],
+            children: [new TextRun({ text: 'B. JavaScript', size: 20, font: 'Arial' })],
           }),
           new Paragraph({
             spacing: { after: 60 },
-            children: [new TextRun({ text: 'C. 25', size: 20, font: 'Arial' })],
-          }),
-          new Paragraph({
-            spacing: { after: 60 },
-            children: [new TextRun({ text: 'D. 36', size: 20, font: 'Arial' })],
+            children: [new TextRun({ text: 'C. C++', size: 20, font: 'Arial' })],
           }),
           new Paragraph({
             spacing: { after: 100 },
-            children: [new TextRun({ text: 'E. -1', size: 20, font: 'Arial' })],
+            children: [new TextRun({ text: 'D. Ruby', size: 20, font: 'Arial' })],
           }),
           new Paragraph({
             spacing: { after: 60 },
             children: [
               new TextRun({ text: 'KUNCI: ', bold: true, size: 20, font: 'Arial', color: '15803D' }),
-              new TextRun({ text: 'B', bold: true, size: 20, font: 'Arial', color: '15803D' }),
+              new TextRun({ text: 'A, B, D', bold: true, size: 20, font: 'Arial', color: '15803D' }),
             ],
           }),
           new Paragraph({
@@ -295,7 +351,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
             children: [
               new TextRun({ text: 'PEMBAHASAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
               new TextRun({
-                text: 'Rumus diskriminan D = b² - 4ac. Nilai D = (5)² - 4(2)(-3) = 25 + 24 = 49.',
+                text: 'Python, JavaScript, dan Ruby dieksekusi oleh interpreter runtime, sedangkan C++ dikompilasi ke machine code.',
                 size: 19,
                 font: 'Arial',
                 color: '475569',
@@ -303,7 +359,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
             ],
           }),
           new Paragraph({
-            spacing: { after: 300 },
+            spacing: { after: 260 },
             children: [
               new TextRun({ text: 'KESULITAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
               new TextRun({ text: 'SEDANG', size: 19, font: 'Arial', color: '475569' }),
@@ -313,7 +369,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
           // Divider
           new Paragraph({
             alignment: AlignmentType.CENTER,
-            spacing: { after: 300 },
+            spacing: { after: 260 },
             children: [
               new TextRun({
                 text: '────────────────────────────────────────────────────────',
@@ -322,7 +378,9 @@ export async function generateWordTemplate(): Promise<Buffer> {
             ],
           }),
 
-          // Question 3
+          // ─────────────────────────────────────────────────────────
+          // SOAL 3: Benar / Salah (TRUE_FALSE)
+          // ─────────────────────────────────────────────────────────
           new Paragraph({
             spacing: { before: 100, after: 80 },
             children: [
@@ -336,10 +394,22 @@ export async function generateWordTemplate(): Promise<Buffer> {
             ],
           }),
           new Paragraph({
+            spacing: { after: 80 },
+            children: [
+              new TextRun({
+                text: 'TIPE: BENAR_SALAH',
+                bold: true,
+                size: 19,
+                color: 'D97706',
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
             spacing: { after: 120 },
             children: [
               new TextRun({
-                text: 'Organel sel yang berfungsi sebagai tempat respirasi seluler dan penghasil energi utama (ATP) adalah...',
+                text: 'Fotosintesis pada tumbuhan hijau menghasilkan gas oksigen dan senyawa glukosa.',
                 size: 21,
                 font: 'Arial',
               }),
@@ -347,29 +417,9 @@ export async function generateWordTemplate(): Promise<Buffer> {
           }),
           new Paragraph({
             spacing: { after: 60 },
-            children: [new TextRun({ text: 'A. Ribosom', size: 20, font: 'Arial' })],
-          }),
-          new Paragraph({
-            spacing: { after: 60 },
-            children: [new TextRun({ text: 'B. Mitokondria', size: 20, font: 'Arial' })],
-          }),
-          new Paragraph({
-            spacing: { after: 60 },
-            children: [new TextRun({ text: 'C. Retikulum Endoplasma', size: 20, font: 'Arial' })],
-          }),
-          new Paragraph({
-            spacing: { after: 60 },
-            children: [new TextRun({ text: 'D. Lisosom', size: 20, font: 'Arial' })],
-          }),
-          new Paragraph({
-            spacing: { after: 100 },
-            children: [new TextRun({ text: 'E. Badan Golgi', size: 20, font: 'Arial' })],
-          }),
-          new Paragraph({
-            spacing: { after: 60 },
             children: [
               new TextRun({ text: 'KUNCI: ', bold: true, size: 20, font: 'Arial', color: '15803D' }),
-              new TextRun({ text: 'B', bold: true, size: 20, font: 'Arial', color: '15803D' }),
+              new TextRun({ text: 'BENAR', bold: true, size: 20, font: 'Arial', color: '15803D' }),
             ],
           }),
           new Paragraph({
@@ -377,7 +427,233 @@ export async function generateWordTemplate(): Promise<Buffer> {
             children: [
               new TextRun({ text: 'PEMBAHASAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
               new TextRun({
-                text: 'Mitokondria merupakan penghasil energi terbesar di dalam sel melalui respirasi aerobik.',
+                text: 'Reaksi fotosintesis: 6CO2 + 6H2O + cahaya -> C6H12O6 + 6O2.',
+                size: 19,
+                font: 'Arial',
+                color: '475569',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 260 },
+            children: [
+              new TextRun({ text: 'KESULITAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
+              new TextRun({ text: 'MUDAH', size: 19, font: 'Arial', color: '475569' }),
+            ],
+          }),
+
+          // Divider
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 260 },
+            children: [
+              new TextRun({
+                text: '────────────────────────────────────────────────────────',
+                color: 'CBD5E1',
+              }),
+            ],
+          }),
+
+          // ─────────────────────────────────────────────────────────
+          // SOAL 4: Isian Singkat (SHORT_ANSWER)
+          // ─────────────────────────────────────────────────────────
+          new Paragraph({
+            spacing: { before: 100, after: 80 },
+            children: [
+              new TextRun({
+                text: '[SOAL 4]',
+                bold: true,
+                size: 22,
+                color: '2563EB',
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 80 },
+            children: [
+              new TextRun({
+                text: 'TIPE: ISIAN_SINGKAT',
+                bold: true,
+                size: 19,
+                color: '0891B2',
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 120 },
+            children: [
+              new TextRun({
+                text: 'Bahasa resmi yang digunakan oleh penduduk negara Brazil adalah...',
+                size: 21,
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 60 },
+            children: [
+              new TextRun({ text: 'KUNCI: ', bold: true, size: 20, font: 'Arial', color: '15803D' }),
+              new TextRun({ text: 'Portugis, portugis, Portuguese', bold: true, size: 20, font: 'Arial', color: '15803D' }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 60 },
+            children: [
+              new TextRun({ text: 'PEMBAHASAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
+              new TextRun({
+                text: 'Brazil dijajah oleh Portugal sehingga bahasa resminya adalah bahasa Portugis.',
+                size: 19,
+                font: 'Arial',
+                color: '475569',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 260 },
+            children: [
+              new TextRun({ text: 'KESULITAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
+              new TextRun({ text: 'SEDANG', size: 19, font: 'Arial', color: '475569' }),
+            ],
+          }),
+
+          // Divider
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 260 },
+            children: [
+              new TextRun({
+                text: '────────────────────────────────────────────────────────',
+                color: 'CBD5E1',
+              }),
+            ],
+          }),
+
+          // ─────────────────────────────────────────────────────────
+          // SOAL 5: Menjodohkan (MATCHING)
+          // ─────────────────────────────────────────────────────────
+          new Paragraph({
+            spacing: { before: 100, after: 80 },
+            children: [
+              new TextRun({
+                text: '[SOAL 5]',
+                bold: true,
+                size: 22,
+                color: '2563EB',
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 80 },
+            children: [
+              new TextRun({
+                text: 'TIPE: MENJODOHKAN',
+                bold: true,
+                size: 19,
+                color: '4F46E5',
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 120 },
+            children: [
+              new TextRun({
+                text: 'Jodohkanlah nama pahlawan nasional berikut dengan kota asalnya:',
+                size: 21,
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 60 },
+            children: [new TextRun({ text: 'A. R.A. Kartini -> Jepara', size: 20, font: 'Arial' })],
+          }),
+          new Paragraph({
+            spacing: { after: 60 },
+            children: [new TextRun({ text: 'B. Pangeran Diponegoro -> Yogyakarta', size: 20, font: 'Arial' })],
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [new TextRun({ text: 'C. Cut Nyak Dien -> Aceh', size: 20, font: 'Arial' })],
+          }),
+          new Paragraph({
+            spacing: { after: 60 },
+            children: [
+              new TextRun({ text: 'PEMBAHASAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
+              new TextRun({
+                text: 'Kartini berasal dari Jepara, Diponegoro berjuang di Yogyakarta, dan Cut Nyak Dien dari Aceh.',
+                size: 19,
+                font: 'Arial',
+                color: '475569',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 260 },
+            children: [
+              new TextRun({ text: 'KESULITAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
+              new TextRun({ text: 'SULIT', size: 19, font: 'Arial', color: '475569' }),
+            ],
+          }),
+
+          // Divider
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 260 },
+            children: [
+              new TextRun({
+                text: '────────────────────────────────────────────────────────',
+                color: 'CBD5E1',
+              }),
+            ],
+          }),
+
+          // ─────────────────────────────────────────────────────────
+          // SOAL 6: Esai / Uraian (ESSAY)
+          // ─────────────────────────────────────────────────────────
+          new Paragraph({
+            spacing: { before: 100, after: 80 },
+            children: [
+              new TextRun({
+                text: '[SOAL 6]',
+                bold: true,
+                size: 22,
+                color: '2563EB',
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 80 },
+            children: [
+              new TextRun({
+                text: 'TIPE: ESAI',
+                bold: true,
+                size: 19,
+                color: 'E11D48',
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 120 },
+            children: [
+              new TextRun({
+                text: 'Jelaskan perbedaan mendasar antara siklus lisogenik dan siklus litik pada proses replikasi virus!',
+                size: 21,
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 60 },
+            children: [
+              new TextRun({ text: 'PEMBAHASAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
+              new TextRun({
+                text: 'Siklus litik menghancurkan/melisiskan sel inang segera setelah proses perakitan virus baru, sedangkan siklus lisogenik menyisipkan materi genetik virus ke dalam genom sel inang tanpa langsung mematikan sel.',
                 size: 19,
                 font: 'Arial',
                 color: '475569',
@@ -388,7 +664,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
             spacing: { after: 100 },
             children: [
               new TextRun({ text: 'KESULITAN: ', bold: true, size: 19, font: 'Arial', color: '475569' }),
-              new TextRun({ text: 'SEDANG', size: 19, font: 'Arial', color: '475569' }),
+              new TextRun({ text: 'SULIT', size: 19, font: 'Arial', color: '475569' }),
             ],
           }),
         ],
@@ -417,14 +693,14 @@ export async function generateExcelTemplate(): Promise<Buffer> {
   guideSheet.columns = [
     { width: 4 },
     { width: 22 },
-    { width: 45 },
-    { width: 35 },
+    { width: 48 },
+    { width: 38 },
   ];
 
   // Header Title
   guideSheet.mergeCells('B2:D2');
   const guideTitleCell = guideSheet.getCell('B2');
-  guideTitleCell.value = 'ASSESSIA BY ORIVASTRA - PETUNJUK TEMPLATE EXCEL';
+  guideTitleCell.value = 'ASSESSIA BY ORIVASTRA - PETUNJUK TEMPLATE EXCEL MULTI-TIPE';
   guideTitleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFF' } };
   guideTitleCell.fill = {
     type: 'pattern',
@@ -437,15 +713,26 @@ export async function generateExcelTemplate(): Promise<Buffer> {
   const guideRows = [
     ['', 'Nama Kolom', 'Keterangan & Format', 'Contoh Pengisian'],
     ['', 'No', 'Nomor urut butir soal', '1, 2, 3...'],
+    [
+      '',
+      'Tipe Soal',
+      'PILIH DARI DROPDOWN MENU (PILIHAN GANDA, PG KOMPLEKS, BENAR SALAH, ISIAN SINGKAT, MENJODOHKAN, ESAI)',
+      'PILIHAN GANDA (Tersedia menu dropdown)',
+    ],
     ['', 'Soal', 'Teks lengkap pertanyaan ujian', 'Ibu kota negara Indonesia adalah...'],
-    ['', 'Opsi A s.d. E', 'Pilihan jawaban A sampai E', 'Jakarta (pada kolom Opsi A)'],
+    [
+      '',
+      'Opsi A s.d. E',
+      'Pilihan jawaban A sampai E. Untuk Menjodohkan gunakan format: Pernyataan -> Pasangan. Kosongkan untuk Benar/Salah, Isian, dan Esai.',
+      'Jakarta (Opsi A) atau Kartini -> Jepara',
+    ],
     [
       '',
       'Kunci Jawaban',
-      'PILIH DARI DROPDOWN MENU (A, B, C, D, atau E)',
-      'A (Tersedia menu pilihan otomatis)',
+      'PG: A-E | PG Kompleks: A, B, D | Benar Salah: BENAR / SALAH | Isian: Kata kunci | Menjodohkan & Esai: Kosongkan',
+      'B (PG) atau A, B, D (Kompleks)',
     ],
-    ['', 'Pembahasan (Opsional)', 'Penjelasan rinci untuk evaluasi siswa', 'Jakarta merupakan pusat pemerintahan.'],
+    ['', 'Pembahasan (Opsional)', 'Penjelasan rinci untuk evaluasi dan rubrik siswa', 'Nusantara di Kalimantan Timur.'],
     [
       '',
       'Tingkat Kesulitan',
@@ -458,7 +745,7 @@ export async function generateExcelTemplate(): Promise<Buffer> {
     const rowIdx = idx + 4;
     const row = guideSheet.getRow(rowIdx);
     row.values = r;
-    row.height = 28;
+    row.height = 30;
 
     if (idx === 0) {
       // Header table
@@ -481,9 +768,9 @@ export async function generateExcelTemplate(): Promise<Buffer> {
   });
 
   // Tip Card
-  guideSheet.mergeCells('B12:D13');
-  const tipCell = guideSheet.getCell('B12');
-  tipCell.value = '💡 TIPS: Buka lembar "✍️ Input Soal" di tab bawah untuk mulai mengisi soal. Gunakan menu dropdown pada kolom Kunci Jawaban agar terhindar dari salah ketik.';
+  guideSheet.mergeCells('B13:D14');
+  const tipCell = guideSheet.getCell('B13');
+  tipCell.value = '💡 TIPS: Buka lembar "✍️ Input Soal" di tab bawah untuk mulai mengisi soal. Kolom Tipe Soal memudahkan Assessia mengenali format soal secara otomatis tanpa resiko salah tafsir.';
   tipCell.font = { name: 'Arial', size: 10, italic: true, color: { argb: '1E3A8A' } };
   tipCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'EFF6FF' } };
   tipCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
@@ -498,13 +785,14 @@ export async function generateExcelTemplate(): Promise<Buffer> {
 
   inputSheet.columns = [
     { header: 'No', key: 'no', width: 6 },
+    { header: 'Tipe Soal', key: 'tipe_soal', width: 20 },
     { header: 'Soal', key: 'soal', width: 45 },
     { header: 'Opsi A', key: 'opsi_a', width: 25 },
     { header: 'Opsi B', key: 'opsi_b', width: 25 },
     { header: 'Opsi C', key: 'opsi_c', width: 25 },
     { header: 'Opsi D', key: 'opsi_d', width: 25 },
     { header: 'Opsi E', key: 'opsi_e', width: 25 },
-    { header: 'Kunci Jawaban', key: 'kunci', width: 16 },
+    { header: 'Kunci Jawaban', key: 'kunci', width: 22 },
     { header: 'Pembahasan (Opsional)', key: 'pembahasan', width: 35 },
     { header: 'Tingkat Kesulitan', key: 'kesulitan', width: 18 },
   ];
@@ -521,7 +809,7 @@ export async function generateExcelTemplate(): Promise<Buffer> {
     };
   });
 
-  // Pre-seed 50 rows with data validation & default styling
+  // Pre-seed 60 rows with data validation & default styling
   for (let r = 2; r <= 60; r++) {
     const row = inputSheet.getRow(r);
     row.height = 24;
@@ -531,20 +819,20 @@ export async function generateExcelTemplate(): Promise<Buffer> {
     noCell.value = r - 1;
     noCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-    // Column H (Kunci): Dropdown A, B, C, D, E
-    const keyCell = inputSheet.getCell(`H${r}`);
-    keyCell.dataValidation = {
+    // Column B (Tipe Soal): Dropdown list
+    const typeCell = inputSheet.getCell(`B${r}`);
+    typeCell.dataValidation = {
       type: 'list',
-      allowBlank: false,
-      formulae: ['"A,B,C,D,E"'],
+      allowBlank: true,
+      formulae: ['"PILIHAN GANDA,PG KOMPLEKS,BENAR SALAH,ISIAN SINGKAT,MENJODOHKAN,ESAI"'],
       showErrorMessage: true,
-      errorTitle: 'Pilihan Tidak Valid',
-      error: 'Kunci jawaban harus berupa salah satu huruf: A, B, C, D, atau E',
+      errorTitle: 'Tipe Soal Tidak Valid',
+      error: 'Pilihlah salah satu tipe soal yang tersedia dari menu dropdown',
     };
-    keyCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    typeCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-    // Column J (Kesulitan): Dropdown MUDAH, SEDANG, SULIT
-    const diffCell = inputSheet.getCell(`J${r}`);
+    // Column K (Kesulitan): Dropdown MUDAH, SEDANG, SULIT
+    const diffCell = inputSheet.getCell(`K${r}`);
     diffCell.dataValidation = {
       type: 'list',
       allowBlank: true,
@@ -556,117 +844,96 @@ export async function generateExcelTemplate(): Promise<Buffer> {
     diffCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
     // Set wrapping for text cells
-    ['B', 'C', 'D', 'E', 'F', 'G', 'I'].forEach((col) => {
+    ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'].forEach((col) => {
       const c = inputSheet.getCell(`${col}${r}`);
       c.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
     });
   }
 
-  // Pre-seed 2 sample questions in Input Soal so teachers immediately have working examples
+  // Pre-seed sample rows with all 6 question types
   inputSheet.getRow(2).values = [
     1,
+    'PILIHAN GANDA',
     'Perangkat lunak berikut ini yang berfungsi sebagai sistem operasi pada komputer adalah...',
     'Microsoft Word',
-    'Microsoft Windows',
-    'Google Chrome',
+    'Linux Ubuntu',
     'Adobe Photoshop',
-    'Visual Studio Code',
+    'Google Chrome',
+    'VLC Media Player',
     'B',
-    'Microsoft Windows merupakan sistem operasi yang mengelola perangkat lunak dan keras.',
+    'Linux Ubuntu merupakan sistem operasi komputer open-source berbasis kernel Linux.',
     'MUDAH',
   ];
+
   inputSheet.getRow(3).values = [
     2,
-    'Jika diketahui persamaan kuadrat 2x² + 5x - 3 = 0, maka nilai diskriminan (D) adalah...',
-    '1',
-    '49',
-    '25',
-    '36',
-    '-1',
-    'B',
-    'Rumus diskriminan D = b² - 4ac. Nilai D = (5)² - 4(2)(-3) = 25 + 24 = 49.',
+    'PG KOMPLEKS',
+    'Manakah dari bahasa pemrograman berikut yang dieksekusi secara interpreted?',
+    'Python',
+    'JavaScript',
+    'C++',
+    'Ruby',
+    '',
+    'A, B, D',
+    'Python, JavaScript, dan Ruby diinterpretasi oleh runtime engine.',
     'SEDANG',
   ];
 
-  // ─────────────────────────────────────────────────────────
-  // SHEET 3: Contoh Soal
-  // ─────────────────────────────────────────────────────────
-  const exampleSheet = workbook.addWorksheet('💡 Contoh Soal', {
-    views: [{ state: 'frozen', ySplit: 1, showGridLines: true }],
-    properties: { tabColor: { argb: 'F59E0B' } },
-  });
-
-  exampleSheet.columns = [
-    { header: 'No', key: 'no', width: 6 },
-    { header: 'Soal', key: 'soal', width: 45 },
-    { header: 'Opsi A', key: 'opsi_a', width: 25 },
-    { header: 'Opsi B', key: 'opsi_b', width: 25 },
-    { header: 'Opsi C', key: 'opsi_c', width: 25 },
-    { header: 'Opsi D', key: 'opsi_d', width: 25 },
-    { header: 'Opsi E', key: 'opsi_e', width: 25 },
-    { header: 'Kunci Jawaban', key: 'kunci', width: 16 },
-    { header: 'Pembahasan (Opsional)', key: 'pembahasan', width: 35 },
-    { header: 'Tingkat Kesulitan', key: 'kesulitan', width: 18 },
+  inputSheet.getRow(4).values = [
+    3,
+    'BENAR SALAH',
+    'Fotosintesis pada tumbuhan hijau menghasilkan oksigen dan senyawa glukosa.',
+    '',
+    '',
+    '',
+    '',
+    '',
+    'BENAR',
+    'Reaksi fotosintesis menghasilkan C6H12O6 dan gas O2.',
+    'MUDAH',
   ];
 
-  const exHeader = exampleSheet.getRow(1);
-  exHeader.height = 32;
-  exHeader.eachCell((cell) => {
-    cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFF' } };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '0F766E' } };
-    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-  });
-
-  const sampleQuestions = [
-    [
-      1,
-      'Perangkat lunak berikut ini yang berfungsi sebagai sistem operasi pada komputer adalah...',
-      'Microsoft Word',
-      'Microsoft Windows',
-      'Google Chrome',
-      'Adobe Photoshop',
-      'Visual Studio Code',
-      'B',
-      'Microsoft Windows merupakan sistem operasi yang mengelola perangkat komputer.',
-      'MUDAH',
-    ],
-    [
-      2,
-      'Jika diketahui persamaan kuadrat 2x² + 5x - 3 = 0, maka nilai diskriminan (D) adalah...',
-      '1',
-      '49',
-      '25',
-      '36',
-      '-1',
-      'B',
-      'Rumus D = b² - 4ac = (5)² - 4(2)(-3) = 25 + 24 = 49.',
-      'SEDANG',
-    ],
-    [
-      3,
-      'Organel sel yang berfungsi sebagai tempat respirasi seluler dan penghasil energi utama (ATP) adalah...',
-      'Ribosom',
-      'Mitokondria',
-      'Retikulum Endoplasma',
-      'Lisosom',
-      'Badan Golgi',
-      'B',
-      'Mitokondria merupakan the powerhouse of the cell penghasil ATP.',
-      'SEDANG',
-    ],
+  inputSheet.getRow(5).values = [
+    4,
+    'ISIAN SINGKAT',
+    'Bahasa resmi yang digunakan oleh penduduk negara Brazil adalah...',
+    '',
+    '',
+    '',
+    '',
+    '',
+    'Portugis, portugis',
+    'Brazil merupakan satu-satunya negara berbahasa resmi Portugis di benua Amerika Selatan.',
+    'SEDANG',
   ];
 
-  sampleQuestions.forEach((q, idx) => {
-    const row = exampleSheet.getRow(idx + 2);
-    row.values = q;
-    row.height = 30;
-    row.eachCell((cell) => {
-      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-    });
-    exampleSheet.getCell(`A${idx + 2}`).alignment = { vertical: 'middle', horizontal: 'center' };
-    exampleSheet.getCell(`H${idx + 2}`).alignment = { vertical: 'middle', horizontal: 'center' };
-    exampleSheet.getCell(`J${idx + 2}`).alignment = { vertical: 'middle', horizontal: 'center' };
-  });
+  inputSheet.getRow(6).values = [
+    5,
+    'MENJODOHKAN',
+    'Jodohkanlah nama pahlawan nasional berikut dengan kota asalnya:',
+    'R.A. Kartini -> Jepara',
+    'Pangeran Diponegoro -> Yogyakarta',
+    'Cut Nyak Dien -> Aceh',
+    '',
+    '',
+    '',
+    'Kartini berasal dari Jepara, Diponegoro dari Yogyakarta, Cut Nyak Dien dari Aceh.',
+    'SULIT',
+  ];
+
+  inputSheet.getRow(7).values = [
+    6,
+    'ESAI',
+    'Jelaskan perbedaan mendasar antara siklus lisogenik dan litik pada replikasi virus!',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    'Siklus litik melisiskan sel inang segera setelah replikasi, sedangkan siklus lisogenik menyisipkan materi genetik virus ke kromosom sel inang.',
+    'SULIT',
+  ];
 
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
