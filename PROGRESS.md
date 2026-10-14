@@ -5,10 +5,10 @@
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
 **Current Version:** `v1.4.0` (Mobile Android Build: `1.4.0+11`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 26 - Word (.docx) & Excel (.xlsx) Question Importer & Admin Master Template Manager  
+**Current Phase:** Phase 27 - Random Question Pool per Exam (Sub-sampling & Difficulty Point Weighting)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
-**Last Updated:** 2026-10-08
+**Last Updated:** 2026-10-14
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -1173,19 +1173,65 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 
 ---
 
+## Phase 27 — Random Question Pool per Exam (Sub-sampling) & Difficulty Point Weighting — COMPLETE
+
+**Target Platform:** Full-Stack (Backend + Shared Contracts + Dashboard + Mobile CBT App)  
+**Security Benefit:** Eliminates neighboring-screen optical cheating in crowded computer labs  
+**Date:** 2026-10-14  
+
+### 1. Database & Domain Schema
+- Added `is_random_pool` (`BOOLEAN`), `pool_question_count` (`INTEGER`), `pool_mode` (`PoolMode` enum: `BALANCED` | `PURE_RANDOM`), and `points_easy`, `points_medium`, `points_hard` (`INTEGER` defaults 1, 2, 3) to `Exam` entity in `schema.prisma`.
+- Added `raw_points_earned` and `raw_points_possible` (`FLOAT` defaults 0) to `Score` entity in `schema.prisma`.
+- Created Prisma migration `20261014000000_add_random_pool_and_point_weights`.
+- Updated shared contracts in `@secure-cbt/shared` (`createExamSchema`, `updateExamSchema`, `PoolMode` enum).
+
+### 2. Stratified Sub-sampling Algorithm (`SessionService.startSession`)
+- **`session-sampler.ts`:**
+  - Implemented stratified largest-remainder proportional sub-sampling (`BALANCED` mode) to guarantee identical difficulty distribution across student sessions.
+  - Implemented uniform random subset drawing (`PURE_RANDOM` mode).
+  - Handles edge cases (zero candidates in tier, candidate count $\le$ pool count, invalid counts) gracefully without errors.
+- **Deterministic Anti-Cheat Session Locking:**
+  - Automatically saves the drawn subset into `ExamSession.question_order`.
+  - Resuming, reconnecting, or refreshing sessions always faithfully restores the student's exact assigned question order.
+
+### 3. Custom Difficulty Grading & Dual-Score System (`GradingService`)
+- Evaluates individual question difficulty weights (`points_easy`, `points_medium`, `points_hard`).
+- Computes `raw_points_earned` and `raw_points_possible` across objective and essay items.
+- Automatically normalizes the student's final grade to the standard Indonesian school gradebook scale:
+  $$\text{Nilai Akhir} = \left(\frac{\text{Skor Poin Mentah yang Diperoleh}}{\text{Total Poin Maksimal Paket}}\right) \times 100$$
+- Preserves 100% backward compatibility with fixed-question and legacy exams.
+
+### 4. Next.js Dashboard Exam Builder
+- **`RandomPoolCard` (`/dashboard/exams`):**
+  - Interactive switch toggle with Anti-Contek badge.
+  - Number input for questions drawn per student with live question bank count indicator.
+  - Segmented toggle for *Seimbang (Proporsional)* vs *Acak Murni*.
+  - 3 input pills for custom point weights (*Mudah*, *Sedang*, *Sukar*).
+  - Added visual sub-sampling indicator badge on the main exams data table (`X / Y Soal`).
+
+### 5. Flutter Mobile CBT Experience
+- **`ResultScreen` & `ExamReviewScreen`:**
+  - Clean Bento metric tile displaying **Total Poin Diperoleh** (e.g. `46 / 54 Poin` in `#EFF6FF` pastel blue wash) alongside normalized rapor score (e.g. `85.00`) and answer accuracy.
+  - Dynamic `_StatChip` wrapping in `ExamReviewScreen` showing points earned/possible.
+
+### 6. Automated Verification
+- Backend unit tests: **67/67 passing** (including schema, sampler, weighted scoring).
+- Dashboard component tests: **16/16 passing**.
+- Mobile Flutter tests: **22/22 passing** (including dual-score result widget test).
+- Monorepo typecheck: **0 errors** across shared, backend, and dashboard.
+
+---
+
 ## Future Phases (Planned & Prioritized Roadmap)
 
-### Phase 26: HOTS vs LOTS Cognitive Classification (Bloom's Taxonomy)
+### Phase 28: HOTS vs LOTS Cognitive Classification (Bloom's Taxonomy)
 - Tagging questions by cognitive level: LOTS (C1-C2), MOTS (C3), HOTS (C4-C6).
 - Exam Builder balance dial displaying cognitive distribution against school targets.
 
-### Phase 27: Random Question Pool per Exam (Sub-sampling)
-- Teacher puts 60 questions into a Question Bank; exam randomly draws 30 unique questions per student session to eliminate neighboring screen cheating.
-
-### Phase 28: Bulk Question Operations
+### Phase 29: Bulk Question Operations
 - Multi-select checkboxes in `/dashboard/questions` to bulk-move questions between banks, bulk-change difficulty, and batch-assign tags.
 
-### Phase 29: Item Psychometrics (*Analisis Butir Soal*)
+### Phase 30: Item Psychometrics (*Analisis Butir Soal*)
 - Automated computation of Difficulty Index ($P$) and Discrimination Index ($D$) per question based on completed student sessions.
 
 ### Phase 30: Word (.docx) & Excel (.xlsx) Template Importer
