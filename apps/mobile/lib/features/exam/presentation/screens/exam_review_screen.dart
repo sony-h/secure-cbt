@@ -149,6 +149,8 @@ class _ExamReviewScreenState extends ConsumerState<ExamReviewScreen> {
           final correctCount = data['correct_count'] as int? ?? 0;
           final wrongCount = data['wrong_count'] as int? ?? 0;
           final totalQuestions = data['total_questions'] as int? ?? 0;
+          final rawEarned = (data['raw_points_earned'] as num?)?.toDouble() ?? 0.0;
+          final rawPossible = (data['raw_points_possible'] as num?)?.toDouble() ?? 0.0;
           final submittedAt = data['submitted_at'] != null ? DateTime.tryParse(data['submitted_at']) : null;
           final dateStr = submittedAt != null ? formatDateTimeWIB(submittedAt) : '—';
           final allQuestions = (data['questions'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
@@ -242,20 +244,26 @@ class _ExamReviewScreenState extends ConsumerState<ExamReviewScreen> {
                     const SizedBox(height: 14),
                     const Divider(height: 1, color: AppColors.border),
                     const SizedBox(height: 12),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
+                        if (rawPossible > 0)
+                          _StatChip(
+                            icon: Icons.stars_rounded,
+                            color: const Color(0xFF2563EB),
+                            label: '${rawEarned % 1 == 0 ? rawEarned.toInt() : rawEarned.toStringAsFixed(1)} / ${rawPossible % 1 == 0 ? rawPossible.toInt() : rawPossible.toStringAsFixed(1)} Poin',
+                          ),
                         _StatChip(
                           icon: Icons.check_circle_rounded,
                           color: AppColors.success,
                           label: '$correctCount Benar',
                         ),
-                        const SizedBox(width: 8),
                         _StatChip(
                           icon: Icons.cancel_rounded,
                           color: AppColors.error,
                           label: '$wrongCount Salah',
                         ),
-                        const SizedBox(width: 8),
                         _StatChip(
                           icon: Icons.format_list_numbered_rounded,
                           color: AppColors.primary,

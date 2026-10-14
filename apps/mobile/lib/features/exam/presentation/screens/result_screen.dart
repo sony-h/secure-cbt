@@ -278,31 +278,53 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                  const SizedBox(height: 10),
 
                                  // Separated Bento Metric Tiles (No rigid dividers!)
-                                 Row(
-                                   children: [
-                                     Expanded(
-                                       child: _BentoStatTile(
-                                         icon: Icons.check_circle_rounded,
-                                         label: 'Jawaban Benar',
-                                         value: '${resultAsync.value?['correct_count'] ?? 0}',
-                                         iconColor: AppColors.success,
-                                         backgroundColor: const Color(0xFFECFDF5),
-                                         borderColor: const Color(0xFFA7F3D0),
+                                 (() {
+                                   final rawEarned = (resultAsync.value?['raw_points_earned'] as num?)?.toDouble() ?? 0.0;
+                                   final rawPossible = (resultAsync.value?['raw_points_possible'] as num?)?.toDouble() ?? 0.0;
+                                   final hasRawPoints = rawPossible > 0;
+
+                                   return Column(
+                                     children: [
+                                       if (hasRawPoints) ...[
+                                         _BentoStatTile(
+                                           icon: Icons.stars_rounded,
+                                           label: 'Total Poin Diperoleh',
+                                           value: '${rawEarned % 1 == 0 ? rawEarned.toInt() : rawEarned.toStringAsFixed(1)} / ${rawPossible % 1 == 0 ? rawPossible.toInt() : rawPossible.toStringAsFixed(1)} Poin',
+                                           iconColor: const Color(0xFF2563EB),
+                                           backgroundColor: const Color(0xFFEFF6FF),
+                                           borderColor: const Color(0xFFBFDBFE),
+                                           isFullWidth: true,
+                                         ),
+                                         const SizedBox(height: 12),
+                                       ],
+                                       Row(
+                                         children: [
+                                           Expanded(
+                                             child: _BentoStatTile(
+                                               icon: Icons.check_circle_rounded,
+                                               label: 'Jawaban Benar',
+                                               value: '${resultAsync.value?['correct_count'] ?? 0}',
+                                               iconColor: AppColors.success,
+                                               backgroundColor: const Color(0xFFECFDF5),
+                                               borderColor: const Color(0xFFA7F3D0),
+                                             ),
+                                           ),
+                                           const SizedBox(width: 12),
+                                           Expanded(
+                                             child: _BentoStatTile(
+                                               icon: Icons.cancel_rounded,
+                                               label: 'Jawaban Salah',
+                                               value: '${resultAsync.value?['wrong_count'] ?? 0}',
+                                               iconColor: AppColors.error,
+                                               backgroundColor: const Color(0xFFFEF2F2),
+                                               borderColor: const Color(0xFFFECACA),
+                                             ),
+                                           ),
+                                         ],
                                        ),
-                                     ),
-                                     const SizedBox(width: 12),
-                                     Expanded(
-                                       child: _BentoStatTile(
-                                         icon: Icons.cancel_rounded,
-                                         label: 'Jawaban Salah',
-                                         value: '${resultAsync.value?['wrong_count'] ?? 0}',
-                                         iconColor: AppColors.error,
-                                         backgroundColor: const Color(0xFFFEF2F2),
-                                         borderColor: const Color(0xFFFECACA),
-                                       ),
-                                     ),
-                                   ],
-                                 ),
+                                     ],
+                                   );
+                                 })(),
 
                                  if (resultAsync.value?['essay_score'] != null) ...[
                                    const SizedBox(height: 12),
