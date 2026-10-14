@@ -47,10 +47,78 @@ export class ExcelParserService {
     return [];
   }
 
+  private normalizeType(typeStr?: string | null): QuestionType | null {
+    if (!typeStr) return null;
+    const clean = typeStr.toUpperCase().replace(/[\s\-_]+/g, '');
+    if (clean.includes('PILIHANGANDA') || clean === 'MCQ' || clean === 'MULTIPLECHOICE') {
+      return QuestionType.MULTIPLE_CHOICE;
+    }
+    if (clean.includes('PGKOMPLEKS') || clean.includes('MULTISELECT') || clean.includes('KOMPLEKS')) {
+      return QuestionType.MULTI_SELECT;
+    }
+    if (clean.includes('BENARSALAH') || clean.includes('TRUEFALSE') || clean === 'TF' || clean === 'BS') {
+      return QuestionType.TRUE_FALSE;
+    }
+    if (clean.includes('ISIANSINGKAT') || clean.includes('SHORTANSWER') || clean === 'ISIAN') {
+      return QuestionType.SHORT_ANSWER;
+    }
+    if (clean.includes('MENJODOHKAN') || clean.includes('MATCHING') || clean === 'JODOHKAN') {
+      return QuestionType.MATCHING;
+    }
+    if (clean.includes('ESAI') || clean.includes('ESSAY') || clean.includes('URAIAN')) {
+      return QuestionType.ESSAY;
+    }
+    return null;
+  }
+
+  private inferQuestionType(
+    explicitType: QuestionType | null,
+    keyText: string,
+    rawOptions: Array<{ label: string; text: string }>,
+  ): QuestionType {
+    if (explicitType) {
+      return explicitType;
+    }
+    const cleanKey = (keyText || '').trim().toUpperCase();
+
+    // 1. Check if options contain matching syntax (e.g. "A -> B" or "A = B")
+    if (
+      rawOptions.length > 0 &&
+      rawOptions.some((o) => o.text.includes('->') || /^[^\=]+\=[^\=]+$/.test(o.text))
+    ) {
+      return QuestionType.MATCHING;
+    }
+
+    // 2. Check if key is True/False
+    if (/^(?:BENAR|SALAH|TRUE|FALSE|B|S)$/i.test(cleanKey) && rawOptions.length <= 2) {
+      return QuestionType.TRUE_FALSE;
+    }
+
+    // 3. Check if key is comma-separated letters e.g. "A, B" or "A, B, D"
+    const isMultiKey = /^[A-E](?:[\s,;]+[A-E])+$/i.test(cleanKey);
+    if (isMultiKey) {
+      return QuestionType.MULTI_SELECT;
+    }
+
+    // 4. If options are empty but key exists
+    if (rawOptions.length === 0 && cleanKey.length > 0) {
+      return QuestionType.SHORT_ANSWER;
+    }
+
+    // 5. If options and key are both empty
+    if (rawOptions.length === 0 && cleanKey.length === 0) {
+      return QuestionType.ESSAY;
+    }
+
+    // 6. Default
+    return QuestionType.MULTIPLE_CHOICE;
+  }
+
   private parseRows(rows: any[][]): ImportQuestionItemInput[] {
     if (!rows || rows.length < 2) return [];
 
     let detectedHeaderRowIdx = -1;
+    let colType = -1;
     let colQuestion = -1;
     let colA = -1;
     let colB = -1;
@@ -87,12 +155,24 @@ export class ExcelParserService {
         if (headerRow) {
           for (let c = 0; c < headerRow.length; c++) {
             const val = String(headerRow[c] || '').toLowerCase().trim();
-            if (val === 'opsi a' || val === 'pilihan a' || val === 'option a' || val === 'a') colA = c;
-            else if (val === 'opsi b' || val === 'pilihan b' || val === 'option b' || val === 'b') colB = c;
-            else if (val === 'opsi c' || val === 'pilihan c' || val === 'option c' || val === 'c') colC = c;
-            else if (val === 'opsi d' || val === 'pilihan d' || val === 'option d' || val === 'd') colD = c;
-            else if (val === 'opsi e' || val === 'pilihan e' || val === 'option e' || val === 'e') colE = c;
-            else if (
+            if (
+              val === 'tipe soal' ||
+              val === 'tipe' ||
+              val === 'type' ||
+              val === 'jenis soal'
+            ) {
+              colType = c;
+            } else if (val === 'opsi a' || val === 'pilihan a' || val === 'option a' || val === 'a') {
+              colA = c;
+            } else if (val === 'opsi b' || val === 'pilihan b' || val === 'option b' || val === 'b') {
+              colB = c;
+            } else if (val === 'opsi c' || val === 'pilihan c' || val === 'option c' || val === 'c') {
+              colC = c;
+            } else if (val === 'opsi d' || val === 'pilihan d' || val === 'option d' || val === 'd') {
+              colD = c;
+            } else if (val === 'opsi e' || val === 'pilihan e' || val === 'option e' || val === 'e') {
+              colE = c;
+            } else if (
               val === 'kunci' ||
               val === 'kunci jawaban' ||
               val === 'jawaban' ||
@@ -100,9 +180,18 @@ export class ExcelParserService {
               val === 'answer'
             ) {
               colKey = c;
-            } else if (val === 'pembahasan' || val === 'pembahasan (opsional)' || val === 'explanation') {
+            } else if (
+              val === 'pembahasan' ||
+              val === 'pembahasan (opsional)' ||
+              val === 'explanation'
+            ) {
               colExplanation = c;
-            } else if (val === 'kesulitan' || val === 'tingkat' || val === 'tingkat kesulitan' || val === 'difficulty') {
+            } else if (
+              val === 'kesulitan' ||
+              val === 'tingkat' ||
+              val === 'tingkat kesulitan' ||
+              val === 'difficulty'
+            ) {
               colDifficulty = c;
             }
           }
@@ -111,8 +200,8 @@ export class ExcelParserService {
       }
     }
 
-    // Require detected header, question column, at least option A, and answer key column
-    if (detectedHeaderRowIdx === -1 || colQuestion === -1 || colA === -1 || colKey === -1) {
+    // Require detected header and question column
+    if (detectedHeaderRowIdx === -1 || colQuestion === -1) {
       return [];
     }
 
@@ -122,17 +211,21 @@ export class ExcelParserService {
       const row = rows[r];
       if (!row || !Array.isArray(row) || !row.length) continue;
 
+      const rawType = colType !== -1 ? String(row[colType] || '').trim() : '';
+      const explicitType = this.normalizeType(rawType);
+
       const questionContent = String(row[colQuestion] || '').trim();
       const optA = colA !== -1 ? String(row[colA] || '').trim() : '';
       const optB = colB !== -1 ? String(row[colB] || '').trim() : '';
       const optC = colC !== -1 ? String(row[colC] || '').trim() : '';
       const optD = colD !== -1 ? String(row[colD] || '').trim() : '';
       const optE = colE !== -1 ? String(row[colE] || '').trim() : '';
-      const keyRaw = colKey !== -1 ? String(row[colKey] || '').toUpperCase().trim() : '';
-      const explanation = colExplanation !== -1 ? String(row[colExplanation] || '').trim() || null : null;
+      const keyRaw = colKey !== -1 ? String(row[colKey] || '').trim() : '';
+      const explanation =
+        colExplanation !== -1 ? String(row[colExplanation] || '').trim() || null : null;
 
       // Skip completely empty rows
-      if (!questionContent && !optA && !optB && !keyRaw) {
+      if (!questionContent && !optA && !optB && !keyRaw && !rawType) {
         continue;
       }
 
@@ -147,7 +240,7 @@ export class ExcelParserService {
         }
       }
 
-      // Build options
+      // Build raw options
       const rawOptions: { label: string; text: string }[] = [];
       if (optA) rawOptions.push({ label: 'A', text: optA });
       if (optB) rawOptions.push({ label: 'B', text: optB });
@@ -155,44 +248,152 @@ export class ExcelParserService {
       if (optD) rawOptions.push({ label: 'D', text: optD });
       if (optE) rawOptions.push({ label: 'E', text: optE });
 
-      // Robust answer key extraction: strip prefixes like 'JAWABAN:' or 'KUNCI:' before searching
-      const sanitizedKey = keyRaw
-        .replace(/^(?:KUNCI(?:\s*JAWABAN)?|JAWABAN|KEY|ANSWER)[\s\:\=\-]*/i, '')
-        .trim();
-      const correctKeyMatch =
-        sanitizedKey.match(/^[A-E]\b/i) ||
-        keyRaw.match(/(?:^|[\s\:\=\-\(\[])([A-E])(?:\b|[\.\)\]]|$)/i);
-      const correctKey = correctKeyMatch
-        ? (correctKeyMatch[1] || correctKeyMatch[0]).toUpperCase()
-        : sanitizedKey;
+      const questionType = this.inferQuestionType(explicitType, keyRaw, rawOptions);
 
-      const options: ImportQuestionOptionInput[] = rawOptions.map((opt, idx) => ({
-        order: idx + 1,
-        content: opt.text,
-        image_url: null,
-        is_correct: opt.label === correctKey,
-      }));
-
-      const hasCorrect = options.some((o) => o.is_correct);
+      let options: ImportQuestionOptionInput[] = [];
       let isValid = true;
       let error: string | null = null;
 
       if (!questionContent) {
         isValid = false;
         error = 'Pertanyaan tidak boleh kosong';
-      } else if (options.length < 2) {
-        isValid = false;
-        error = 'Minimal harus memiliki 2 opsi jawaban';
-      } else if (!hasCorrect) {
-        isValid = false;
-        error = `Kunci jawaban '${correctKey || '-'}' tidak ditemukan di opsi`;
+      }
+
+      if (questionType === QuestionType.ESSAY) {
+        options = [];
+        if (!questionContent) {
+          isValid = false;
+          error = 'Pertanyaan tidak boleh kosong';
+        }
+      } else if (questionType === QuestionType.SHORT_ANSWER) {
+        if (rawOptions.length > 0) {
+          options = rawOptions.map((opt, idx) => ({
+            order: idx + 1,
+            content: opt.text,
+            image_url: null,
+            is_correct: true,
+          }));
+        } else {
+          const answers = keyRaw
+            .split(/[,;\n]+/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const effectiveAnswers =
+            answers.length > 0 ? answers : keyRaw.trim() ? [keyRaw.trim()] : [];
+
+          options = effectiveAnswers.map((ans, idx) => ({
+            order: idx + 1,
+            content: ans,
+            image_url: null,
+            is_correct: true,
+          }));
+        }
+
+        if (options.length === 0) {
+          isValid = false;
+          error = 'Kunci jawaban isian singkat wajib diisi';
+        }
+      } else if (questionType === QuestionType.TRUE_FALSE) {
+        if (rawOptions.length === 0) {
+          const keyUpper = keyRaw.trim().toUpperCase();
+          const isTrue = keyUpper === 'BENAR' || keyUpper === 'TRUE' || keyUpper === 'B';
+          const isFalse = keyUpper === 'SALAH' || keyUpper === 'FALSE' || keyUpper === 'S';
+
+          options = [
+            { order: 1, content: 'Benar', image_url: null, is_correct: isTrue },
+            { order: 2, content: 'Salah', image_url: null, is_correct: isFalse },
+          ];
+        } else {
+          const keyUpper = keyRaw.trim().toUpperCase();
+          options = rawOptions.map((opt, idx) => {
+            const optTextUpper = opt.text.trim().toUpperCase();
+            const isCorrect =
+              opt.label === keyUpper ||
+              optTextUpper === keyUpper ||
+              (keyUpper.startsWith('B') && optTextUpper.startsWith('BENAR')) ||
+              (keyUpper.startsWith('S') && optTextUpper.startsWith('SALAH'));
+            return {
+              order: idx + 1,
+              content: opt.text,
+              image_url: null,
+              is_correct: isCorrect,
+            };
+          });
+        }
+
+        if (!options.some((o) => o.is_correct)) {
+          isValid = false;
+          error = `Kunci jawaban '${keyRaw || '-'}' tidak valid untuk Benar / Salah`;
+        }
+      } else if (questionType === QuestionType.MATCHING) {
+        options = rawOptions.map((opt, idx) => {
+          const rawText = opt.text || '';
+          const delimiter = rawText.includes('->') ? '->' : '=';
+          const parts = rawText.split(delimiter);
+          const left = (parts[0] || '').trim();
+          const right = (parts.slice(1).join(delimiter) || '').trim();
+
+          return {
+            order: idx + 1,
+            content: JSON.stringify({ left, right }),
+            image_url: null,
+            is_correct: true,
+          };
+        });
+
+        if (options.length < 2) {
+          isValid = false;
+          error = 'Soal menjodohkan memerlukan minimal 2 pasangan';
+        }
+      } else if (questionType === QuestionType.MULTI_SELECT) {
+        const targetKeys = keyRaw.toUpperCase().match(/[A-E]/g) || [];
+        options = rawOptions.map((opt, idx) => ({
+          order: idx + 1,
+          content: opt.text,
+          image_url: null,
+          is_correct: targetKeys.includes(opt.label),
+        }));
+
+        if (options.length < 2) {
+          isValid = false;
+          error = 'Minimal harus memiliki 2 opsi jawaban';
+        } else if (!options.some((o) => o.is_correct)) {
+          isValid = false;
+          error = `Kunci jawaban '${keyRaw || '-'}' tidak ditemukan di opsi`;
+        }
+      } else {
+        // MULTIPLE_CHOICE
+        const sanitizedKey = keyRaw
+          .replace(/^(?:KUNCI(?:\s*JAWABAN)?|JAWABAN|KEY|ANSWER)[\s\:\=\-]*/i, '')
+          .trim();
+        const correctKeyMatch =
+          sanitizedKey.match(/^[A-E]\b/i) ||
+          keyRaw.match(/(?:^|[\s\:\=\-\(\[])([A-E])(?:\b|[\.\)\]]|$)/i);
+        const correctKey = correctKeyMatch
+          ? (correctKeyMatch[1] || correctKeyMatch[0]).toUpperCase()
+          : sanitizedKey;
+
+        options = rawOptions.map((opt, idx) => ({
+          order: idx + 1,
+          content: opt.text,
+          image_url: null,
+          is_correct: opt.label === correctKey,
+        }));
+
+        if (options.length < 2) {
+          isValid = false;
+          error = 'Minimal harus memiliki 2 opsi jawaban';
+        } else if (!options.some((o) => o.is_correct)) {
+          isValid = false;
+          error = `Kunci jawaban '${correctKey || '-'}' tidak ditemukan di opsi`;
+        }
       }
 
       questions.push({
         number: questions.length + 1,
         content: questionContent,
         image_url: null,
-        type: QuestionType.MULTIPLE_CHOICE,
+        type: questionType,
         difficulty,
         explanation,
         options,

@@ -153,4 +153,188 @@ describe('ExcelParserService', () => {
     expect(result[1].options[4].is_correct).toBe(true);
     expect(result[1].options[2].is_correct).toBe(false);
   });
+
+  describe('Multi-Type Questions in Excel', () => {
+    it('should parse all 6 question formats when Tipe Soal column is provided', () => {
+      const data = [
+        [
+          'No',
+          'Tipe Soal',
+          'Soal',
+          'Opsi A',
+          'Opsi B',
+          'Opsi C',
+          'Opsi D',
+          'Opsi E',
+          'Kunci Jawaban',
+          'Pembahasan',
+          'Tingkat Kesulitan',
+        ],
+        // 1. Pilihan Ganda
+        [
+          1,
+          'PILIHAN GANDA',
+          'Ibu kota Indonesia?',
+          'Jakarta',
+          'Nusantara',
+          'Surabaya',
+          'Bandung',
+          '',
+          'B',
+          'Nusantara di Kaltim',
+          'MUDAH',
+        ],
+        // 2. PG Kompleks
+        [
+          2,
+          'PG KOMPLEKS',
+          'Bahasa interpreted?',
+          'Python',
+          'JavaScript',
+          'C++',
+          'Ruby',
+          '',
+          'A, B, D',
+          'Python, JS, Ruby interpreted',
+          'SEDANG',
+        ],
+        // 3. Benar Salah
+        [
+          3,
+          'BENAR SALAH',
+          'Fotosintesis menghasilkan glukosa.',
+          '',
+          '',
+          '',
+          '',
+          '',
+          'BENAR',
+          'Glukosa dan O2 dihasilkan',
+          'MUDAH',
+        ],
+        // 4. Isian Singkat
+        [
+          4,
+          'ISIAN SINGKAT',
+          'Bahasa resmi Brazil?',
+          '',
+          '',
+          '',
+          '',
+          '',
+          'Portugis, Portuguese',
+          '',
+          'SEDANG',
+        ],
+        // 5. Menjodohkan
+        [
+          5,
+          'MENJODOHKAN',
+          'Jodohkan pahlawan dan asalnya:',
+          'Kartini -> Jepara',
+          'Diponegoro -> Jogja',
+          'Dien -> Aceh',
+          '',
+          '',
+          '',
+          '',
+          'SULIT',
+        ],
+        // 6. Esai
+        [
+          6,
+          'ESAI',
+          'Jelaskan siklus litik dan lisogenik!',
+          '',
+          '',
+          '',
+          '',
+          '',
+          '',
+          'Rubrik penilaian',
+          'SULIT',
+        ],
+      ];
+
+      const ws = xlsx.utils.aoa_to_sheet(data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, '✍️ Input Soal');
+      const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = service.parse(buffer);
+      expect(result).toHaveLength(6);
+
+      // Q1: MULTIPLE_CHOICE
+      expect(result[0].type).toBe(QuestionType.MULTIPLE_CHOICE);
+      expect(result[0].options).toHaveLength(4);
+      expect(result[0].options[1].is_correct).toBe(true); // Nusantara
+      expect(result[0].valid).toBe(true);
+
+      // Q2: MULTI_SELECT
+      expect(result[1].type).toBe(QuestionType.MULTI_SELECT);
+      expect(result[1].options[0].is_correct).toBe(true); // A
+      expect(result[1].options[1].is_correct).toBe(true); // B
+      expect(result[1].options[2].is_correct).toBe(false); // C
+      expect(result[1].options[3].is_correct).toBe(true); // D
+      expect(result[1].valid).toBe(true);
+
+      // Q3: TRUE_FALSE
+      expect(result[2].type).toBe(QuestionType.TRUE_FALSE);
+      expect(result[2].options).toHaveLength(2);
+      expect(result[2].options[0].content).toBe('Benar');
+      expect(result[2].options[0].is_correct).toBe(true);
+      expect(result[2].options[1].content).toBe('Salah');
+      expect(result[2].options[1].is_correct).toBe(false);
+      expect(result[2].valid).toBe(true);
+
+      // Q4: SHORT_ANSWER
+      expect(result[3].type).toBe(QuestionType.SHORT_ANSWER);
+      expect(result[3].options.length).toBeGreaterThanOrEqual(1);
+      expect(result[3].options[0].content).toBe('Portugis');
+      expect(result[3].options[0].is_correct).toBe(true);
+      expect(result[3].valid).toBe(true);
+
+      // Q5: MATCHING
+      expect(result[4].type).toBe(QuestionType.MATCHING);
+      expect(result[4].options).toHaveLength(3);
+      const pair1 = JSON.parse(result[4].options[0].content);
+      expect(pair1.left).toBe('Kartini');
+      expect(pair1.right).toBe('Jepara');
+      expect(result[4].valid).toBe(true);
+
+      // Q6: ESSAY
+      expect(result[5].type).toBe(QuestionType.ESSAY);
+      expect(result[5].options).toHaveLength(0);
+      expect(result[5].explanation).toBe('Rubrik penilaian');
+      expect(result[5].valid).toBe(true);
+    });
+
+    it('should auto-detect multi-select, true-false, and matching in legacy template without Tipe Soal column', () => {
+      const data = [
+        ['No', 'Soal', 'Opsi A', 'Opsi B', 'Opsi C', 'Opsi D', 'Kunci Jawaban'],
+        [1, 'Pilih buah:', 'Apel', 'Bayam', 'Jeruk', 'Wortel', 'A, C'],
+        [2, 'Langit biru karena hamburan Rayleigh', '', '', '', '', 'BENAR'],
+        [3, 'Jodohkan:', 'Ayam -> Bertelur', 'Kucing -> Beranak', '', '', ''],
+      ];
+
+      const ws = xlsx.utils.aoa_to_sheet(data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, 'Soal');
+      const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = service.parse(buffer);
+      expect(result).toHaveLength(3);
+
+      expect(result[0].type).toBe(QuestionType.MULTI_SELECT);
+      expect(result[0].options[0].is_correct).toBe(true);
+      expect(result[0].options[2].is_correct).toBe(true);
+
+      expect(result[1].type).toBe(QuestionType.TRUE_FALSE);
+      expect(result[1].options).toHaveLength(2);
+      expect(result[1].options[0].is_correct).toBe(true);
+
+      expect(result[2].type).toBe(QuestionType.MATCHING);
+      expect(result[2].options).toHaveLength(2);
+    });
+  });
 });
