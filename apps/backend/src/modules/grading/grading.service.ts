@@ -120,7 +120,15 @@ export class GradingService {
       rawPointsPossible = 1;
     }
 
-    const answers = session.answers;
+    const assignedQuestionIds = new Set(
+      assignedExamQuestions.map((eq: any) => eq.question_id || eq.question?.id).filter(Boolean),
+    );
+
+    const answers = session.answers.filter((ans) => {
+      if (assignedQuestionIds.size === 0) return true;
+      return assignedQuestionIds.has(ans.question_id);
+    });
+
     let rawPointsEarned = 0;
     let correctCount = 0;
     let wrongCount = 0;

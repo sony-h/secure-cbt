@@ -84,6 +84,12 @@ export class ExamService {
           auto_submit_enabled: data.auto_submit_enabled ?? true,
           fullscreen_required: data.fullscreen_required ?? true,
           package_count: data.package_count ?? 1,
+          is_random_pool: data.is_random_pool ?? false,
+          pool_question_count: data.pool_question_count ?? null,
+          pool_mode: data.pool_mode ?? 'BALANCED',
+          points_easy: data.points_easy ?? 1,
+          points_medium: data.points_medium ?? 2,
+          points_hard: data.points_hard ?? 3,
           status: ExamStatus.PUBLISHED,
         },
       }).catch(err => {
@@ -147,6 +153,12 @@ export class ExamService {
           auto_submit_enabled: data.auto_submit_enabled,
           fullscreen_required: data.fullscreen_required,
           package_count: data.package_count,
+          is_random_pool: data.is_random_pool,
+          pool_question_count: data.pool_question_count,
+          pool_mode: data.pool_mode,
+          points_easy: data.points_easy,
+          points_medium: data.points_medium,
+          points_hard: data.points_hard,
         },
       });
 

@@ -142,4 +142,57 @@ describe('GradingService - Difficulty Point Weighting & Dual Scoring', () => {
     expect(result.total_score).toBeCloseTo(28.57, 2);
     expect(result.total_questions).toBe(2);
   });
+
+  it('ignores answers for questions that do not belong to assigned question subset', async () => {
+    const qEasy = { id: 'q-easy', difficulty: 'EASY', type: QuestionType.MULTIPLE_CHOICE };
+    const qMed = { id: 'q-med', difficulty: 'MEDIUM', type: QuestionType.MULTIPLE_CHOICE };
+
+    const tx = {
+      examSession: { findUnique: vi.fn() },
+      questionOption: { findMany: vi.fn() },
+      answer: { update: vi.fn() },
+    };
+
+    // Student only assigned eq-1 (qEasy). But session.answers also has ans-unassigned for qMed.
+    tx.examSession.findUnique.mockResolvedValue({
+      id: 'session-unassigned',
+      question_order: ['eq-1'],
+      package_id: null,
+      exam: {
+        points_easy: 1,
+        points_medium: 2,
+        points_hard: 3,
+        exam_questions: [
+          { id: 'eq-1', question_id: 'q-easy', package_id: null, question: qEasy },
+          { id: 'eq-2', question_id: 'q-med', package_id: null, question: qMed },
+        ],
+      },
+      answers: [
+        {
+          id: 'ans-1',
+          question_id: 'q-easy',
+          question: qEasy,
+          score: 100,
+          is_correct: true,
+          answer_text: 'opt-1',
+        },
+        {
+          id: 'ans-unassigned',
+          question_id: 'q-med',
+          question: qMed,
+          score: 100,
+          is_correct: true,
+          answer_text: 'opt-2',
+        },
+      ],
+    });
+
+    const result = await service.calculateTotalScore(tx as any, 'session-unassigned');
+
+    // Possible = 1 (easy). Earned = 1 (easy). qMed is ignored.
+    expect(result.raw_points_possible).toBe(1);
+    expect(result.raw_points_earned).toBe(1);
+    expect(result.total_score).toBe(100);
+    expect(result.total_questions).toBe(1);
+  });
 });

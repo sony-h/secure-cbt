@@ -110,6 +110,43 @@ describe('ExamService', () => {
       }), UUID());
       expect(result).toBeDefined();
     });
+
+    it('should persist random pool settings and difficulty point weights', async () => {
+      mockPrisma.teacher.findUnique.mockResolvedValue(null);
+      let capturedData: any;
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.exam = {
+          create: vi.fn().mockImplementation((args: any) => {
+            capturedData = args.data;
+            return Promise.resolve({ id: UUID(), title: 'Random Pool Exam' });
+          }),
+        };
+        tx.examClass = { createMany: vi.fn() };
+        tx.examPackage = { create: vi.fn().mockResolvedValue({ id: UUID() }) };
+        tx.examQuestion = { createMany: vi.fn() };
+        tx.exam.findUnique = vi.fn().mockResolvedValue({ id: UUID() });
+        return fn(tx);
+      });
+
+      await service.create({
+        ...makeCreateInput(),
+        title: 'Random Pool Exam',
+        is_random_pool: true,
+        pool_question_count: 20,
+        pool_mode: 'BALANCED' as any,
+        points_easy: 2,
+        points_medium: 3,
+        points_hard: 5,
+      }, UUID());
+
+      expect(capturedData.is_random_pool).toBe(true);
+      expect(capturedData.pool_question_count).toBe(20);
+      expect(capturedData.pool_mode).toBe('BALANCED');
+      expect(capturedData.points_easy).toBe(2);
+      expect(capturedData.points_medium).toBe(3);
+      expect(capturedData.points_hard).toBe(5);
+    });
   });
 
   describe('getExamsForStudent()', () => {
