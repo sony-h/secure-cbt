@@ -72,11 +72,12 @@ export class WordParserService {
   private normalizeType(typeStr?: string | null): QuestionType | null {
     if (!typeStr) return null;
     const clean = typeStr.toUpperCase().replace(/[\s\-_]+/g, '');
-    if (clean.includes('PILIHANGANDA') || clean === 'MCQ' || clean === 'MULTIPLECHOICE') {
-      return QuestionType.MULTIPLE_CHOICE;
-    }
+    // Check complex / multi-select first to avoid matching "PILIHANGANDA" in "PILIHANGANDAKOMPLEKS"
     if (clean.includes('PGKOMPLEKS') || clean.includes('MULTISELECT') || clean.includes('KOMPLEKS')) {
       return QuestionType.MULTI_SELECT;
+    }
+    if (clean.includes('PILIHANGANDA') || clean === 'MCQ' || clean === 'MULTIPLECHOICE' || clean === 'PG') {
+      return QuestionType.MULTIPLE_CHOICE;
     }
     if (clean.includes('BENARSALAH') || clean.includes('TRUEFALSE') || clean === 'TF' || clean === 'BS') {
       return QuestionType.TRUE_FALSE;
@@ -103,21 +104,21 @@ export class WordParserService {
     }
     const cleanKey = (keyText || '').trim().toUpperCase();
 
-    // 1. Check if options contain matching syntax (e.g. "A -> B" or "A = B")
+    // 1. Check if options contain matching syntax (e.g. "A -> B", "A → B", or "A = B")
     if (
       rawOptions.length > 0 &&
-      rawOptions.some((o) => o.content.includes('->') || /^[^\=]+\=[^\=]+$/.test(o.content))
+      rawOptions.some((o) => /(?:->|→|➔|➜|➡|⇒|=)/.test(o.content))
     ) {
       return QuestionType.MATCHING;
     }
 
-    // 2. Check if key is True/False
-    if (/^(?:BENAR|SALAH|TRUE|FALSE|B|S)$/i.test(cleanKey) && rawOptions.length <= 2) {
+    // 2. Check if key is True/False (explicit words only to avoid collision with MCQ Option B)
+    if (/^(?:BENAR|SALAH|TRUE|FALSE)$/i.test(cleanKey) && rawOptions.length <= 2) {
       return QuestionType.TRUE_FALSE;
     }
 
-    // 3. Check if key is comma-separated letters e.g. "A, B" or "A, B, D"
-    const isMultiKey = /^[A-E](?:[\s,;]+[A-E])+$/i.test(cleanKey);
+    // 3. Check if key is comma/separator-separated letters e.g. "A, B", "A dan C", or "A, B, D"
+    const isMultiKey = /\b[A-E]\b(?:[\s,;]+(?:DAN\s+)?\b[A-E]\b)+/i.test(cleanKey);
     if (isMultiKey) {
       return QuestionType.MULTI_SELECT;
     }
@@ -127,7 +128,12 @@ export class WordParserService {
       return QuestionType.SHORT_ANSWER;
     }
 
-    // 5. Default
+    // 5. If options and key are both empty -> ESSAY
+    if (rawOptions.length === 0 && cleanKey.length === 0) {
+      return QuestionType.ESSAY;
+    }
+
+    // 6. Default
     return QuestionType.MULTIPLE_CHOICE;
   }
 
@@ -210,13 +216,29 @@ export class WordParserService {
         ];
       } else {
         const keyUpper = correctKey.trim().toUpperCase();
+        const isSingleLetter = /^[A-E]$/.test(keyUpper);
+
         options = rawOptions.map((opt, idx) => {
           const optContentUpper = opt.content.trim().toUpperCase();
-          const isCorrect =
-            opt.label === keyUpper ||
-            optContentUpper === keyUpper ||
-            (keyUpper.startsWith('B') && optContentUpper.startsWith('BENAR')) ||
-            (keyUpper.startsWith('S') && optContentUpper.startsWith('SALAH'));
+          let isCorrect = false;
+
+          if (isSingleLetter) {
+            isCorrect = opt.label === keyUpper;
+          } else {
+            const isOptBenar =
+              optContentUpper.startsWith('BENAR') ||
+              optContentUpper === 'B' ||
+              optContentUpper === 'TRUE';
+            const isOptSalah =
+              optContentUpper.startsWith('SALAH') ||
+              optContentUpper === 'S' ||
+              optContentUpper === 'FALSE';
+            const keyIsBenar = keyUpper === 'BENAR' || keyUpper === 'TRUE';
+            const keyIsSalah = keyUpper === 'SALAH' || keyUpper === 'FALSE';
+
+            isCorrect = (keyIsBenar && isOptBenar) || (keyIsSalah && isOptSalah);
+          }
+
           return {
             order: idx + 1,
             content: opt.content || `Opsi ${opt.label}`,
@@ -233,10 +255,15 @@ export class WordParserService {
     } else if (questionType === QuestionType.MATCHING) {
       options = rawOptions.map((opt, idx) => {
         const rawText = opt.content || '';
-        const delimiter = rawText.includes('->') ? '->' : '=';
-        const parts = rawText.split(delimiter);
-        const left = (parts[0] || '').trim();
-        const right = (parts.slice(1).join(delimiter) || '').trim();
+        const delimiterMatch = rawText.match(/->|→|➔|➜|➡|⇒|=/);
+        const delimiter = delimiterMatch ? delimiterMatch[0] : '';
+        let left = rawText;
+        let right = '';
+        if (delimiter) {
+          const parts = rawText.split(delimiter);
+          left = (parts[0] || '').trim();
+          right = (parts.slice(1).join(delimiter) || '').trim();
+        }
 
         return {
           order: idx + 1,
@@ -249,9 +276,21 @@ export class WordParserService {
       if (options.length < 2) {
         isValid = false;
         error = 'Soal menjodohkan memerlukan minimal 2 pasangan';
+      } else if (
+        options.some((o) => {
+          try {
+            const p = JSON.parse(o.content);
+            return !p.left || !p.right;
+          } catch {
+            return true;
+          }
+        })
+      ) {
+        isValid = false;
+        error = 'Setiap pasangan menjodohkan harus memiliki pemisah tanda panah (->)';
       }
     } else if (questionType === QuestionType.MULTI_SELECT) {
-      const targetKeys: string[] = correctKey.toUpperCase().match(/[A-E]/g) || [];
+      const targetKeys: string[] = correctKey.toUpperCase().match(/\b[A-E]\b/g) || [];
       options = rawOptions.map((opt, idx) => ({
         order: idx + 1,
         content: opt.content || `Opsi ${opt.label}`,
@@ -371,6 +410,20 @@ export class WordParserService {
           rawOptions.push({
             label: leftNormalized,
             content: cellText,
+            imageUrl: cellImageUrl,
+          });
+        } else if (
+          explicitType === QuestionType.MATCHING &&
+          leftNormalized &&
+          cellText &&
+          !leftNormalized.startsWith('NO') &&
+          !leftNormalized.startsWith('SOAL') &&
+          leftNormalized !== 'PREMIS' &&
+          leftNormalized !== 'PERNYATAAN'
+        ) {
+          rawOptions.push({
+            label: String(rawOptions.length + 1),
+            content: `${rawLeft} -> ${cellText}`,
             imageUrl: cellImageUrl,
           });
         } else if (/^\d+$/.test(leftNormalized) || leftNormalized.startsWith('SOAL') || leftNormalized.startsWith('NO')) {

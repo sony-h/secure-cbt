@@ -50,11 +50,12 @@ export class ExcelParserService {
   private normalizeType(typeStr?: string | null): QuestionType | null {
     if (!typeStr) return null;
     const clean = typeStr.toUpperCase().replace(/[\s\-_]+/g, '');
-    if (clean.includes('PILIHANGANDA') || clean === 'MCQ' || clean === 'MULTIPLECHOICE') {
-      return QuestionType.MULTIPLE_CHOICE;
-    }
+    // Check complex / multi-select first to avoid matching "PILIHANGANDA" in "PILIHANGANDAKOMPLEKS"
     if (clean.includes('PGKOMPLEKS') || clean.includes('MULTISELECT') || clean.includes('KOMPLEKS')) {
       return QuestionType.MULTI_SELECT;
+    }
+    if (clean.includes('PILIHANGANDA') || clean === 'MCQ' || clean === 'MULTIPLECHOICE' || clean === 'PG') {
+      return QuestionType.MULTIPLE_CHOICE;
     }
     if (clean.includes('BENARSALAH') || clean.includes('TRUEFALSE') || clean === 'TF' || clean === 'BS') {
       return QuestionType.TRUE_FALSE;
@@ -81,21 +82,21 @@ export class ExcelParserService {
     }
     const cleanKey = (keyText || '').trim().toUpperCase();
 
-    // 1. Check if options contain matching syntax (e.g. "A -> B" or "A = B")
+    // 1. Check if options contain matching syntax (e.g. "A -> B", "A → B", or "A = B")
     if (
       rawOptions.length > 0 &&
-      rawOptions.some((o) => o.text.includes('->') || /^[^\=]+\=[^\=]+$/.test(o.text))
+      rawOptions.some((o) => /(?:->|→|➔|➜|➡|⇒|=)/.test(o.text))
     ) {
       return QuestionType.MATCHING;
     }
 
-    // 2. Check if key is True/False
-    if (/^(?:BENAR|SALAH|TRUE|FALSE|B|S)$/i.test(cleanKey) && rawOptions.length <= 2) {
+    // 2. Check if key is True/False (explicit words only to avoid collision with MCQ Option B)
+    if (/^(?:BENAR|SALAH|TRUE|FALSE)$/i.test(cleanKey) && rawOptions.length <= 2) {
       return QuestionType.TRUE_FALSE;
     }
 
-    // 3. Check if key is comma-separated letters e.g. "A, B" or "A, B, D"
-    const isMultiKey = /^[A-E](?:[\s,;]+[A-E])+$/i.test(cleanKey);
+    // 3. Check if key is comma/separator-separated letters e.g. "A, B", "A dan C", or "A, B, D"
+    const isMultiKey = /\b[A-E]\b(?:[\s,;]+(?:DAN\s+)?\b[A-E]\b)+/i.test(cleanKey);
     if (isMultiKey) {
       return QuestionType.MULTI_SELECT;
     }
@@ -305,13 +306,29 @@ export class ExcelParserService {
           ];
         } else {
           const keyUpper = keyRaw.trim().toUpperCase();
+          const isSingleLetter = /^[A-E]$/.test(keyUpper);
+
           options = rawOptions.map((opt, idx) => {
             const optTextUpper = opt.text.trim().toUpperCase();
-            const isCorrect =
-              opt.label === keyUpper ||
-              optTextUpper === keyUpper ||
-              (keyUpper.startsWith('B') && optTextUpper.startsWith('BENAR')) ||
-              (keyUpper.startsWith('S') && optTextUpper.startsWith('SALAH'));
+            let isCorrect = false;
+
+            if (isSingleLetter) {
+              isCorrect = opt.label === keyUpper;
+            } else {
+              const isOptBenar =
+                optTextUpper.startsWith('BENAR') ||
+                optTextUpper === 'B' ||
+                optTextUpper === 'TRUE';
+              const isOptSalah =
+                optTextUpper.startsWith('SALAH') ||
+                optTextUpper === 'S' ||
+                optTextUpper === 'FALSE';
+              const keyIsBenar = keyUpper === 'BENAR' || keyUpper === 'TRUE';
+              const keyIsSalah = keyUpper === 'SALAH' || keyUpper === 'FALSE';
+
+              isCorrect = (keyIsBenar && isOptBenar) || (keyIsSalah && isOptSalah);
+            }
+
             return {
               order: idx + 1,
               content: opt.text,
@@ -328,10 +345,15 @@ export class ExcelParserService {
       } else if (questionType === QuestionType.MATCHING) {
         options = rawOptions.map((opt, idx) => {
           const rawText = opt.text || '';
-          const delimiter = rawText.includes('->') ? '->' : '=';
-          const parts = rawText.split(delimiter);
-          const left = (parts[0] || '').trim();
-          const right = (parts.slice(1).join(delimiter) || '').trim();
+          const delimiterMatch = rawText.match(/->|→|➔|➜|➡|⇒|=/);
+          const delimiter = delimiterMatch ? delimiterMatch[0] : '';
+          let left = rawText;
+          let right = '';
+          if (delimiter) {
+            const parts = rawText.split(delimiter);
+            left = (parts[0] || '').trim();
+            right = (parts.slice(1).join(delimiter) || '').trim();
+          }
 
           return {
             order: idx + 1,
@@ -344,9 +366,21 @@ export class ExcelParserService {
         if (options.length < 2) {
           isValid = false;
           error = 'Soal menjodohkan memerlukan minimal 2 pasangan';
+        } else if (
+          options.some((o) => {
+            try {
+              const p = JSON.parse(o.content);
+              return !p.left || !p.right;
+            } catch {
+              return true;
+            }
+          })
+        ) {
+          isValid = false;
+          error = 'Setiap pasangan menjodohkan harus memiliki pemisah tanda panah (->)';
         }
       } else if (questionType === QuestionType.MULTI_SELECT) {
-        const targetKeys: string[] = keyRaw.toUpperCase().match(/[A-E]/g) || [];
+        const targetKeys: string[] = keyRaw.toUpperCase().match(/\b[A-E]\b/g) || [];
         options = rawOptions.map((opt, idx) => ({
           order: idx + 1,
           content: opt.text,

@@ -336,5 +336,80 @@ describe('ExcelParserService', () => {
       expect(result[2].type).toBe(QuestionType.MATCHING);
       expect(result[2].options).toHaveLength(2);
     });
+
+    it('should correctly normalize "PILIHAN GANDA KOMPLEKS" in Tipe Soal column to MULTI_SELECT', () => {
+      const data = [
+        ['No', 'Tipe Soal', 'Soal', 'Opsi A', 'Opsi B', 'Opsi C', 'Kunci Jawaban'],
+        [1, 'Pilihan Ganda Kompleks', 'Browser based lang:', 'JS', 'WASM', 'C', 'A, B'],
+      ];
+
+      const ws = xlsx.utils.aoa_to_sheet(data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, 'Soal');
+      const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = service.parse(buffer);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.MULTI_SELECT);
+      expect(result[0].options[0].is_correct).toBe(true);
+      expect(result[0].options[1].is_correct).toBe(true);
+      expect(result[0].options[2].is_correct).toBe(false);
+    });
+
+    it('should parse TRUE_FALSE with explicit Benar (A) and Salah (B) options without false positives', () => {
+      const data = [
+        ['No', 'Tipe Soal', 'Soal', 'Opsi A', 'Opsi B', 'Kunci Jawaban'],
+        [1, 'BENAR_SALAH', 'Bumi berputar mengelilingi matahari', 'Benar', 'Salah', 'B'],
+      ];
+
+      const ws = xlsx.utils.aoa_to_sheet(data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, 'Soal');
+      const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = service.parse(buffer);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.TRUE_FALSE);
+      expect(result[0].options[0].is_correct).toBe(false);
+      expect(result[0].options[1].is_correct).toBe(true);
+    });
+
+    it('should parse MATCHING with unicode arrow → in options', () => {
+      const data = [
+        ['No', 'Tipe Soal', 'Soal', 'Opsi A', 'Opsi B', 'Kunci Jawaban'],
+        [1, 'MENJODOHKAN', 'Pasangan:', 'Kucing → Mamalia', 'Elang → Aves', ''],
+      ];
+
+      const ws = xlsx.utils.aoa_to_sheet(data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, 'Soal');
+      const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = service.parse(buffer);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.MATCHING);
+      expect(result[0].options).toHaveLength(2);
+      const p1 = JSON.parse(result[0].options[0].content);
+      expect(p1.left).toBe('Kucing');
+      expect(p1.right).toBe('Mamalia');
+    });
+
+    it('should auto-detect ESSAY in legacy format when options and key are empty', () => {
+      const data = [
+        ['No', 'Soal', 'Opsi A', 'Opsi B', 'Opsi C', 'Kunci Jawaban'],
+        [1, 'Jelaskan dampak pemanasan global terhadap ekosistem kutub!', '', '', '', ''],
+      ];
+
+      const ws = xlsx.utils.aoa_to_sheet(data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, 'Soal');
+      const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = service.parse(buffer);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.ESSAY);
+      expect(result[0].options).toHaveLength(0);
+      expect(result[0].valid).toBe(true);
+    });
   });
 });

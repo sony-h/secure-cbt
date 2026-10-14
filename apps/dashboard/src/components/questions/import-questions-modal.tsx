@@ -649,7 +649,7 @@ export function QuestionImportPreviewItem({
                 }`}
               >
                 {q.type === QuestionType.TRUE_FALSE
-                  ? opt.content.startsWith('B')
+                  ? opt.content.trim().toUpperCase().startsWith('B')
                     ? 'B'
                     : 'S'
                   : letters[oIdx] || opt.order}

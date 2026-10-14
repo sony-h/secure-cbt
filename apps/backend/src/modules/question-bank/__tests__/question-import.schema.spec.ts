@@ -153,4 +153,44 @@ describe('Question Import Schemas (Multi-Type Support)', () => {
     expect(parsed.questions).toHaveLength(3);
     expect(parsed.questions[2].options).toHaveLength(0);
   });
+
+  it('rejects confirmImportQuestionsSchema when MULTIPLE_CHOICE has no correct answer', () => {
+    const input = {
+      bank_id: '00000000-0000-0000-0000-000000000001',
+      questions: [
+        {
+          content: 'Soal tanpa kunci',
+          type: QuestionType.MULTIPLE_CHOICE,
+          options: [
+            { order: 1, content: 'A', is_correct: false },
+            { order: 2, content: 'B', is_correct: false },
+          ],
+        },
+      ],
+    };
+
+    expect(() => confirmImportQuestionsSchema.parse(input)).toThrow(
+      /Minimal 1 opsi harus ditandai sebagai kunci jawaban benar/,
+    );
+  });
+
+  it('rejects confirmImportQuestionsSchema when MATCHING option JSON is incomplete', () => {
+    const input = {
+      bank_id: '00000000-0000-0000-0000-000000000001',
+      questions: [
+        {
+          content: 'Jodohkan:',
+          type: QuestionType.MATCHING,
+          options: [
+            { order: 1, content: JSON.stringify({ left: 'A', right: '' }), is_correct: true },
+            { order: 2, content: JSON.stringify({ left: 'B', right: 'Target B' }), is_correct: true },
+          ],
+        },
+      ],
+    };
+
+    expect(() => confirmImportQuestionsSchema.parse(input)).toThrow(
+      /Pasangan opsi ke-1 tidak lengkap/,
+    );
+  });
 });

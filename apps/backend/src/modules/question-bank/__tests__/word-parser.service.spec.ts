@@ -440,5 +440,118 @@ describe('WordParserService', () => {
       expect(result[0].type).toBe(QuestionType.MATCHING);
       expect(result[0].options).toHaveLength(2);
     });
+
+    it('should correctly normalize "TIPE: PILIHAN GANDA KOMPLEKS" to MULTI_SELECT', async () => {
+      const mockHtml = `
+        <p>[SOAL 1]</p>
+        <p>TIPE: PILIHAN GANDA KOMPLEKS</p>
+        <p>Pilihlah bahasa yang berjalan di browser:</p>
+        <p>A. JavaScript</p>
+        <p>B. WebAssembly</p>
+        <p>C. Python</p>
+        <p>KUNCI: A, B</p>
+      `;
+
+      vi.mocked(mammoth.convertToHtml).mockResolvedValueOnce({
+        value: mockHtml,
+        messages: [],
+      });
+
+      const result = await service.parse(Buffer.from('fake-docx-data'));
+
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.MULTI_SELECT);
+      expect(result[0].options[0].is_correct).toBe(true);
+      expect(result[0].options[1].is_correct).toBe(true);
+      expect(result[0].options[2].is_correct).toBe(false);
+    });
+
+    it('should parse TRUE_FALSE with explicit A: Benar, B: Salah and key B without marking both correct', async () => {
+      const mockHtml = `
+        <p>[SOAL 1]</p>
+        <p>TIPE: BENAR_SALAH</p>
+        <p>Bumi itu datar.</p>
+        <p>A. Benar</p>
+        <p>B. Salah</p>
+        <p>KUNCI: B</p>
+      `;
+
+      vi.mocked(mammoth.convertToHtml).mockResolvedValueOnce({
+        value: mockHtml,
+        messages: [],
+      });
+
+      const result = await service.parse(Buffer.from('fake-docx-data'));
+
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.TRUE_FALSE);
+      expect(result[0].options[0].is_correct).toBe(false);
+      expect(result[0].options[1].is_correct).toBe(true);
+    });
+
+    it('should parse TRUE_FALSE with explicit A: Benar, B: Salah and key SALAH correctly', async () => {
+      const mockHtml = `
+        <p>[SOAL 1]</p>
+        <p>TIPE: BENAR_SALAH</p>
+        <p>Bumi itu datar.</p>
+        <p>A. Benar</p>
+        <p>B. Salah</p>
+        <p>KUNCI: SALAH</p>
+      `;
+
+      vi.mocked(mammoth.convertToHtml).mockResolvedValueOnce({
+        value: mockHtml,
+        messages: [],
+      });
+
+      const result = await service.parse(Buffer.from('fake-docx-data'));
+
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.TRUE_FALSE);
+      expect(result[0].options[0].is_correct).toBe(false);
+      expect(result[0].options[1].is_correct).toBe(true);
+    });
+
+    it('should auto-detect MATCHING when options contain unicode arrow →', async () => {
+      const mockHtml = `
+        <p>[SOAL 1]</p>
+        <p>Pasangkan rumus kimia dan senyawa:</p>
+        <p>A. H2O → Air</p>
+        <p>B. NaCl → Garam Dapur</p>
+      `;
+
+      vi.mocked(mammoth.convertToHtml).mockResolvedValueOnce({
+        value: mockHtml,
+        messages: [],
+      });
+
+      const result = await service.parse(Buffer.from('fake-docx-data'));
+
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.MATCHING);
+      expect(result[0].options).toHaveLength(2);
+      const parsed1 = JSON.parse(result[0].options[0].content);
+      expect(parsed1.left).toBe('H2O');
+      expect(parsed1.right).toBe('Air');
+    });
+
+    it('should auto-detect ESSAY when options and key are both omitted without TIPE tag', async () => {
+      const mockHtml = `
+        <p>[SOAL 1]</p>
+        <p>Jelaskan secara mendalam proses pembentukan batuan sedimen!</p>
+      `;
+
+      vi.mocked(mammoth.convertToHtml).mockResolvedValueOnce({
+        value: mockHtml,
+        messages: [],
+      });
+
+      const result = await service.parse(Buffer.from('fake-docx-data'));
+
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.ESSAY);
+      expect(result[0].options).toHaveLength(0);
+      expect(result[0].valid).toBe(true);
+    });
   });
 });

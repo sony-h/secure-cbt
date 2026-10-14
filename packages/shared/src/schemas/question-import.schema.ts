@@ -79,6 +79,40 @@ export const confirmImportQuestionItemSchema = z
         message: 'Pilihan jawaban minimal 2 opsi',
         path: ['options'],
       });
+      return;
+    }
+
+    if (data.type === QuestionType.MATCHING) {
+      for (let i = 0; i < data.options.length; i++) {
+        const opt = data.options[i];
+        if (!opt) continue;
+        try {
+          const parsed = JSON.parse(opt.content);
+          if (!parsed.left || !parsed.right) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Pasangan opsi ke-${i + 1} tidak lengkap`,
+              path: ['options', i, 'content'],
+            });
+          }
+        } catch {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Format pasangan opsi ke-${i + 1} tidak valid`,
+            path: ['options', i, 'content'],
+          });
+        }
+      }
+      return;
+    }
+
+    // MULTIPLE_CHOICE, MULTI_SELECT, TRUE_FALSE
+    if (!data.options.some((o) => o.is_correct)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Minimal 1 opsi harus ditandai sebagai kunci jawaban benar',
+        path: ['options'],
+      });
     }
   });
 
