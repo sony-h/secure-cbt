@@ -29,6 +29,10 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Git Worktrees
+.worktrees/
+worktrees/
+
 # Prisma
 *.db
 *.db-journal
