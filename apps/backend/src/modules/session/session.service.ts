@@ -7,6 +7,7 @@ import {
   SessionStatus, ExamStatus, SocketEvent, shuffle,
 } from '@secure-cbt/shared';
 import { resolveStudentId } from '../../common/helpers/user-resolver.helper';
+import { sampleQuestionPool } from './session-sampler';
 
 @Injectable()
 export class SessionService {
@@ -109,13 +110,27 @@ export class SessionService {
     const filtered = session.exam.exam_questions
       .filter((eq) => !eq.package_id || eq.package_id === assignedPackage?.id);
 
-    const ordered = [...filtered].sort((a, b) => a.position - b.position);
-    const finalOrder = exam.randomize_questions
-      ? shuffle(ordered)
-      : ordered;
+    let candidatePool = [...filtered];
+    if (exam.is_random_pool && exam.pool_question_count && exam.pool_question_count > 0) {
+      const candidatesWithDifficulty = candidatePool.map((eq) => ({
+        ...eq,
+        difficulty: eq.question?.difficulty,
+      }));
+      candidatePool = sampleQuestionPool(
+        candidatesWithDifficulty,
+        exam.pool_question_count,
+        (exam.pool_mode as 'BALANCED' | 'PURE_RANDOM') || 'BALANCED',
+        exam.randomize_questions,
+      );
+    }
 
-    // Persist shuffled order so resume() can restore it
-    if (exam.randomize_questions) {
+    const ordered = [...candidatePool].sort((a, b) => a.position - b.position);
+    const finalOrder = exam.randomize_questions
+      ? (exam.is_random_pool ? candidatePool : shuffle(ordered))
+      : (exam.is_random_pool ? ordered : ordered);
+
+    // Persist shuffled order or pooled subset so resume() can restore it
+    if (exam.randomize_questions || exam.is_random_pool) {
       await this.prisma.examSession.update({
         where: { id: session.id },
         data: { question_order: finalOrder.map((eq) => eq.id) },
@@ -175,7 +190,7 @@ export class SessionService {
     const ordered = [...filtered].sort((a, b) => a.position - b.position);
 
     let finalOrder;
-    if (session.exam.randomize_questions && session.question_order) {
+    if (session.question_order && Array.isArray(session.question_order) && (session.question_order as string[]).length > 0) {
       const orderArray = session.question_order as string[];
       finalOrder = orderArray
         .map((id) => filtered.find((eq) => eq.id === id))

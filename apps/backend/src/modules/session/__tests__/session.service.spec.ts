@@ -109,6 +109,65 @@ describe('SessionService', () => {
       expect(mockPrisma.examSession.create).toHaveBeenCalled();
       expect(result.id).toBe('new-session');
     });
+
+    it('should sample a subset of questions when is_random_pool is enabled', async () => {
+      const examId = UUID();
+      const studentId = UUID();
+      const candidateQuestions = [
+        { id: 'eq-1', position: 1, package_id: null, question: { id: UUID(), difficulty: 'EASY', type: 'MULTIPLE_CHOICE', content: 'Q1', options: [] } },
+        { id: 'eq-2', position: 2, package_id: null, question: { id: UUID(), difficulty: 'EASY', type: 'MULTIPLE_CHOICE', content: 'Q2', options: [] } },
+        { id: 'eq-3', position: 3, package_id: null, question: { id: UUID(), difficulty: 'HARD', type: 'MULTIPLE_CHOICE', content: 'Q3', options: [] } },
+        { id: 'eq-4', position: 4, package_id: null, question: { id: UUID(), difficulty: 'HARD', type: 'MULTIPLE_CHOICE', content: 'Q4', options: [] } },
+      ];
+
+      mockPrisma.examToken.findUnique.mockResolvedValue({
+        id: UUID(),
+        token: 'POOL123',
+        expires_at: new Date(Date.now() + 3600000),
+        exam: {
+          id: examId,
+          status: ExamStatus.PUBLISHED,
+          start_at: new Date(Date.now() - 3600000),
+          end_at: new Date(Date.now() + 3600000),
+          randomize_questions: false,
+          randomize_answers: false,
+          duration_minutes: 60,
+          is_random_pool: true,
+          pool_question_count: 2,
+          pool_mode: 'BALANCED',
+        },
+      });
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId, class_id: UUID() });
+      mockPrisma.examClass.findFirst.mockResolvedValue({ id: UUID() });
+      mockPrisma.examSession.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      mockPrisma.examPackage.findMany.mockResolvedValue([]);
+      mockPrisma.examSession.create.mockResolvedValue({
+        id: 'pool-session',
+        exam_id: examId,
+        status: SessionStatus.ACTIVE,
+        exam: {
+          is_random_pool: true,
+          pool_question_count: 2,
+          pool_mode: 'BALANCED',
+          randomize_questions: false,
+          randomize_answers: false,
+          exam_questions: candidateQuestions,
+        },
+      });
+
+      const result = await service.start({ token: 'POOL123', device_id: 'device-pool' }, 'user-1');
+      expect(result.questions).toHaveLength(2);
+      expect(mockPrisma.examSession.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'pool-session' },
+          data: expect.objectContaining({
+            question_order: expect.arrayContaining([expect.any(String)]),
+          }),
+        }),
+      );
+    });
   });
 
   describe('resume()', () => {
