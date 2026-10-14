@@ -346,7 +346,7 @@ export class ExcelParserService {
           error = 'Soal menjodohkan memerlukan minimal 2 pasangan';
         }
       } else if (questionType === QuestionType.MULTI_SELECT) {
-        const targetKeys = keyRaw.toUpperCase().match(/[A-E]/g) || [];
+        const targetKeys: string[] = keyRaw.toUpperCase().match(/[A-E]/g) || [];
         options = rawOptions.map((opt, idx) => ({
           order: idx + 1,
           content: opt.text,

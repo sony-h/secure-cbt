@@ -251,7 +251,7 @@ export class WordParserService {
         error = 'Soal menjodohkan memerlukan minimal 2 pasangan';
       }
     } else if (questionType === QuestionType.MULTI_SELECT) {
-      const targetKeys = correctKey.toUpperCase().match(/[A-E]/g) || [];
+      const targetKeys: string[] = correctKey.toUpperCase().match(/[A-E]/g) || [];
       options = rawOptions.map((opt, idx) => ({
         order: idx + 1,
         content: opt.content || `Opsi ${opt.label}`,
@@ -501,7 +501,7 @@ export class WordParserService {
           explanation: null,
           difficulty: DifficultyLevel.MEDIUM,
         };
-      } else if (typeMatch && currentQuestion) {
+      } else if (typeMatch && typeMatch[1] && currentQuestion) {
         const parsedType = this.normalizeType(typeMatch[1].trim());
         if (parsedType) {
           currentQuestion.explicitType = parsedType;
