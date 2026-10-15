@@ -553,5 +553,58 @@ describe('WordParserService', () => {
       expect(result[0].options).toHaveLength(0);
       expect(result[0].valid).toBe(true);
     });
+
+    it('should not treat math equations or code snippets with = as MATCHING questions', async () => {
+      const mockHtml = `
+        <p>[SOAL 1]</p>
+        <p>Tentukan fungsi turunan yang benar:</p>
+        <p>A. f(x) = 2x + 1</p>
+        <p>B. f(x) = x^2 - 4</p>
+        <p>C. f(x) = 3x - 5</p>
+        <p>D. f(x) = 4</p>
+        <p>KUNCI: A</p>
+      `;
+
+      vi.mocked(mammoth.convertToHtml).mockResolvedValueOnce({
+        value: mockHtml,
+        messages: [],
+      });
+
+      const result = await service.parse(Buffer.from('fake-docx-data'));
+
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.MULTIPLE_CHOICE);
+      expect(result[0].options[0].content).toBe('f(x) = 2x + 1');
+      expect(result[0].options[0].is_correct).toBe(true);
+      expect(result[0].options[1].content).toBe('f(x) = x^2 - 4');
+      expect(result[0].options[1].is_correct).toBe(false);
+    });
+
+    it('should not treat code snippets with = as MATCHING in MULTI_SELECT questions', async () => {
+      const mockHtml = `
+        <p>[SOAL 1]</p>
+        <p>Pilihlah deklarasi variabel JavaScript yang valid:</p>
+        <p>A. const x = 10;</p>
+        <p>B. let count = 0;</p>
+        <p>C. val y = 20;</p>
+        <p>KUNCI: A, B</p>
+      `;
+
+      vi.mocked(mammoth.convertToHtml).mockResolvedValueOnce({
+        value: mockHtml,
+        messages: [],
+      });
+
+      const result = await service.parse(Buffer.from('fake-docx-data'));
+
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.MULTI_SELECT);
+      expect(result[0].options[0].content).toBe('const x = 10;');
+      expect(result[0].options[0].is_correct).toBe(true);
+      expect(result[0].options[1].content).toBe('let count = 0;');
+      expect(result[0].options[1].is_correct).toBe(true);
+      expect(result[0].options[2].content).toBe('val y = 20;');
+      expect(result[0].options[2].is_correct).toBe(false);
+    });
   });
 });

@@ -82,10 +82,10 @@ export class ExcelParserService {
     }
     const cleanKey = (keyText || '').trim().toUpperCase();
 
-    // 1. Check if options contain matching syntax (e.g. "A -> B", "A → B", or "A = B")
+    // 1. Check if options contain matching syntax (e.g. "A -> B" or "A → B")
     if (
       rawOptions.length > 0 &&
-      rawOptions.some((o) => /(?:->|→|➔|➜|➡|⇒|=)/.test(o.text))
+      rawOptions.some((o) => /(?:->|→|➔|➜|➡|⇒)/.test(o.text))
     ) {
       return QuestionType.MATCHING;
     }
@@ -345,7 +345,7 @@ export class ExcelParserService {
       } else if (questionType === QuestionType.MATCHING) {
         options = rawOptions.map((opt, idx) => {
           const rawText = opt.text || '';
-          const delimiterMatch = rawText.match(/->|→|➔|➜|➡|⇒|=/);
+          const delimiterMatch = rawText.match(/->|→|➔|➜|➡|⇒/);
           const delimiter = delimiterMatch ? delimiterMatch[0] : '';
           let left = rawText;
           let right = '';

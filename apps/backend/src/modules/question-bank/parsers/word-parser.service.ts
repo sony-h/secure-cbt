@@ -104,10 +104,10 @@ export class WordParserService {
     }
     const cleanKey = (keyText || '').trim().toUpperCase();
 
-    // 1. Check if options contain matching syntax (e.g. "A -> B", "A → B", or "A = B")
+    // 1. Check if options contain matching syntax (e.g. "A -> B" or "A → B")
     if (
       rawOptions.length > 0 &&
-      rawOptions.some((o) => /(?:->|→|➔|➜|➡|⇒|=)/.test(o.content))
+      rawOptions.some((o) => /(?:->|→|➔|➜|➡|⇒)/.test(o.content))
     ) {
       return QuestionType.MATCHING;
     }
@@ -255,7 +255,7 @@ export class WordParserService {
     } else if (questionType === QuestionType.MATCHING) {
       options = rawOptions.map((opt, idx) => {
         const rawText = opt.content || '';
-        const delimiterMatch = rawText.match(/->|→|➔|➜|➡|⇒|=/);
+        const delimiterMatch = rawText.match(/->|→|➔|➜|➡|⇒/);
         const delimiter = delimiterMatch ? delimiterMatch[0] : '';
         let left = rawText;
         let right = '';

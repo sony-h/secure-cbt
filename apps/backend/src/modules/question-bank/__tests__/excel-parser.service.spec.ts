@@ -411,5 +411,47 @@ describe('ExcelParserService', () => {
       expect(result[0].options).toHaveLength(0);
       expect(result[0].valid).toBe(true);
     });
+
+    it('should not treat math equations or code snippets with = as MATCHING questions', () => {
+      const data = [
+        ['No', 'Soal', 'Opsi A', 'Opsi B', 'Opsi C', 'Opsi D', 'Kunci Jawaban'],
+        ['1', 'Tentukan fungsi turunan yang benar:', 'f(x) = 2x + 1', 'f(x) = x^2 - 4', 'f(x) = 3x - 5', 'f(x) = 4', 'A'],
+      ];
+
+      const ws = xlsx.utils.aoa_to_sheet(data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, 'Soal');
+      const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = service.parse(buffer);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.MULTIPLE_CHOICE);
+      expect(result[0].options[0].content).toBe('f(x) = 2x + 1');
+      expect(result[0].options[0].is_correct).toBe(true);
+      expect(result[0].options[1].content).toBe('f(x) = x^2 - 4');
+      expect(result[0].options[1].is_correct).toBe(false);
+    });
+
+    it('should not treat code snippets with = as MATCHING in MULTI_SELECT questions', () => {
+      const data = [
+        ['No', 'Soal', 'Opsi A', 'Opsi B', 'Opsi C', 'Kunci Jawaban'],
+        ['1', 'Pilihlah deklarasi variabel JavaScript yang valid:', 'const x = 10;', 'let count = 0;', 'val y = 20;', 'A, B'],
+      ];
+
+      const ws = xlsx.utils.aoa_to_sheet(data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, 'Soal');
+      const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const result = service.parse(buffer);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe(QuestionType.MULTI_SELECT);
+      expect(result[0].options[0].content).toBe('const x = 10;');
+      expect(result[0].options[0].is_correct).toBe(true);
+      expect(result[0].options[1].content).toBe('let count = 0;');
+      expect(result[0].options[1].is_correct).toBe(true);
+      expect(result[0].options[2].content).toBe('val y = 20;');
+      expect(result[0].options[2].is_correct).toBe(false);
+    });
   });
 });

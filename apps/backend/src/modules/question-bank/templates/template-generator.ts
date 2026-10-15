@@ -164,7 +164,7 @@ export async function generateWordTemplate(): Promise<Buffer> {
                         spacing: { after: 60 },
                         children: [
                           new TextRun({
-                            text: '• Menjodohkan: Tuliskan pasangan opsi dengan tanda panah: A. Pernyataan -> Pasangan.',
+                            text: '• Menjodohkan: Tuliskan pasangan opsi dengan tanda panah: A. Pernyataan -> Pasangan (atau tanda panah →).',
                             size: 18,
                             font: 'Arial',
                             color: '334155',
@@ -723,7 +723,7 @@ export async function generateExcelTemplate(): Promise<Buffer> {
     [
       '',
       'Opsi A s.d. E',
-      'Pilihan jawaban A sampai E. Untuk Menjodohkan gunakan format: Pernyataan -> Pasangan. Kosongkan untuk Benar/Salah, Isian, dan Esai.',
+      'Pilihan jawaban A sampai E. Untuk Menjodohkan gunakan format tanda panah: Pernyataan -> Pasangan (atau →). Kosongkan untuk Benar/Salah, Isian, dan Esai.',
       'Jakarta (Opsi A) atau Kartini -> Jepara',
     ],
     [
