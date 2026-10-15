@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SessionStatus } from '@secure-cbt/shared';
 
 @Injectable()
 export class ReportService {
@@ -193,6 +194,95 @@ export class ReportService {
       wrong_count: session.score?.wrong_count ?? null,
       submitted_at: session.submitted_at?.toISOString() ?? null,
       status: session.status,
+      questions,
+    };
+  }
+
+  async getItemAnalysis(examId: string) {
+    const exam = await this.prisma.exam.findFirst({
+      where: { id: examId, deleted_at: null },
+      include: {
+        exam_questions: {
+          include: {
+            question: {
+              include: {
+                options: { orderBy: { order: 'asc' } },
+              },
+            },
+          },
+          orderBy: { position: 'asc' },
+        },
+      },
+    });
+    if (!exam) throw new NotFoundException('Exam not found');
+
+    const sessions = await this.prisma.examSession.findMany({
+      where: {
+        exam_id: examId,
+        status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED] },
+      },
+      include: {
+        answers: true,
+      },
+    });
+
+    const totalSessions = sessions.length;
+
+    const questions = exam.exam_questions.map((eq, index) => {
+      const q = eq.question;
+      const options = q.options || [];
+
+      const questionAnswers = sessions
+        .map((s) => s.answers.find((a) => a.question_id === q.id))
+        .filter((a): a is NonNullable<typeof a> => Boolean(a && a.answer_text !== null && a.answer_text !== ''));
+
+      const totalAnswered = questionAnswers.length;
+      const correctCount = questionAnswers.filter((a) => a.is_correct).length;
+      const wrongCount = totalAnswered - correctCount;
+
+      const difficultyIndex = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) / 100 : 0;
+      const passRate = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 1000) / 10 : 0;
+
+      const distractorDistribution = options.map((opt) => {
+        const count = questionAnswers.filter((a) => {
+          const raw = (a.answer_text || '').split(',').map((x) => x.trim().toLowerCase());
+          return (
+            raw.includes(opt.id.toLowerCase()) ||
+            raw.includes(opt.content.trim().toLowerCase())
+          );
+        }).length;
+
+        const percentage = totalAnswered > 0 ? Math.round((count / totalAnswered) * 1000) / 10 : 0;
+
+        return {
+          option_id: opt.id,
+          order: opt.order,
+          content: opt.content,
+          is_correct: opt.is_correct,
+          count,
+          percentage,
+        };
+      });
+
+      return {
+        question_id: q.id,
+        number: index + 1,
+        content: q.content,
+        type: q.type,
+        difficulty: q.difficulty,
+        total_answered: totalAnswered,
+        correct_count: correctCount,
+        wrong_count: wrongCount,
+        difficulty_index: difficultyIndex,
+        pass_rate: passRate,
+        distractor_distribution: distractorDistribution,
+      };
+    });
+
+    return {
+      exam_id: exam.id,
+      exam_title: exam.title,
+      total_sessions: totalSessions,
       questions,
     };
   }

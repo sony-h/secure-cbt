@@ -40,4 +40,12 @@ export class ReportController {
     const data = await this.reportService.getSessionReview(sessionId);
     return { success: true, message: 'Session review retrieved', data };
   }
+
+  @Get('exam/:id/item-analysis')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get exam item analysis and distractor distribution' })
+  async getItemAnalysis(@Param('id') id: string) {
+    const data = await this.reportService.getItemAnalysis(id);
+    return { success: true, message: 'Item analysis retrieved', data };
+  }
 }
