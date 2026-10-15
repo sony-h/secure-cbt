@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Response } from 'express';
 import { ReportService } from './report.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../../common/guards/roles.guard';
@@ -11,6 +12,24 @@ import { ApiResponse, UserRole } from '@secure-cbt/shared';
 @Controller('reports')
 export class ReportController {
   constructor(private readonly reportService: ReportService) {}
+
+  @Get('exam/:id/export/excel')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Export exam score report as Excel (.xlsx)' })
+  async exportExcel(
+    @Param('id') id: string,
+    @Res() res: Response,
+    @Query('class_id') classId?: string,
+  ) {
+    const buffer = await this.reportService.generateExcelReport(id, classId);
+    const filename = `Laporan_Nilai_Ujian_${id.substring(0, 8)}.xlsx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
 
   @Get('exam/:id')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)

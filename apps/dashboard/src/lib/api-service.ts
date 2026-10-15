@@ -183,6 +183,8 @@ export const reportApi = {
   getClassReport: (classId: string) => api.get(`/reports/class/${classId}`),
   getSessionReview: (sessionId: string) => api.get(`/reports/session/${sessionId}/review`),
   getItemAnalysis: (examId: string) => api.get(`/reports/exam/${examId}/item-analysis`),
+  exportExcel: (examId: string, params?: { class_id?: string }) =>
+    api.get(`/reports/exam/${examId}/export/excel`, { params, responseType: 'blob' }),
 };
 
 export const sessionApi = {

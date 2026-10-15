@@ -54,7 +54,7 @@ export class MonitoringController {
     if (!body.message || !body.message.trim()) {
       throw new BadRequestException('Pesan pengumuman tidak boleh kosong');
     }
-    const urgency = body.urgency === 'high' ? 'high' : 'low';
+    const urgency: 'low' | 'high' = body.urgency === 'high' ? 'high' : 'low';
     const payload = {
       id: randomUUID(),
       message: body.message.trim(),

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import ExcelJS from 'exceljs';
 import { generateWordTemplate, generateExcelTemplate } from '../templates/template-generator';
 import { WordParserService } from '../parsers/word-parser.service';
 import { ExcelParserService } from '../parsers/excel-parser.service';
@@ -29,6 +30,13 @@ describe('TemplateGenerator (Multi-Type Support)', () => {
     const buffer = await generateExcelTemplate();
     expect(buffer).toBeInstanceOf(Buffer);
     expect(buffer.length).toBeGreaterThan(1000);
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer);
+    const sheetNames = wb.worksheets.map((ws) => ws.name);
+    expect(sheetNames).toContain('📋 Panduan');
+    expect(sheetNames).toContain('✍️ Input Soal');
+    expect(sheetNames).toContain('💡 Contoh Soal Multi-Tipe');
 
     const excelParser = new ExcelParserService();
     const questions = excelParser.parse(buffer);

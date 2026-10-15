@@ -64,6 +64,7 @@ function ReportsPageContent() {
   } | null>(null);
   const [isFormalReportOpen, setIsFormalReportOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'students' | 'item-analysis'>('students');
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
   const queryClient = useQueryClient();
 
   const regradeMutation = useMutation({
@@ -216,6 +217,34 @@ function ReportsPageContent() {
     document.body.removeChild(link);
   };
 
+  const handleExportExcel = async () => {
+    if (!selectedExam) return;
+    try {
+      setIsExportingExcel(true);
+      const res = await reportApi.exportExcel(selectedExam, {
+        class_id: selectedClass || undefined,
+      });
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const examTitle = exams?.find((e) => e.id === selectedExam)?.title || 'Laporan_Ujian';
+      const className = classes?.find((c) => c.id === selectedClass)?.name || 'Semua_Kelas';
+      link.download = `Nilai_${examTitle.replace(/\s+/g, '_')}_${className.replace(/\s+/g, '_')}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Laporan Excel berhasil diunduh');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mengunduh laporan Excel');
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
   return (
     <div className="space-y-6 print:p-0 print:space-y-4">
       <div className="hidden print:block border-b-2 border-primary pb-4 mb-4 text-center">
@@ -320,6 +349,15 @@ function ReportsPageContent() {
                 </AlertDialogContent>
               </AlertDialog>
 
+              <Button
+                variant="outline"
+                disabled={!selectedExam || !results?.length || isExportingExcel}
+                onClick={handleExportExcel}
+                className="gap-1.5 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+              >
+                <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                {isExportingExcel ? 'Mengunduh...' : 'Export Excel (.xlsx)'}
+              </Button>
               <Button variant="outline" disabled={!results?.length} onClick={handleExportCSV}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" />Export CSV
               </Button>

@@ -770,54 +770,68 @@ export async function generateExcelTemplate(): Promise<Buffer> {
   // Tip Card
   guideSheet.mergeCells('B13:D14');
   const tipCell = guideSheet.getCell('B13');
-  tipCell.value = '💡 TIPS: Buka lembar "✍️ Input Soal" di tab bawah untuk mulai mengisi soal. Kolom Tipe Soal memudahkan Assessia mengenali format soal secara otomatis tanpa resiko salah tafsir.';
+  tipCell.value = '💡 TIPS: Buka lembar "✍️ Input Soal" di tab bawah untuk mulai mengisi soal baru. Contoh penulisan lengkap untuk seluruh 6 tipe soal (Pilihan Ganda, PG Kompleks, Benar/Salah, Isian Singkat, Menjodohkan, Esai) dapat dilihat di lembar "💡 Contoh Soal Multi-Tipe".';
   tipCell.font = { name: 'Arial', size: 10, italic: true, color: { argb: '1E3A8A' } };
   tipCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'EFF6FF' } };
   tipCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
 
   // ─────────────────────────────────────────────────────────
-  // SHEET 2: Input Soal (Formulir Utama)
+  // SHEET 2: Input Soal (Formulir Utama / Blank Data Entry)
   // ─────────────────────────────────────────────────────────
   const inputSheet = workbook.addWorksheet('✍️ Input Soal', {
     views: [{ state: 'frozen', ySplit: 1, showGridLines: true }],
     properties: { tabColor: { argb: '10B981' } },
   });
 
-  inputSheet.columns = [
+  const questionColumns = [
     { header: 'No', key: 'no', width: 6 },
     { header: 'Tipe Soal', key: 'tipe_soal', width: 20 },
-    { header: 'Soal', key: 'soal', width: 45 },
-    { header: 'Opsi A', key: 'opsi_a', width: 25 },
-    { header: 'Opsi B', key: 'opsi_b', width: 25 },
-    { header: 'Opsi C', key: 'opsi_c', width: 25 },
-    { header: 'Opsi D', key: 'opsi_d', width: 25 },
-    { header: 'Opsi E', key: 'opsi_e', width: 25 },
+    { header: 'Soal', key: 'soal', width: 48 },
+    { header: 'Opsi A', key: 'opsi_a', width: 26 },
+    { header: 'Opsi B', key: 'opsi_b', width: 26 },
+    { header: 'Opsi C', key: 'opsi_c', width: 26 },
+    { header: 'Opsi D', key: 'opsi_d', width: 26 },
+    { header: 'Opsi E', key: 'opsi_e', width: 26 },
     { header: 'Kunci Jawaban', key: 'kunci', width: 22 },
     { header: 'Pembahasan (Opsional)', key: 'pembahasan', width: 35 },
     { header: 'Tingkat Kesulitan', key: 'kesulitan', width: 18 },
   ];
 
-  // Header styling
-  const headerRow = inputSheet.getRow(1);
-  headerRow.height = 32;
-  headerRow.eachCell((cell) => {
+  inputSheet.columns = questionColumns;
+
+  // Header styling for Sheet 2
+  const inputHeaderRow = inputSheet.getRow(1);
+  inputHeaderRow.height = 32;
+  inputHeaderRow.eachCell((cell) => {
     cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFF' } };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E293B' } };
     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     cell.border = {
+      top: { style: 'thin', color: { argb: '0F172A' } },
       bottom: { style: 'medium', color: { argb: '0F172A' } },
+      left: { style: 'thin', color: { argb: '334155' } },
+      right: { style: 'thin', color: { argb: '334155' } },
     };
   });
 
-  // Pre-seed 60 rows with data validation & default styling
-  for (let r = 2; r <= 60; r++) {
+  // Pre-seed 50 clean blank rows with data validation & default styling
+  const cellBorderThin = {
+    top: { style: 'thin' as const, color: { argb: 'E2E8F0' } },
+    bottom: { style: 'thin' as const, color: { argb: 'E2E8F0' } },
+    left: { style: 'thin' as const, color: { argb: 'E2E8F0' } },
+    right: { style: 'thin' as const, color: { argb: 'E2E8F0' } },
+  };
+
+  for (let r = 2; r <= 51; r++) {
     const row = inputSheet.getRow(r);
     row.height = 24;
 
     // Number column
     const noCell = inputSheet.getCell(`A${r}`);
     noCell.value = r - 1;
+    noCell.font = { name: 'Arial', size: 10, color: { argb: '64748B' } };
     noCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    noCell.border = cellBorderThin;
 
     // Column B (Tipe Soal): Dropdown list
     const typeCell = inputSheet.getCell(`B${r}`);
@@ -829,7 +843,21 @@ export async function generateExcelTemplate(): Promise<Buffer> {
       errorTitle: 'Tipe Soal Tidak Valid',
       error: 'Pilihlah salah satu tipe soal yang tersedia dari menu dropdown',
     };
+    typeCell.font = { name: 'Arial', size: 10 };
     typeCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    typeCell.border = cellBorderThin;
+
+    // Column C to J
+    ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'].forEach((col) => {
+      const c = inputSheet.getCell(`${col}${r}`);
+      c.font = { name: 'Arial', size: 10 };
+      c.alignment = {
+        vertical: 'middle',
+        horizontal: col === 'I' ? 'center' : 'left',
+        wrapText: true,
+      };
+      c.border = cellBorderThin;
+    });
 
     // Column K (Kesulitan): Dropdown MUDAH, SEDANG, SULIT
     const diffCell = inputSheet.getCell(`K${r}`);
@@ -841,99 +869,161 @@ export async function generateExcelTemplate(): Promise<Buffer> {
       errorTitle: 'Kesulitan Tidak Valid',
       error: 'Tingkat kesulitan harus berupa: MUDAH, SEDANG, atau SULIT',
     };
+    diffCell.font = { name: 'Arial', size: 10 };
     diffCell.alignment = { vertical: 'middle', horizontal: 'center' };
-
-    // Set wrapping for text cells
-    ['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'].forEach((col) => {
-      const c = inputSheet.getCell(`${col}${r}`);
-      c.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-    });
+    diffCell.border = cellBorderThin;
   }
 
-  // Pre-seed sample rows with all 6 question types
-  inputSheet.getRow(2).values = [
-    1,
-    'PILIHAN GANDA',
-    'Perangkat lunak berikut ini yang berfungsi sebagai sistem operasi pada komputer adalah...',
-    'Microsoft Word',
-    'Linux Ubuntu',
-    'Adobe Photoshop',
-    'Google Chrome',
-    'VLC Media Player',
-    'B',
-    'Linux Ubuntu merupakan sistem operasi komputer open-source berbasis kernel Linux.',
-    'MUDAH',
+  // ─────────────────────────────────────────────────────────
+  // SHEET 3: Contoh Soal Multi-Tipe (Contoh Nyata 6 Tipe)
+  // ─────────────────────────────────────────────────────────
+  const exampleSheet = workbook.addWorksheet('💡 Contoh Soal Multi-Tipe', {
+    views: [{ state: 'frozen', ySplit: 1, showGridLines: true }],
+    properties: { tabColor: { argb: '8B5CF6' } },
+  });
+
+  exampleSheet.columns = questionColumns;
+
+  // Header styling for Sheet 3
+  const exampleHeaderRow = exampleSheet.getRow(1);
+  exampleHeaderRow.height = 32;
+  exampleHeaderRow.eachCell((cell) => {
+    cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '312E81' } }; // Indigo dark
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.border = {
+      top: { style: 'thin', color: { argb: '1E1B4B' } },
+      bottom: { style: 'medium', color: { argb: '1E1B4B' } },
+      left: { style: 'thin', color: { argb: '4338CA' } },
+      right: { style: 'thin', color: { argb: '4338CA' } },
+    };
+  });
+
+  // Ready-made examples for all 6 question types
+  const sampleQuestions = [
+    [
+      1,
+      'PILIHAN GANDA',
+      'Perangkat lunak berikut ini yang berfungsi sebagai sistem operasi pada komputer adalah...',
+      'Microsoft Word',
+      'Linux Ubuntu',
+      'Adobe Photoshop',
+      'Google Chrome',
+      'VLC Media Player',
+      'B',
+      'Linux Ubuntu merupakan sistem operasi komputer open-source berbasis kernel Linux.',
+      'MUDAH',
+    ],
+    [
+      2,
+      'PG KOMPLEKS',
+      'Manakah dari bahasa pemrograman berikut ini yang umumnya dieksekusi menggunakan interpreter (diinterpretasi)?',
+      'Python',
+      'JavaScript',
+      'C++',
+      'Ruby',
+      '',
+      'A, B, D',
+      'Python, JavaScript, dan Ruby dieksekusi oleh interpreter runtime, sedangkan C++ dikompilasi ke machine code.',
+      'SEDANG',
+    ],
+    [
+      3,
+      'BENAR SALAH',
+      'Fotosintesis pada tumbuhan hijau menghasilkan gas oksigen dan senyawa glukosa.',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'BENAR',
+      'Reaksi fotosintesis: 6CO2 + 6H2O + cahaya -> C6H12O6 + 6O2.',
+      'MUDAH',
+    ],
+    [
+      4,
+      'ISIAN SINGKAT',
+      'Bahasa resmi yang digunakan oleh penduduk negara Brazil adalah...',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'Portugis, portugis',
+      'Brazil merupakan satu-satunya negara berbahasa resmi Portugis di benua Amerika Selatan.',
+      'SEDANG',
+    ],
+    [
+      5,
+      'MENJODOHKAN',
+      'Jodohkanlah nama pahlawan nasional berikut dengan kota asalnya:',
+      'R.A. Kartini -> Jepara',
+      'Pangeran Diponegoro -> Yogyakarta',
+      'Cut Nyak Dien -> Aceh',
+      '',
+      '',
+      '',
+      'Kartini berasal dari Jepara, Diponegoro berjuang di Yogyakarta, dan Cut Nyak Dien dari Aceh.',
+      'SULIT',
+    ],
+    [
+      6,
+      'ESAI',
+      'Jelaskan perbedaan mendasar antara siklus lisogenik dan litik pada proses replikasi virus!',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      'Siklus litik menghancurkan/melisiskan sel inang segera setelah replikasi virus baru, sedangkan siklus lisogenik menyisipkan materi genetik virus ke kromosom sel inang tanpa langsung mematikan sel.',
+      'SULIT',
+    ],
   ];
 
-  inputSheet.getRow(3).values = [
-    2,
-    'PG KOMPLEKS',
-    'Manakah dari bahasa pemrograman berikut yang dieksekusi secara interpreted?',
-    'Python',
-    'JavaScript',
-    'C++',
-    'Ruby',
-    '',
-    'A, B, D',
-    'Python, JavaScript, dan Ruby diinterpretasi oleh runtime engine.',
-    'SEDANG',
-  ];
+  sampleQuestions.forEach((rowValues, idx) => {
+    const rowNum = idx + 2;
+    const row = exampleSheet.getRow(rowNum);
+    row.values = rowValues;
+    row.height = 36;
 
-  inputSheet.getRow(4).values = [
-    3,
-    'BENAR SALAH',
-    'Fotosintesis pada tumbuhan hijau menghasilkan oksigen dan senyawa glukosa.',
-    '',
-    '',
-    '',
-    '',
-    '',
-    'BENAR',
-    'Reaksi fotosintesis menghasilkan C6H12O6 dan gas O2.',
-    'MUDAH',
-  ];
+    const isEven = idx % 2 === 1;
+    const bgArgb = isEven ? 'F8FAFC' : 'FFFFFF';
 
-  inputSheet.getRow(5).values = [
-    4,
-    'ISIAN SINGKAT',
-    'Bahasa resmi yang digunakan oleh penduduk negara Brazil adalah...',
-    '',
-    '',
-    '',
-    '',
-    '',
-    'Portugis, portugis',
-    'Brazil merupakan satu-satunya negara berbahasa resmi Portugis di benua Amerika Selatan.',
-    'SEDANG',
-  ];
+    for (let c = 1; c <= 11; c++) {
+      const cell = row.getCell(c);
+      cell.font = { name: 'Arial', size: 10, color: { argb: '1E293B' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgArgb } };
+      cell.border = cellBorderThin;
 
-  inputSheet.getRow(6).values = [
-    5,
-    'MENJODOHKAN',
-    'Jodohkanlah nama pahlawan nasional berikut dengan kota asalnya:',
-    'R.A. Kartini -> Jepara',
-    'Pangeran Diponegoro -> Yogyakarta',
-    'Cut Nyak Dien -> Aceh',
-    '',
-    '',
-    '',
-    'Kartini berasal dari Jepara, Diponegoro dari Yogyakarta, Cut Nyak Dien dari Aceh.',
-    'SULIT',
-  ];
+      // Alignments
+      if (c === 1 || c === 2 || c === 11) {
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      } else if (c === 9) {
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        if (cell.value) {
+          cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: '15803D' } };
+        }
+      } else {
+        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      }
+    }
 
-  inputSheet.getRow(7).values = [
-    6,
-    'ESAI',
-    'Jelaskan perbedaan mendasar antara siklus lisogenik dan litik pada replikasi virus!',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    'Siklus litik melisiskan sel inang segera setelah replikasi, sedangkan siklus lisogenik menyisipkan materi genetik virus ke kromosom sel inang.',
-    'SULIT',
-  ];
+    // Add validation to example sheet as well
+    const typeCell = exampleSheet.getCell(`B${rowNum}`);
+    typeCell.dataValidation = {
+      type: 'list',
+      allowBlank: true,
+      formulae: ['"PILIHAN GANDA,PG KOMPLEKS,BENAR SALAH,ISIAN SINGKAT,MENJODOHKAN,ESAI"'],
+    };
+
+    const diffCell = exampleSheet.getCell(`K${rowNum}`);
+    diffCell.dataValidation = {
+      type: 'list',
+      allowBlank: true,
+      formulae: ['"MUDAH,SEDANG,SULIT"'],
+    };
+  });
 
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);

@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import ExcelJS from 'exceljs';
 import { ReportService } from '../report.service';
 import { QuestionType, SessionStatus, DifficultyLevel } from '@secure-cbt/shared';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -230,6 +231,120 @@ describe('ReportService', () => {
       expect(result.total_sessions).toBe(0);
       expect(result.questions[0].difficulty_index).toBe(0);
       expect(result.questions[0].pass_rate).toBe(0);
+    });
+  });
+
+  describe('generateExcelReport()', () => {
+    it('should throw NotFoundException if exam does not exist', async () => {
+      mockPrisma.exam.findFirst.mockResolvedValue(null);
+      await expect(service.generateExcelReport(UUID())).rejects.toThrow(NotFoundException);
+    });
+
+    it('should generate a valid Excel .xlsx buffer with header, student records, and statistical formulas', async () => {
+      const examId = UUID();
+      const student1Id = UUID();
+      const student2Id = UUID();
+
+      mockPrisma.exam.findFirst.mockResolvedValue({
+        id: examId,
+        title: 'Penilaian Akhir Semester Ganjil',
+        subject: { name: 'Teknologi Jaringan Komputer' },
+      });
+
+      mockPrisma.setting.findFirst.mockResolvedValue({
+        passing_grade: 75,
+      });
+
+      mockPrisma.examSession.findMany.mockResolvedValue([
+        {
+          id: UUID(),
+          student_id: student1Id,
+          student: {
+            full_name: 'Budi Raharjo',
+            nis: '202510001',
+            class: { name: 'XII TKJ 1' },
+          },
+          score: {
+            total_score: 85.5,
+            correct_count: 34,
+            wrong_count: 6,
+            essay_score: 25,
+            total_questions: 40,
+          },
+        },
+        {
+          id: UUID(),
+          student_id: student2Id,
+          student: {
+            full_name: 'Anisa Putri',
+            nis: '202510002',
+            class: { name: 'XII TKJ 1' },
+          },
+          score: {
+            total_score: 65.0,
+            correct_count: 24,
+            wrong_count: 16,
+            essay_score: 15,
+            total_questions: 40,
+          },
+        },
+      ]);
+
+      const buffer = await service.generateExcelReport(examId);
+
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBeGreaterThan(1000);
+
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(buffer);
+      const sheet = wb.getWorksheet('Laporan Nilai');
+      expect(sheet).toBeDefined();
+
+      // Verify title & header
+      expect(sheet?.getCell('A2').value).toBe('LAPORAN HASIL EVALUASI NILAI UJIAN SISWA');
+      expect(sheet?.getCell('C5').value).toBe(': Teknologi Jaringan Komputer');
+      expect(sheet?.getCell('C6').value).toBe(': Penilaian Akhir Semester Ganjil');
+
+      // Verify student data rows
+      // Student 1 (Anisa Putri, alphabetically first)
+      const row10 = sheet?.getRow(10);
+      expect(row10?.getCell(3).value).toBe('Anisa Putri');
+      expect(row10?.getCell(9).value).toBe('REMEDIAL');
+
+      // Student 2 (Budi Raharjo, alphabetically second)
+      const row11 = sheet?.getRow(11);
+      expect(row11?.getCell(3).value).toBe('Budi Raharjo');
+      expect(row11?.getCell(9).value).toBe('LULUS');
+
+      // Verify stats formulas (at row 13 = endDataRow 11 + 2)
+      const averageRow = sheet?.getRow(13);
+      expect(averageRow?.getCell(2).value).toBe('RATA-RATA NILAI');
+      expect((averageRow?.getCell(8).value as any)?.formula).toBe('AVERAGE(H10:H11)');
+    });
+
+    it('should generate an empty table template cleanly when no student sessions exist', async () => {
+      const examId = UUID();
+
+      mockPrisma.exam.findFirst.mockResolvedValue({
+        id: examId,
+        title: 'Ujian Baru',
+        subject: { name: 'Bahasa Indonesia' },
+      });
+
+      mockPrisma.setting.findFirst.mockResolvedValue({
+        passing_grade: 70,
+      });
+
+      mockPrisma.examSession.findMany.mockResolvedValue([]);
+
+      const buffer = await service.generateExcelReport(examId);
+      expect(buffer).toBeInstanceOf(Buffer);
+      expect(buffer.length).toBeGreaterThan(500);
+
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(buffer);
+      const sheet = wb.getWorksheet('Laporan Nilai');
+      expect(sheet?.getCell('A10').value).toBe('Belum ada data nilai siswa untuk ujian ini.');
     });
   });
 });
