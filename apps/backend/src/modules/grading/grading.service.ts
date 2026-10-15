@@ -59,7 +59,11 @@ export class GradingService {
     });
   }
 
-  async calculateTotalScore(tx: Prisma.TransactionClient, sessionId: string) {
+  async calculateTotalScore(
+    tx: Prisma.TransactionClient,
+    sessionId: string,
+    options?: { forceReevaluate?: boolean },
+  ) {
     const session = await tx.examSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -145,24 +149,24 @@ export class GradingService {
           if (answer.score >= 50) correctCount++;
           else wrongCount++;
         }
-      } else if (answer.score === null) {
+      } else if (options?.forceReevaluate || answer.score === null) {
         let isCorrect = false;
         let score = 0;
 
         if (answer.question.type === QuestionType.SHORT_ANSWER) {
-          const options = await tx.questionOption.findMany({
+          const qOptions = await tx.questionOption.findMany({
             where: { question_id: answer.question_id },
           });
           const normalizedStudent = (answer.answer_text || '').trim().toLowerCase();
-          isCorrect = normalizedStudent.length > 0 && options.some(
+          isCorrect = normalizedStudent.length > 0 && qOptions.some(
             (opt) => opt.content.trim().toLowerCase() === normalizedStudent,
           );
           score = isCorrect ? 100 : 0;
         } else if (answer.question.type === QuestionType.MATCHING) {
-          const options = await tx.questionOption.findMany({
+          const qOptions = await tx.questionOption.findMany({
             where: { question_id: answer.question_id },
           });
-          if (options.length > 0) {
+          if (qOptions.length > 0) {
             let matches: Record<string, string> = {};
             try {
               matches = JSON.parse(answer.answer_text || '{}');
@@ -170,23 +174,58 @@ export class GradingService {
               matches = {};
             }
             let correctPairs = 0;
-            for (const opt of options) {
+            for (const opt of qOptions) {
               if (matches[opt.id] === opt.id) {
                 correctPairs++;
               }
             }
-            score = Math.round((correctPairs / options.length) * 100);
+            score = Math.round((correctPairs / qOptions.length) * 100);
             isCorrect = score === 100;
           }
         } else {
-          const options = await tx.questionOption.findMany({
-            where: { question_id: answer.question_id, is_correct: true },
+          // MULTIPLE_CHOICE, MULTI_SELECT, TRUE_FALSE
+          const allOptions = await tx.questionOption.findMany({
+            where: { question_id: answer.question_id },
+            orderBy: { order: 'asc' },
           });
-          const correctOptionIds = options.map((o) => o.id);
-          const studentAnswerIds = answer.answer_text?.split(',').filter(Boolean) ?? [];
+          const correctOptions = allOptions.filter((o) => o.is_correct);
+          const correctOptionIds = correctOptions.map((o) => o.id);
+          const rawStudentAnswers = answer.answer_text?.split(',').map((s) => s.trim()).filter(Boolean) ?? [];
 
-          isCorrect = correctOptionIds.length === studentAnswerIds.length &&
-            correctOptionIds.every((id) => studentAnswerIds.includes(id));
+          // Map raw student answers to current option IDs (resolving stale UUIDs or content/order fallback)
+          const resolvedStudentOptionIds: string[] = [];
+          for (const rawAns of rawStudentAnswers) {
+            const directMatch = allOptions.find((o) => o.id === rawAns);
+            if (directMatch) {
+              resolvedStudentOptionIds.push(directMatch.id);
+              continue;
+            }
+            const contentMatch = allOptions.find(
+              (o) => o.content.trim().toLowerCase() === rawAns.toLowerCase(),
+            );
+            if (contentMatch) {
+              resolvedStudentOptionIds.push(contentMatch.id);
+              continue;
+            }
+            const letterIndex = ['A', 'B', 'C', 'D', 'E'].indexOf(rawAns.toUpperCase());
+            if (letterIndex !== -1 && allOptions[letterIndex]) {
+              resolvedStudentOptionIds.push(allOptions[letterIndex].id);
+              continue;
+            }
+            const orderIndex = parseInt(rawAns, 10);
+            if (!isNaN(orderIndex)) {
+              const orderMatch = allOptions.find((o) => o.order === orderIndex);
+              if (orderMatch) {
+                resolvedStudentOptionIds.push(orderMatch.id);
+                continue;
+              }
+            }
+            resolvedStudentOptionIds.push(rawAns);
+          }
+
+          isCorrect = correctOptionIds.length > 0 &&
+            correctOptionIds.length === resolvedStudentOptionIds.length &&
+            correctOptionIds.every((id) => resolvedStudentOptionIds.includes(id));
           score = isCorrect ? 100 : 0;
         }
 

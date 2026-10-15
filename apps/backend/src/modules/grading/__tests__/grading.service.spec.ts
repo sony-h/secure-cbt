@@ -82,7 +82,8 @@ describe('GradingService', () => {
       const result = await service.calculateTotalScore(tx as any, UUID());
 
       expect(tx.questionOption.findMany).toHaveBeenCalledWith({
-        where: { question_id: questionId, is_correct: true },
+        where: { question_id: questionId },
+        orderBy: { order: 'asc' },
       });
       expect(tx.answer.update).toHaveBeenCalledWith({
         where: { id: result.correct_count > 0 ? expect.any(String) : expect.any(String) },
@@ -167,6 +168,95 @@ describe('GradingService', () => {
     it('should throw NotFoundException if session not found', async () => {
       const tx = { examSession: { findUnique: vi.fn().mockResolvedValue(null) } };
       await expect(service.calculateTotalScore(tx as any, UUID())).rejects.toThrow(NotFoundException);
+    });
+
+    it('should re-evaluate objective questions previously graded wrong when forceReevaluate is true', async () => {
+      const tx = {
+        examSession: { findUnique: vi.fn() },
+        questionOption: { findMany: vi.fn() },
+        answer: { update: vi.fn() },
+      };
+      const questionId = UUID();
+      tx.examSession.findUnique.mockResolvedValue({
+        id: UUID(), package_id: null,
+        answers: [{
+          id: UUID(), question_id: questionId, answer_text: 'opt-new-correct',
+          score: 0, is_correct: false, // previously evaluated wrong
+          question: { type: QuestionType.MULTIPLE_CHOICE },
+        }],
+        exam: { exam_questions: [{ id: UUID(), package_id: null }] },
+      });
+      tx.questionOption.findMany.mockResolvedValue([
+        { id: 'opt-new-correct', content: 'Correct Answer', is_correct: true, order: 1 },
+      ]);
+      tx.answer.update.mockResolvedValue({});
+
+      // With forceReevaluate = true, it should recalculate and become correct
+      const result = await service.calculateTotalScore(tx as any, UUID(), { forceReevaluate: true });
+
+      expect(tx.answer.update).toHaveBeenCalledWith({
+        where: { id: expect.any(String) },
+        data: { is_correct: true, score: 100 },
+      });
+      expect(result.total_score).toBe(100);
+      expect(result.correct_count).toBe(1);
+    });
+
+    it('should resolve stale option UUID by order or content fallback when options were regenerated', async () => {
+      const tx = {
+        examSession: { findUnique: vi.fn() },
+        questionOption: { findMany: vi.fn() },
+        answer: { update: vi.fn() },
+      };
+      const questionId = UUID();
+      tx.examSession.findUnique.mockResolvedValue({
+        id: UUID(), package_id: null,
+        answers: [{
+          id: UUID(), question_id: questionId,
+          // Student answered with old option UUID or content that matches option 2
+          answer_text: 'opt-old-uuid-2',
+          score: null, is_correct: null,
+          question: { type: QuestionType.MULTIPLE_CHOICE },
+        }],
+        exam: { exam_questions: [{ id: UUID(), package_id: null }] },
+      });
+      // Current DB options has new UUIDs, but opt-new-2 is correct and matches order 2
+      tx.questionOption.findMany.mockResolvedValue([
+        { id: 'opt-new-1', content: 'Wrong', is_correct: false, order: 1 },
+        { id: 'opt-new-2', content: 'opt-old-uuid-2', is_correct: true, order: 2 },
+      ]);
+      tx.answer.update.mockResolvedValue({});
+
+      const result = await service.calculateTotalScore(tx as any, UUID());
+
+      expect(result.correct_count).toBe(1);
+      expect(result.total_score).toBe(100);
+    });
+
+    it('should never overwrite manual essay scores during forceReevaluate', async () => {
+      const tx = {
+        examSession: { findUnique: vi.fn() },
+        questionOption: { findMany: vi.fn() },
+        answer: { update: vi.fn() },
+      };
+      const questionId = UUID();
+      tx.examSession.findUnique.mockResolvedValue({
+        id: UUID(), package_id: null,
+        answers: [{
+          id: UUID(), question_id: questionId,
+          answer_text: 'Student essay text',
+          score: 85, is_correct: true, feedback: 'Great explanation',
+          question: { type: QuestionType.ESSAY },
+        }],
+        exam: { exam_questions: [{ id: UUID(), package_id: null }] },
+      });
+
+      const result = await service.calculateTotalScore(tx as any, UUID(), { forceReevaluate: true });
+
+      // answer.update should NOT be called for essay to overwrite score
+      expect(tx.answer.update).not.toHaveBeenCalled();
+      expect(result.essay_score).toBe(85);
+      expect(result.total_score).toBe(85);
     });
   });
 });
