@@ -1,8 +1,8 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SessionService } from '../session.service';
 import { GradingService } from '../../grading/grading.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { SessionStatus, ExamStatus, QuestionType } from '@secure-cbt/shared';
+import { SessionStatus, ExamStatus, QuestionType, SocketEvent } from '@secure-cbt/shared';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 function UUID() { return crypto.randomUUID?.() ?? '00000000-0000-0000-0000-000000000001'; }
@@ -24,6 +24,7 @@ function createMockPrisma() {
     answer: { upsert: vi.fn() },
     questionOption: { findMany: vi.fn() },
     score: { upsert: vi.fn() },
+    sessionLog: { create: vi.fn(), findMany: vi.fn() },
     setting: { findFirst: vi.fn().mockResolvedValue({ passing_grade: 70 }) },
     $transaction: vi.fn((fn: any) => fn(mock)),
   };
@@ -411,6 +412,215 @@ describe('SessionService', () => {
       });
 
       await expect(service.getReview(sessionId, 'user-1')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('forceSubmit()', () => {
+    it('should throw NotFoundException if session does not exist', async () => {
+      mockPrisma.examSession.findUnique.mockResolvedValue(null);
+      await expect(service.forceSubmit(UUID(), 'proctor-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return session if already submitted', async () => {
+      const sessionId = UUID();
+      const existing = {
+        id: sessionId,
+        status: SessionStatus.SUBMITTED,
+        student: { full_name: 'Test Student', user_id: 'user-std' },
+      };
+      mockPrisma.examSession.findUnique.mockResolvedValue(existing);
+
+      const result = await service.forceSubmit(sessionId, 'proctor-1');
+      expect(result).toBe(existing);
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('should force submit active session, log FORCED_SUBMIT, and emit events', async () => {
+      const sessionId = UUID();
+      const examId = UUID();
+      const studentId = UUID();
+      const studentUserId = 'user-std';
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        exam_id: examId,
+        student_id: studentId,
+        status: SessionStatus.ACTIVE,
+        student: { full_name: 'Test Student', user_id: studentUserId },
+      });
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.examSession = {
+          update: vi.fn().mockResolvedValue({ id: sessionId, status: SessionStatus.SUBMITTED }),
+        };
+        tx.sessionLog = { create: vi.fn().mockResolvedValue({}) };
+        tx.score = { upsert: vi.fn().mockResolvedValue({}) };
+        tx.setting = { findFirst: vi.fn().mockResolvedValue({ passing_grade: 75 }) };
+        return fn(tx);
+      });
+
+      mockGradingService.calculateTotalScore.mockResolvedValue({
+        total_score: 85, correct_count: 8, wrong_count: 2, essay_score: 0, total_questions: 10,
+      });
+
+      const result = await service.forceSubmit(sessionId, 'proctor-1');
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(result.status).toBe(SessionStatus.SUBMITTED);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(SocketEvent.SESSION_FORCE_SUBMIT, expect.objectContaining({
+        sessionId,
+        examId,
+        studentId,
+        studentUserId,
+      }));
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(SocketEvent.SESSION_FINISHED, expect.objectContaining({
+        sessionId,
+        examId,
+        studentId,
+      }));
+    });
+  });
+
+  describe('resetWarnings()', () => {
+    it('should throw NotFoundException if session not found', async () => {
+      mockPrisma.examSession.findUnique.mockResolvedValue(null);
+      await expect(service.resetWarnings(UUID(), 'proctor-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should reset warning count to 0 and log WARNINGS_RESET', async () => {
+      const sessionId = UUID();
+      const examId = UUID();
+      const studentId = UUID();
+      const studentUserId = 'user-std';
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        exam_id: examId,
+        student_id: studentId,
+        warning_count: 3,
+        student: { full_name: 'Student Strike', user_id: studentUserId },
+      });
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.examSession = {
+          update: vi.fn().mockResolvedValue({ id: sessionId, warning_count: 0 }),
+        };
+        tx.sessionLog = { create: vi.fn().mockResolvedValue({}) };
+        return fn(tx);
+      });
+
+      const result = await service.resetWarnings(sessionId, 'proctor-1');
+      expect(result.warning_count).toBe(0);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(SocketEvent.SESSION_WARNINGS_RESET, expect.objectContaining({
+        sessionId,
+        examId,
+        studentUserId,
+        warningCount: 0,
+      }));
+    });
+  });
+
+  describe('extendTime()', () => {
+    it('should throw BadRequestException if additional minutes <= 0', async () => {
+      await expect(service.extendTime(UUID(), 0, 'proctor-1')).rejects.toThrow(BadRequestException);
+      await expect(service.extendTime(UUID(), -5, 'proctor-1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException if session not found', async () => {
+      mockPrisma.examSession.findUnique.mockResolvedValue(null);
+      await expect(service.extendTime(UUID(), 10, 'proctor-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException if session is already completed', async () => {
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: UUID(),
+        status: SessionStatus.SUBMITTED,
+        student: { full_name: 'Done Student', user_id: 'user-1' },
+      });
+      await expect(service.extendTime(UUID(), 10, 'proctor-1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should extend remaining time by specified minutes and emit event', async () => {
+      const sessionId = UUID();
+      const examId = UUID();
+      const studentId = UUID();
+      const studentUserId = 'user-std';
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        exam_id: examId,
+        student_id: studentId,
+        status: SessionStatus.ACTIVE,
+        remaining_time_seconds: 300,
+        student: { full_name: 'Active Student', user_id: studentUserId },
+      });
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.examSession = {
+          update: vi.fn().mockResolvedValue({ id: sessionId, remaining_time_seconds: 900 }),
+        };
+        tx.sessionLog = { create: vi.fn().mockResolvedValue({}) };
+        return fn(tx);
+      });
+
+      const result = await service.extendTime(sessionId, 10, 'proctor-1');
+      expect(result.remaining_time_seconds).toBe(900);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(SocketEvent.SESSION_TIME_EXTENDED, expect.objectContaining({
+        sessionId,
+        examId,
+        studentUserId,
+        additionalMinutes: 10,
+        additionalSeconds: 600,
+        remainingTimeSeconds: 900,
+      }));
+    });
+  });
+
+  describe('unlockSession()', () => {
+    it('should throw NotFoundException if session not found', async () => {
+      mockPrisma.examSession.findUnique.mockResolvedValue(null);
+      await expect(service.unlockSession(UUID(), 'proctor-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException if session completed', async () => {
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: UUID(),
+        status: SessionStatus.SUBMITTED,
+        student: { full_name: 'Done Student', user_id: 'user-1' },
+      });
+      await expect(service.unlockSession(UUID(), 'proctor-1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should unlock session, clear device_id, set status ACTIVE, and emit event', async () => {
+      const sessionId = UUID();
+      const examId = UUID();
+      const studentId = UUID();
+      const studentUserId = 'user-std';
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        exam_id: examId,
+        student_id: studentId,
+        status: SessionStatus.PAUSED,
+        device_id: 'locked-dev-123',
+        student: { full_name: 'Locked Student', user_id: studentUserId },
+      });
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.examSession = {
+          update: vi.fn().mockResolvedValue({ id: sessionId, device_id: null, status: SessionStatus.ACTIVE }),
+        };
+        tx.sessionLog = { create: vi.fn().mockResolvedValue({}) };
+        return fn(tx);
+      });
+
+      const result = await service.unlockSession(sessionId, 'proctor-1');
+      expect(result.device_id).toBeNull();
+      expect(result.status).toBe(SessionStatus.ACTIVE);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(SocketEvent.SESSION_UNLOCKED, expect.objectContaining({
+        sessionId,
+        examId,
+        studentUserId,
+      }));
     });
   });
 });

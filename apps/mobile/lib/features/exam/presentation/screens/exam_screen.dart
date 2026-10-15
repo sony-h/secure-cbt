@@ -46,6 +46,8 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
   ExamViolationHandler? _violationHandler;
   StreamSubscription<bool>? _multiWindowSubscription;
   StreamSubscription<bool>? _windowFocusSubscription;
+  Map<String, dynamic>? _activeBroadcast;
+  Timer? _broadcastTimer;
 
   @override
   void initState() {
@@ -58,11 +60,17 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
 
   @override
   void dispose() {
+    _broadcastTimer?.cancel();
     _multiWindowSubscription?.cancel();
     _windowFocusSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
-    ref.read(monitoringSocketProvider).disconnect();
+    final socket = ref.read(monitoringSocketProvider);
+    socket.setOnBroadcast(null);
+    socket.setOnForceSubmit(null);
+    socket.setOnTimeExtended(null);
+    socket.setOnWarningsReset(null);
+    socket.disconnect();
     ScreenSecurity.disable();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
@@ -120,6 +128,91 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         });
         notifier.setOnViolation((event, count, sessionId) {
           socket.emitViolation(examId, count, event, sessionId ?? widget.sessionId, studentName: studentName);
+        });
+
+        // Real-time broadcast announcement listener
+        socket.setOnBroadcast((data) {
+          if (!mounted) return;
+          final msg = data['message']?.toString() ?? '';
+          final urgency = data['urgency']?.toString() ?? 'low';
+          setState(() {
+            _activeBroadcast = {
+              'message': msg,
+              'urgency': urgency,
+              'timestamp': DateTime.now(),
+            };
+          });
+          _broadcastTimer?.cancel();
+          _broadcastTimer = Timer(Duration(seconds: urgency == 'high' ? 30 : 15), () {
+            if (mounted) {
+              setState(() => _activeBroadcast = null);
+            }
+          });
+        });
+
+        // Real-time force submit listener
+        socket.setOnForceSubmit((data) {
+          if (!mounted) return;
+          final reason = data['message']?.toString() ?? 'Ujian telah dikumpulkan paksa oleh pengawas.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(reason),
+              backgroundColor: Colors.red.shade700,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          _submitHandler?.forceSubmit();
+        });
+
+        // Real-time time extension listener
+        socket.setOnTimeExtended((data) {
+          if (!mounted) return;
+          final additionalMinutes = data['additionalMinutes'] as int? ??
+              (data['additional_minutes'] as int? ?? 0);
+          final additionalSeconds = data['additionalSeconds'] as int? ??
+              (data['additional_seconds'] as int? ?? (additionalMinutes * 60));
+          if (additionalSeconds > 0) {
+            notifier.extendTime(additionalSeconds);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.alarm_add, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Waktu ujian diperpanjang +$additionalMinutes menit oleh pengawas.',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.indigo.shade600,
+                duration: const Duration(seconds: 5),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        });
+
+        // Real-time warnings reset listener
+        socket.setOnWarningsReset((data) {
+          if (!mounted) return;
+          notifier.resetWarnings();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text('Peringatan pelanggaran telah direset ke 0 oleh pengawas.'),
+                ],
+              ),
+              backgroundColor: Colors.teal,
+              duration: Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         });
       }
 
@@ -262,23 +355,40 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                                   ],
                                 ),
                               )
-                            : PageView.builder(
-                                controller: _pageController,
-                                itemCount: examState.questions.length,
-                                onPageChanged: (i) => ref.read(examProvider.notifier).setCurrentIndex(i),
-                                itemBuilder: (context, index) => ExamQuestionCard(
-                                  question: examState.questions[index],
-                                  examState: examState,
-                                  index: index,
-                                  onSaveAnswer: (qId, answer) {
-                                    ref.read(examProvider.notifier).saveAnswer(
-                                      questionId: qId, answer: answer, dio: _dio, onSaved: () {},
-                                    );
-                                  },
-                                  onToggleFlag: (qId) {
-                                    ref.read(examProvider.notifier).toggleFlag(qId);
-                                  },
-                                ),
+                            : Column(
+                                children: [
+                                  if (_activeBroadcast != null)
+                                    _ExamBroadcastBanner(
+                                      message: _activeBroadcast!['message'] as String? ?? '',
+                                      urgency: _activeBroadcast!['urgency'] as String? ?? 'low',
+                                      onDismiss: () {
+                                        setState(() {
+                                          _broadcastTimer?.cancel();
+                                          _activeBroadcast = null;
+                                        });
+                                      },
+                                    ),
+                                  Expanded(
+                                    child: PageView.builder(
+                                      controller: _pageController,
+                                      itemCount: examState.questions.length,
+                                      onPageChanged: (i) => ref.read(examProvider.notifier).setCurrentIndex(i),
+                                      itemBuilder: (context, index) => ExamQuestionCard(
+                                        question: examState.questions[index],
+                                        examState: examState,
+                                        index: index,
+                                        onSaveAnswer: (qId, answer) {
+                                          ref.read(examProvider.notifier).saveAnswer(
+                                            questionId: qId, answer: answer, dio: _dio, onSaved: () {},
+                                          );
+                                        },
+                                        onToggleFlag: (qId) {
+                                          ref.read(examProvider.notifier).toggleFlag(qId);
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
         bottomNavigationBar: (examState.isDualScreenBlocked ||
                 examState.isWarningOverlayActive ||
@@ -742,6 +852,170 @@ class _WarningDangerOverlayState extends State<_WarningDangerOverlay> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ExamBroadcastBanner extends StatefulWidget {
+  final String message;
+  final String urgency;
+  final VoidCallback onDismiss;
+
+  const _ExamBroadcastBanner({
+    required this.message,
+    required this.urgency,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_ExamBroadcastBanner> createState() => _ExamBroadcastBannerState();
+}
+
+class _ExamBroadcastBannerState extends State<_ExamBroadcastBanner>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _pulseAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _pulseAnim = Tween<double>(begin: 0.92, end: 1.05).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+    if (widget.urgency == 'high') {
+      _animController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _ExamBroadcastBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.urgency == 'high' && !_animController.isAnimating) {
+      _animController.repeat(reverse: true);
+    } else if (widget.urgency != 'high' && _animController.isAnimating) {
+      _animController.stop();
+      _animController.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isHigh = widget.urgency == 'high';
+
+    final bgColor = isHigh ? const Color(0xFF4C0519) : const Color(0xFF0F172A);
+    final borderColor = isHigh ? const Color(0xFFFB7185) : const Color(0xFF38BDF8);
+    final titleColor = isHigh ? const Color(0xFFFDA4AF) : const Color(0xFF7DD3FC);
+    final iconColor = isHigh ? const Color(0xFFFB7185) : const Color(0xFF38BDF8);
+
+    return AnimatedBuilder(
+      animation: _pulseAnim,
+      builder: (context, child) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: bgColor.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isHigh
+                  ? borderColor.withValues(alpha: _pulseAnim.value - 0.1)
+                  : borderColor.withValues(alpha: 0.5),
+              width: isHigh ? 1.5 : 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isHigh
+                    ? const Color(0xFFE11D48).withValues(alpha: 0.35 * _pulseAnim.value)
+                    : Colors.black.withValues(alpha: 0.3),
+                blurRadius: isHigh ? 14 : 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ScaleTransition(
+                scale: isHigh ? _pulseAnim : const AlwaysStoppedAnimation(1.0),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: isHigh
+                        ? const Color(0xFFE11D48).withValues(alpha: 0.25)
+                        : const Color(0xFF0284C7).withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isHigh ? Icons.campaign_rounded : Icons.info_outline_rounded,
+                    color: iconColor,
+                    size: 20,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          isHigh ? 'PERINGATAN PENGAWAS' : 'PENGUMUMAN PENGAWAS',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                            color: titleColor,
+                          ),
+                        ),
+                        if (isHigh) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE11D48),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      widget.message,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 18, color: Colors.white70),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: widget.onDismiss,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

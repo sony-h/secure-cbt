@@ -54,4 +54,76 @@ export class MonitoringListener {
       this.logger.error('Failed to log session expiry', e as any);
     }
   }
+
+  @OnEvent(SocketEvent.SESSION_FORCE_SUBMIT)
+  async handleSessionForceSubmit(payload: {
+    sessionId: string;
+    examId: string;
+    studentId: string;
+    studentUserId: string;
+    studentName?: string;
+  }) {
+    this.logger.log(`Session force submitted: ${payload.sessionId}`);
+    this.gateway.notifyStudentAction(payload.studentUserId, payload.examId, SocketEvent.SESSION_FORCE_SUBMIT, {
+      sessionId: payload.sessionId,
+      examId: payload.examId,
+      message: 'Ujian telah dikumpulkan oleh pengawas',
+    });
+    this.gateway.notifySessionFinished(payload.examId, {
+      sessionId: payload.sessionId,
+      studentId: payload.studentUserId,
+      studentName: payload.studentName || '',
+      status: 'SUBMITTED',
+    });
+  }
+
+  @OnEvent(SocketEvent.SESSION_WARNINGS_RESET)
+  async handleSessionWarningsReset(payload: {
+    sessionId: string;
+    examId: string;
+    studentId: string;
+    studentUserId: string;
+    warningCount?: number;
+  }) {
+    this.logger.log(`Session warnings reset: ${payload.sessionId}`);
+    this.gateway.notifyStudentAction(payload.studentUserId, payload.examId, SocketEvent.SESSION_WARNINGS_RESET, {
+      sessionId: payload.sessionId,
+      examId: payload.examId,
+      warningCount: payload.warningCount ?? 0,
+    });
+  }
+
+  @OnEvent(SocketEvent.SESSION_TIME_EXTENDED)
+  async handleSessionTimeExtended(payload: {
+    sessionId: string;
+    examId: string;
+    studentId: string;
+    studentUserId: string;
+    additionalMinutes: number;
+    additionalSeconds: number;
+    remainingTimeSeconds: number;
+  }) {
+    this.logger.log(`Session time extended: ${payload.sessionId} (+${payload.additionalMinutes}m)`);
+    this.gateway.notifyStudentAction(payload.studentUserId, payload.examId, SocketEvent.SESSION_TIME_EXTENDED, {
+      sessionId: payload.sessionId,
+      examId: payload.examId,
+      additionalMinutes: payload.additionalMinutes,
+      additionalSeconds: payload.additionalSeconds,
+      remainingTimeSeconds: payload.remainingTimeSeconds,
+    });
+  }
+
+  @OnEvent(SocketEvent.SESSION_UNLOCKED)
+  async handleSessionUnlocked(payload: {
+    sessionId: string;
+    examId: string;
+    studentId: string;
+    studentUserId: string;
+  }) {
+    this.logger.log(`Session unlocked: ${payload.sessionId}`);
+    this.gateway.notifyStudentAction(payload.studentUserId, payload.examId, SocketEvent.SESSION_UNLOCKED, {
+      sessionId: payload.sessionId,
+      examId: payload.examId,
+    });
+  }
 }

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
-import { examApi, monitoringApi } from '@/lib/api-service';
+import { examApi, monitoringApi, sessionApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Wifi,
   WifiOff,
@@ -31,8 +32,17 @@ import {
   Activity,
   History,
   X,
+  Megaphone,
+  Search,
+  SlidersHorizontal,
+  RotateCcw,
+  Unlock,
+  AlertOctagon,
+  Filter,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ProctorBroadcastModal } from '@/components/monitoring/proctor-broadcast-modal';
+import { StudentActionDialog, ActionStudentSession } from '@/components/monitoring/student-action-dialog';
 
 interface Exam {
   id: string;
@@ -71,6 +81,11 @@ function MonitoringPageContent() {
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'warning' | 'submitted' | 'disconnected'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [broadcastModalOpen, setBroadcastModalOpen] = useState(false);
+  const [actionSession, setActionSession] = useState<ActionStudentSession | null>(null);
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
   const { data: exams, isLoading: examsLoading } = useQuery({
@@ -102,10 +117,10 @@ function MonitoringPageContent() {
         sessions: (raw.students || []).map((s: any) => ({
           id: s.session_id,
           student: { nis: s.nis, full_name: s.student_name, class: { name: s.class_name } },
-          status: s.status === 'active' ? 'ACTIVE' : s.status === 'finished' ? 'SUBMITTED' : 'DISCONNECTED',
+          status: s.status === 'active' ? 'ACTIVE' : (s.status === 'finished' ? 'SUBMITTED' : 'DISCONNECTED'),
           started_at: s.last_activity_at,
           warning_count: s.warning_count,
-          remaining_time_seconds: null,
+          remaining_time_seconds: s.remaining_time_seconds ?? null,
           progress: s.progress,
           student_user_id: s.student_user_id,
           is_connected: s.is_connected,
@@ -156,11 +171,12 @@ function MonitoringPageContent() {
       socket.emit('teacher.connected', { examId: selectedExamId });
     });
 
-    socket.on('connected.students', (data: { studentUserIds: string[] }) => {
-      if (data?.studentUserIds) {
+    socket.on('connected.students', (data: { studentIds?: string[]; studentUserIds?: string[] }) => {
+      const ids = data?.studentUserIds || data?.studentIds;
+      if (ids) {
         setConnectedStudents((prev) => {
           const next = new Set(prev);
-          data.studentUserIds.forEach((id) => next.add(id));
+          ids.forEach((id) => next.add(id));
           return next;
         });
       }
@@ -196,17 +212,67 @@ function MonitoringPageContent() {
       const name = resolveStudentName(data);
       setSessionData((prev) => prev.map((s) => s.id === data.sessionId ? { ...s, status: 'SUBMITTED' } : s));
       toast.success(`Siswa selesai: ${name}`);
+      queryClient.invalidateQueries({ queryKey: ['monitoring', selectedExamId] });
     });
 
     socket.on('warning.triggered', (data: { sessionId: string; studentId: string; studentName?: string; count: number }) => {
       const name = resolveStudentName(data);
       setSessionData((prev) => prev.map((s) => s.id === data.sessionId ? { ...s, warning_count: data.count } : s));
       toast.error(`Peringatan #${data.count}: ${name}`);
+      queryClient.invalidateQueries({ queryKey: ['session-logs', data.sessionId] });
+    });
+
+    // Proctor actions real-time listeners
+    socket.on('session.force_submit', (data: { sessionId: string }) => {
+      setSessionData((prev) =>
+        prev.map((s) => (s.id === data.sessionId ? { ...s, status: 'SUBMITTED' } : s))
+      );
+      queryClient.invalidateQueries({ queryKey: ['monitoring', selectedExamId] });
+      queryClient.invalidateQueries({ queryKey: ['session-logs'] });
+    });
+
+    socket.on('session.warnings_reset', (data: { sessionId: string }) => {
+      setSessionData((prev) =>
+        prev.map((s) => (s.id === data.sessionId ? { ...s, warning_count: 0 } : s))
+      );
+      queryClient.invalidateQueries({ queryKey: ['monitoring', selectedExamId] });
+      queryClient.invalidateQueries({ queryKey: ['session-logs'] });
+    });
+
+    socket.on('session.time_extended', (data: { sessionId: string; additionalMinutes: number; remainingTimeSeconds?: number }) => {
+      setSessionData((prev) =>
+        prev.map((s) =>
+          s.id === data.sessionId
+            ? {
+                ...s,
+                remaining_time_seconds:
+                  data.remainingTimeSeconds ??
+                  (s.remaining_time_seconds ? s.remaining_time_seconds + data.additionalMinutes * 60 : null),
+              }
+            : s
+        )
+      );
+      queryClient.invalidateQueries({ queryKey: ['monitoring', selectedExamId] });
+      queryClient.invalidateQueries({ queryKey: ['session-logs'] });
+    });
+
+    socket.on('session.unlocked', (data: { sessionId: string }) => {
+      setSessionData((prev) =>
+        prev.map((s) => (s.id === data.sessionId ? { ...s, status: 'ACTIVE' } : s))
+      );
+      queryClient.invalidateQueries({ queryKey: ['monitoring', selectedExamId] });
+      queryClient.invalidateQueries({ queryKey: ['session-logs'] });
+    });
+
+    socket.on('exam.broadcast', (data: { message: string; urgency?: string }) => {
+      toast.info(`Pengumuman: ${data.message}`, {
+        icon: '📢',
+      });
     });
 
     socketRef.current = socket;
     return () => { socket.disconnect(); };
-  }, [selectedExamId]);
+  }, [selectedExamId, queryClient]);
 
   useEffect(() => {
     if (monitoringData?.sessions) {
@@ -224,6 +290,17 @@ function MonitoringPageContent() {
     }
   }, [monitoringData]);
 
+  // Compute available unique classes
+  const availableClasses = useMemo(() => {
+    const classes = new Set<string>();
+    sessionData.forEach((s) => {
+      if (s.student?.class?.name) {
+        classes.add(s.student.class.name);
+      }
+    });
+    return Array.from(classes).sort();
+  }, [sessionData]);
+
   const totalStudents = sessionData.length;
   const activeCount = sessionData.filter((s) => {
     const isCompleted = s.status === 'SUBMITTED' || s.status === 'AUTO_SUBMITTED';
@@ -235,7 +312,7 @@ function MonitoringPageContent() {
 
   const currentExam = exams?.find((e) => e.id === selectedExamId);
 
-  // Filter session list/grid
+  // Filter session list/grid with status, class, and search query
   const filteredSessions = sessionData.filter((session) => {
     const isCompleted = session.status === 'SUBMITTED' || session.status === 'AUTO_SUBMITTED';
     const isConnected = !isCompleted && (
@@ -244,19 +321,41 @@ function MonitoringPageContent() {
       connectedStudents.has(session.id)
     );
 
-    switch (statusFilter) {
-      case 'active':
-        return isConnected;
-      case 'warning':
-        return session.warning_count > 0;
-      case 'submitted':
-        return isCompleted;
-      case 'disconnected':
-        return !isCompleted && !isConnected;
-      default:
-        return true;
+    // Status filter
+    if (statusFilter === 'active' && !isConnected) return false;
+    if (statusFilter === 'warning' && session.warning_count === 0) return false;
+    if (statusFilter === 'submitted' && !isCompleted) return false;
+    if (statusFilter === 'disconnected' && (isCompleted || isConnected)) return false;
+
+    // Class filter
+    if (selectedClass !== 'all' && session.student?.class?.name !== selectedClass) {
+      return false;
     }
+
+    // Search query filter (NIS / Name)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchName = session.student?.full_name?.toLowerCase().includes(q);
+      const matchNis = session.student?.nis?.toLowerCase().includes(q);
+      if (!matchName && !matchNis) return false;
+    }
+
+    return true;
   });
+
+  const openActionDialog = (s: StudentSession, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setActionSession({
+      id: s.id,
+      student: s.student,
+      status: s.status,
+      warning_count: s.warning_count,
+      remaining_time_seconds: s.remaining_time_seconds,
+    });
+    setActionDialogOpen(true);
+  };
+
+  const selectedSessionData = sessionData.find((s) => s.id === selectedSession);
 
   return (
     <div className="space-y-6">
@@ -273,34 +372,44 @@ function MonitoringPageContent() {
             </span>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Pantau status integritas ujian siswa, denah meja, dan log peristiwa secara langsung.
+            Pantau integritas ujian, kelola tindakan langsung siswa, dan siarkan pengumuman real-time.
           </p>
         </div>
 
-        {/* View Mode & Live Filter Controls */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* View Mode & Announcement Action */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Button
+            type="button"
+            onClick={() => setBroadcastModalOpen(true)}
+            disabled={!selectedExamId}
+            className="rounded-xl gap-2 font-bold bg-primary text-primary-foreground shadow-sm hover:shadow"
+          >
+            <Megaphone className="h-4 w-4" />
+            <span>Kirim Pengumuman</span>
+          </Button>
+
           <div className="inline-flex rounded-xl bg-muted p-1 border border-border">
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'grid'
                   ? 'bg-card text-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <LayoutGrid className="h-3.5 w-3.5" /> Denah Meja (Grid)
+              <LayoutGrid className="h-3.5 w-3.5" /> Denah (Grid)
             </button>
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-card text-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <List className="h-3.5 w-3.5" /> Tabel Rinci (List)
+              <List className="h-3.5 w-3.5" /> Tabel (List)
             </button>
           </div>
         </div>
@@ -460,6 +569,49 @@ function MonitoringPageContent() {
             </div>
           </div>
 
+          {/* Search & Class Dropdown Filter Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Cari nama peserta atau NIS..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-8 h-9 text-xs rounded-xl bg-background border-border/80 focus:ring-primary"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {availableClasses.length > 0 && (
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="relative">
+                  <select
+                    value={selectedClass}
+                    onChange={(e) => setSelectedClass(e.target.value)}
+                    className="h-9 px-3 pr-8 rounded-xl border border-border/80 bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
+                  >
+                    <option value="all">Semua Rombel/Kelas</option>
+                    {availableClasses.map((cls) => (
+                      <option key={cls} value={cls}>
+                        {cls}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-3 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+            )}
+          </div>
+
           {!selectedExamId ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Eye className="h-10 w-10 mb-2 text-muted-foreground/50" />
@@ -533,13 +685,30 @@ function MonitoringPageContent() {
                       </p>
                     </div>
 
-                    {/* Bottom: Progress Bar */}
-                    <div className="space-y-1 pt-1 border-t border-border/40">
+                    {/* Bottom: Progress Bar & Quick Action Trigger */}
+                    <div className="space-y-2 pt-1 border-t border-border/40">
                       <div className="flex justify-between text-[11px] font-semibold text-muted-foreground tabular-nums">
                         <span>Pengerjaan</span>
                         <span className="text-foreground">{progressPct}%</span>
                       </div>
                       <Progress value={progressPct} className="h-1.5" />
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {session.remaining_time_seconds !== null && session.remaining_time_seconds > 0
+                            ? `Sisa ${Math.floor(session.remaining_time_seconds / 60)}m`
+                            : ''}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => openActionDialog(session, e)}
+                          className="h-6 px-2 text-[10px] rounded-lg font-bold border-border/80 hover:bg-primary/10 hover:text-primary gap-1 shrink-0"
+                        >
+                          <SlidersHorizontal className="h-3 w-3" /> Tindakan
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -595,6 +764,15 @@ function MonitoringPageContent() {
                         <Badge variant={isCompleted ? 'default' : isConnected ? 'success' : 'warning'}>
                           {isCompleted ? 'Selesai' : isConnected ? 'Aktif' : 'Terputus'}
                         </Badge>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => openActionDialog(session, e)}
+                          className="h-7 px-2 text-xs rounded-lg font-bold border-border/80 hover:bg-primary/10 hover:text-primary gap-1"
+                        >
+                          <SlidersHorizontal className="h-3 w-3" /> Tindakan
+                        </Button>
                         {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                       </div>
                     </div>
@@ -613,32 +791,76 @@ function MonitoringPageContent() {
           {/* Expanded Selected Session Logs Drawer */}
           {selectedSession && (
             <div className="mt-4 p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
-                  <Activity className="h-4 w-4" /> Log Aktivitas Peserta Realtime
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedSession(null)}
-                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5 mr-1" /> Tutup Log
-                </Button>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+                    <Activity className="h-4 w-4" /> Log Aktivitas & Kontrol Cepat Peserta
+                  </span>
+                  {selectedSessionData && (
+                    <span className="text-xs font-semibold text-foreground">
+                      ({selectedSessionData.student?.full_name})
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {selectedSessionData && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openActionDialog(selectedSessionData)}
+                      className="h-7 px-2.5 text-xs font-bold text-primary border-primary/40 hover:bg-primary/10"
+                    >
+                      <SlidersHorizontal className="h-3.5 w-3.5 mr-1" /> Kelola Sesi
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedSession(null)}
+                    className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5 mr-1" /> Tutup Log
+                  </Button>
+                </div>
               </div>
 
               {logs && logs.length > 0 ? (
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {logs.map((log) => {
-                    const isWarning = log.event.includes('WARNING') || log.event.includes('STATUS_BAR') || log.event.includes('SPLIT');
+                    const isWarning =
+                      log.event.includes('WARNING') ||
+                      log.event.includes('STATUS_BAR') ||
+                      log.event.includes('SPLIT');
+                    const isAction =
+                      log.event === 'FORCED_SUBMIT' ||
+                      log.event === 'WARNINGS_RESET' ||
+                      log.event === 'TIME_EXTENDED' ||
+                      log.event === 'SESSION_UNLOCKED';
+
                     return (
                       <div
                         key={log.id}
                         className="flex items-start gap-2.5 p-2 rounded-lg bg-background border border-border/60 text-xs"
                       >
-                        <span className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${isWarning ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                        <span
+                          className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${
+                            isAction
+                              ? 'bg-indigo-500'
+                              : isWarning
+                              ? 'bg-rose-500'
+                              : 'bg-emerald-500'
+                          }`}
+                        />
                         <div className="flex-1">
-                          <p className="font-semibold text-foreground">{log.description || log.event}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground">{log.description || log.event}</span>
+                            {isAction && (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-indigo-400 text-indigo-600 dark:text-indigo-400">
+                                Proctor Action
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-[10px] text-muted-foreground mt-0.5">
                             {new Intl.DateTimeFormat('id-ID', {
                               hour: '2-digit',
@@ -653,12 +875,38 @@ function MonitoringPageContent() {
                   })}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground italic py-2">Belum ada catatan pelanggaran atau log aktivitas pada sesi ini.</p>
+                <p className="text-xs text-muted-foreground italic py-2">
+                  Belum ada catatan pelanggaran atau log aktivitas pada sesi ini.
+                </p>
               )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Broadcast Modal */}
+      <ProctorBroadcastModal
+        examId={selectedExamId}
+        examTitle={currentExam?.title}
+        open={broadcastModalOpen}
+        onOpenChange={setBroadcastModalOpen}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['monitoring', selectedExamId] });
+        }}
+      />
+
+      {/* Student Proctor Action Dialog */}
+      <StudentActionDialog
+        session={actionSession}
+        open={actionDialogOpen}
+        onOpenChange={setActionDialogOpen}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['monitoring', selectedExamId] });
+          if (selectedSession) {
+            queryClient.invalidateQueries({ queryKey: ['session-logs', selectedSession] });
+          }
+        }}
+      />
     </div>
   );
 }

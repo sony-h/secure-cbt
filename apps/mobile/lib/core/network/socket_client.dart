@@ -11,7 +11,28 @@ const _socketBaseUrl = String.fromEnvironment(
 class MonitoringSocket {
   socket_io.Socket? _socket;
 
+  void Function(Map<String, dynamic> data)? _onBroadcast;
+  void Function(Map<String, dynamic> data)? _onForceSubmit;
+  void Function(Map<String, dynamic> data)? _onTimeExtended;
+  void Function(Map<String, dynamic> data)? _onWarningsReset;
+
   bool get isConnected => _socket?.connected ?? false;
+
+  void setOnBroadcast(void Function(Map<String, dynamic> data)? callback) {
+    _onBroadcast = callback;
+  }
+
+  void setOnForceSubmit(void Function(Map<String, dynamic> data)? callback) {
+    _onForceSubmit = callback;
+  }
+
+  void setOnTimeExtended(void Function(Map<String, dynamic> data)? callback) {
+    _onTimeExtended = callback;
+  }
+
+  void setOnWarningsReset(void Function(Map<String, dynamic> data)? callback) {
+    _onWarningsReset = callback;
+  }
 
   Future<void> connect(String userId, String examId, {String? studentName}) async {
     disconnect();
@@ -37,6 +58,38 @@ class MonitoringSocket {
         'deviceId': 'android_${DateTime.now().millisecondsSinceEpoch}',
         'timestamp': DateTime.now().toUtc().toIso8601String(),
       });
+    });
+
+    _socket?.on('exam.broadcast', (data) {
+      AppLogger.info('Monitoring socket received broadcast: $data');
+      if (data is Map) {
+        _onBroadcast?.call(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket?.on('session.force_submit', (data) {
+      AppLogger.warn('Monitoring socket received force submit: $data');
+      if (data is Map) {
+        _onForceSubmit?.call(Map<String, dynamic>.from(data));
+      } else {
+        _onForceSubmit?.call({});
+      }
+    });
+
+    _socket?.on('session.time_extended', (data) {
+      AppLogger.info('Monitoring socket received time extended: $data');
+      if (data is Map) {
+        _onTimeExtended?.call(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket?.on('session.warnings_reset', (data) {
+      AppLogger.info('Monitoring socket received warnings reset: $data');
+      if (data is Map) {
+        _onWarningsReset?.call(Map<String, dynamic>.from(data));
+      } else {
+        _onWarningsReset?.call({});
+      }
     });
 
     _socket?.onDisconnect((_) {

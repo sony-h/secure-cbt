@@ -67,6 +67,10 @@ export enum ViolationEvent {
   DISCONNECTED = 'DISCONNECTED',
   AUTO_SUBMIT = 'AUTO_SUBMIT',
   SESSION_EXPIRED = 'SESSION_EXPIRED',
+  FORCED_SUBMIT = 'FORCED_SUBMIT',
+  WARNINGS_RESET = 'WARNINGS_RESET',
+  TIME_EXTENDED = 'TIME_EXTENDED',
+  SESSION_UNLOCKED = 'SESSION_UNLOCKED',
 }
 
 /** Socket.io + internal event names */
@@ -79,6 +83,11 @@ export enum SocketEvent {
   EXAM_SUBMITTED = 'exam.submitted',
   SESSION_FINISHED = 'session.finished',
   PROGRESS_UPDATED = 'progress.updated',
+  EXAM_BROADCAST = 'exam.broadcast',
+  SESSION_FORCE_SUBMIT = 'session.force_submit',
+  SESSION_WARNINGS_RESET = 'session.warnings_reset',
+  SESSION_TIME_EXTENDED = 'session.time_extended',
+  SESSION_UNLOCKED = 'session.unlocked',
   // Internal EventEmitter events
   USER_LOGGED_IN = 'user.logged_in',
   USER_LOGGED_OUT = 'user.logged_out',

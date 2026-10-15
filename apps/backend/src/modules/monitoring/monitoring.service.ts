@@ -50,7 +50,7 @@ export class MonitoringService {
         nis: s.student.nis,
         student_name: s.student.full_name,
         class_name: s.student.class.name,
-        status: s.status === SessionStatus.ACTIVE ? 'active' : s.status === SessionStatus.SUBMITTED ? 'finished' : 'disconnected',
+        status: s.status === SessionStatus.ACTIVE ? 'active' : (s.status === SessionStatus.SUBMITTED || s.status === SessionStatus.AUTO_SUBMITTED) ? 'finished' : 'disconnected',
         progress: { answered: s._count.answers, total: baseQuestionCount + packageCount },
         remaining_time_seconds: s.remaining_time_seconds ?? 0,
         warning_count: s.warning_count,

@@ -445,4 +445,218 @@ export class SessionService {
     });
     return updated;
   }
+
+  async forceSubmit(sessionId: string, proctorUserId: string) {
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { full_name: true, user_id: true } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    if (
+      session.status === SessionStatus.SUBMITTED ||
+      session.status === SessionStatus.AUTO_SUBMITTED ||
+      session.status === SessionStatus.EXPIRED
+    ) {
+      return session;
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedSession = await tx.examSession.update({
+        where: { id: sessionId },
+        data: { status: SessionStatus.SUBMITTED, submitted_at: new Date() },
+      });
+
+      await tx.sessionLog.create({
+        data: {
+          exam_session_id: sessionId,
+          event: 'FORCED_SUBMIT',
+          description: `Ujian dikumpulkan paksa oleh pengawas (${proctorUserId})`,
+        },
+      });
+
+      const [scoreData, settings] = await Promise.all([
+        this.gradingService.calculateTotalScore(tx, sessionId),
+        tx.setting.findFirst({ select: { passing_grade: true } }),
+      ]);
+
+      await tx.score.upsert({
+        where: { exam_session_id: sessionId },
+        create: {
+          exam_session_id: sessionId,
+          ...scoreData,
+          passing_grade_at_score: settings?.passing_grade ?? null,
+          graded_at: new Date(),
+        },
+        update: {
+          ...scoreData,
+          passing_grade_at_score: settings?.passing_grade ?? null,
+          graded_at: new Date(),
+        },
+      });
+
+      return updatedSession;
+    });
+
+    this.eventEmitter.emit(SocketEvent.SESSION_FORCE_SUBMIT, {
+      sessionId: session.id,
+      examId: session.exam_id,
+      studentId: session.student_id,
+      studentUserId: session.student.user_id,
+      studentName: session.student.full_name,
+    });
+
+    this.eventEmitter.emit(SocketEvent.SESSION_FINISHED, {
+      sessionId: session.id,
+      examId: session.exam_id,
+      studentId: session.student_id,
+      studentName: session.student.full_name,
+    });
+
+    return updated;
+  }
+
+  async resetWarnings(sessionId: string, proctorUserId: string) {
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { full_name: true, user_id: true } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedSession = await tx.examSession.update({
+        where: { id: sessionId },
+        data: { warning_count: 0 },
+      });
+
+      await tx.sessionLog.create({
+        data: {
+          exam_session_id: sessionId,
+          event: 'WARNINGS_RESET',
+          description: `Peringatan pelanggaran direset ke 0 oleh pengawas (${proctorUserId})`,
+        },
+      });
+
+      return updatedSession;
+    });
+
+    this.eventEmitter.emit(SocketEvent.SESSION_WARNINGS_RESET, {
+      sessionId: session.id,
+      examId: session.exam_id,
+      studentId: session.student_id,
+      studentUserId: session.student.user_id,
+      studentName: session.student.full_name,
+      warningCount: 0,
+    });
+
+    return updated;
+  }
+
+  async extendTime(sessionId: string, additionalMinutes: number, proctorUserId: string) {
+    if (!additionalMinutes || additionalMinutes <= 0) {
+      throw new BadRequestException('Menit tambahan harus lebih besar dari 0');
+    }
+
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { full_name: true, user_id: true } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    if (
+      session.status === SessionStatus.SUBMITTED ||
+      session.status === SessionStatus.AUTO_SUBMITTED ||
+      session.status === SessionStatus.EXPIRED
+    ) {
+      throw new BadRequestException('Tidak dapat menambah waktu untuk sesi ujian yang sudah selesai');
+    }
+
+    const additionalSeconds = additionalMinutes * 60;
+    const currentRemaining = session.remaining_time_seconds ?? 0;
+    const newRemaining = currentRemaining + additionalSeconds;
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedSession = await tx.examSession.update({
+        where: { id: sessionId },
+        data: { remaining_time_seconds: newRemaining },
+      });
+
+      await tx.sessionLog.create({
+        data: {
+          exam_session_id: sessionId,
+          event: 'TIME_EXTENDED',
+          description: `Waktu ujian ditambah ${additionalMinutes} menit oleh pengawas (${proctorUserId})`,
+        },
+      });
+
+      return updatedSession;
+    });
+
+    this.eventEmitter.emit(SocketEvent.SESSION_TIME_EXTENDED, {
+      sessionId: session.id,
+      examId: session.exam_id,
+      studentId: session.student_id,
+      studentUserId: session.student.user_id,
+      studentName: session.student.full_name,
+      additionalMinutes,
+      additionalSeconds,
+      remainingTimeSeconds: newRemaining,
+    });
+
+    return updated;
+  }
+
+  async unlockSession(sessionId: string, proctorUserId: string) {
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { full_name: true, user_id: true } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    if (
+      session.status === SessionStatus.SUBMITTED ||
+      session.status === SessionStatus.AUTO_SUBMITTED ||
+      session.status === SessionStatus.EXPIRED
+    ) {
+      throw new BadRequestException('Tidak dapat membuka kunci sesi ujian yang sudah selesai');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedSession = await tx.examSession.update({
+        where: { id: sessionId },
+        data: {
+          device_id: null,
+          status: SessionStatus.ACTIVE,
+        },
+      });
+
+      await tx.sessionLog.create({
+        data: {
+          exam_session_id: sessionId,
+          event: 'SESSION_UNLOCKED',
+          description: `Kunci sesi dibuka oleh pengawas (${proctorUserId})`,
+        },
+      });
+
+      return updatedSession;
+    });
+
+    this.eventEmitter.emit(SocketEvent.SESSION_UNLOCKED, {
+      sessionId: session.id,
+      examId: session.exam_id,
+      studentId: session.student_id,
+      studentUserId: session.student.user_id,
+      studentName: session.student.full_name,
+    });
+
+    return updated;
+  }
 }

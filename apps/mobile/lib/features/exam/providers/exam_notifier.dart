@@ -99,6 +99,18 @@ class ExamNotifier extends StateNotifier<ExamState> {
     state = state.copyWith(warningLimit: limit);
   }
 
+  void extendTime(int additionalSeconds) {
+    if (state.isSubmitted) return;
+    final newRemaining = state.remainingSeconds + additionalSeconds;
+    state = state.copyWith(remainingSeconds: newRemaining);
+    AppLogger.info('Timer extended by $additionalSeconds seconds. New remaining: $newRemaining');
+  }
+
+  void resetWarnings() {
+    state = state.copyWith(warningCount: 0, violations: []);
+    AppLogger.info('Warnings reset to 0');
+  }
+
   void setCurrentIndex(int index) {
     state = state.copyWith(currentIndex: index);
   }

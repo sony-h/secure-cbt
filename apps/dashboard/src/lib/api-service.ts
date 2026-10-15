@@ -185,9 +185,19 @@ export const reportApi = {
   getItemAnalysis: (examId: string) => api.get(`/reports/exam/${examId}/item-analysis`),
 };
 
+export const sessionApi = {
+  forceSubmit: (sessionId: string) => api.post(`/sessions/${sessionId}/force-submit`),
+  resetWarnings: (sessionId: string) => api.post(`/sessions/${sessionId}/reset-warnings`),
+  extendTime: (sessionId: string, additionalMinutes: number) =>
+    api.post(`/sessions/${sessionId}/extend-time`, { additional_minutes: additionalMinutes }),
+  unlock: (sessionId: string) => api.post(`/sessions/${sessionId}/unlock`),
+};
+
 export const monitoringApi = {
   getExamSessions: (examId: string) => api.get(`/monitoring/exams/${examId}`),
   getSessionLogs: (sessionId: string) => api.get(`/monitoring/sessions/${sessionId}`),
+  broadcastAnnouncement: (examId: string, data: { message: string; urgency?: 'low' | 'high' }) =>
+    api.post(`/monitoring/exams/${examId}/broadcast`, data),
 };
 
 export const gradingApi = {
