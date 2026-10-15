@@ -2,8 +2,8 @@
 
 import { useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { examApi, academicApi, reportApi, settingsApi } from '@/lib/api-service';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { examApi, academicApi, reportApi, settingsApi, gradingApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
@@ -16,7 +16,23 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { BarChart3, FileText, Download, Printer, FileSpreadsheet } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { BarChart3, FileText, Download, Printer, FileSpreadsheet, Eye, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { StudentSessionReviewModal } from '@/components/reports/student-session-review-modal';
+import { ItemAnalysisView } from '@/components/reports/item-analysis-view';
 
 interface Exam { id: string; title: string; subject?: { name: string }; status: string; _count?: { exam_sessions: number }; }
 interface ClassItem { id: string; name: string; major?: { name: string }; }
@@ -40,6 +56,31 @@ function ReportsPageContent() {
 
   const [selectedExam, setSelectedExam] = useState<string>(initialExam);
   const [selectedClass, setSelectedClass] = useState<string>(initialClass);
+  const [selectedReviewSession, setSelectedReviewSession] = useState<{
+    sessionId: string;
+    studentName?: string;
+    nis?: string;
+  } | null>(null);
+  const [activeTab, setActiveTab] = useState<'students' | 'item-analysis'>('students');
+  const queryClient = useQueryClient();
+
+  const regradeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await gradingApi.regradeExam(selectedExam);
+      return res.data.data;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['results', selectedExam] });
+      queryClient.invalidateQueries({ queryKey: ['item-analysis', selectedExam] });
+      queryClient.invalidateQueries({ queryKey: ['report-exams'] });
+      toast.success(
+        `Berhasil menghitung ulang nilai! ${data?.regraded_count ?? 0} sesi siswa diperbarui.`,
+      );
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Gagal menghitung ulang nilai ujian');
+    },
+  });
 
   const updateUrlParams = (params: Record<string, string | number | null | undefined>) => {
     if (typeof window === 'undefined') return;
@@ -119,6 +160,28 @@ function ReportsPageContent() {
         <Badge variant={row.original.status === 'passed' ? 'success' : 'destructive'}>
           {row.original.status === 'passed' ? 'Lulus' : 'Remedial'}
         </Badge>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Aksi',
+      cell: ({ row }: any) => (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 text-xs font-medium"
+          onClick={() => {
+            setSelectedReviewSession({
+              sessionId: row.original.session_id,
+              studentName: row.original.student?.full_name,
+              nis: row.original.student?.nis,
+            });
+          }}
+          title="Lihat detail evaluasi lembar jawaban dan pembahasan"
+        >
+          <Eye className="w-3.5 h-3.5 text-primary" />
+          Lihat Detail
+        </Button>
       ),
     },
   ];
@@ -218,36 +281,101 @@ function ReportsPageContent() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" disabled={!results?.length} onClick={handleExportCSV}><FileSpreadsheet className="mr-2 h-4 w-4" />Export CSV</Button>
-              <Button variant="outline" disabled={!results?.length} onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Cetak PDF</Button>
+            <div className="flex gap-2 flex-wrap">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="text-amber-600 border-amber-300 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/30 gap-1.5"
+                    disabled={!selectedExam || !results?.length || regradeMutation.isPending}
+                  >
+                    <RotateCcw className={cn('h-4 w-4', regradeMutation.isPending && 'animate-spin')} />
+                    Hitung Ulang Nilai (Regrade)
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Hitung Ulang Nilai Ujian (Regrade)?</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2 text-sm text-left">
+                      <span>
+                        Sistem akan mengevaluasi ulang seluruh jawaban objektif (Pilihan Ganda, Benar/Salah, Jawaban Singkat) seluruh siswa pada ujian ini terhadap kunci jawaban dan opsi terbaru.
+                      </span>
+                      <br /><br />
+                      <span className="font-semibold text-foreground">
+                        Catatan: Nilai esai manual yang telah dinilai guru akan tetap aman dan tidak akan diubah atau dihapus.
+                      </span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => regradeMutation.mutate()}
+                      className="bg-amber-600 hover:bg-amber-700 text-white"
+                    >
+                      {regradeMutation.isPending ? 'Memproses...' : 'Ya, Hitung Ulang Nilai'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <Button variant="outline" disabled={!results?.length} onClick={handleExportCSV}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />Export CSV
+              </Button>
+              <Button variant="outline" disabled={!results?.length} onClick={() => window.print()}>
+                <Printer className="mr-2 h-4 w-4" />Cetak PDF
+              </Button>
             </div>
           </div>
 
           {!selectedExam ? (
             <EmptyState title="Pilih Ujian" description="Pilih ujian untuk melihat hasil" className="py-8 print:hidden" />
           ) : (
-            <DataTable
-              columns={reportColumns}
-              data={sortedResults}
-              searchKey="student.full_name"
-              searchPlaceholder="Cari siswa..."
-              pageSize={initialLimit === 'all' ? 10 : Number(initialLimit) || 10}
-              initialPage={initialPage}
-              initialSearch={initialSearch}
-              onStateChange={({ page, pageSize, search }) => {
-                updateUrlParams({
-                  page,
-                  limit: pageSize,
-                  q: search || null,
-                });
-              }}
-              loading={isLoading}
-              emptyMessage="Belum ada hasil ujian"
-            />
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+              <TabsList className="mb-4 print:hidden">
+                <TabsTrigger value="students" className="gap-2">
+                  <FileText className="w-4 h-4" /> Hasil & Nilai Siswa
+                </TabsTrigger>
+                <TabsTrigger value="item-analysis" className="gap-2">
+                  <BarChart3 className="w-4 h-4" /> Analisis Butir Soal
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="students" className="space-y-4 m-0">
+                <DataTable
+                  columns={reportColumns}
+                  data={sortedResults}
+                  searchKey="student.full_name"
+                  searchPlaceholder="Cari siswa..."
+                  pageSize={initialLimit === 'all' ? 10 : Number(initialLimit) || 10}
+                  initialPage={initialPage}
+                  initialSearch={initialSearch}
+                  onStateChange={({ page, pageSize, search }) => {
+                    updateUrlParams({
+                      page,
+                      limit: pageSize,
+                      q: search || null,
+                    });
+                  }}
+                  loading={isLoading}
+                  emptyMessage="Belum ada hasil ujian"
+                />
+              </TabsContent>
+
+              <TabsContent value="item-analysis" className="space-y-4 m-0 print:hidden">
+                <ItemAnalysisView examId={selectedExam} />
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>
+
+      <StudentSessionReviewModal
+        open={!!selectedReviewSession}
+        onClose={() => setSelectedReviewSession(null)}
+        sessionId={selectedReviewSession?.sessionId ?? null}
+        studentName={selectedReviewSession?.studentName}
+        nis={selectedReviewSession?.nis}
+      />
 
       <div className="hidden print:flex justify-between items-center pt-12 text-sm text-slate-800">
         <div className="text-center">
