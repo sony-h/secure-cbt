@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { teacherApi, academicApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
@@ -12,7 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable, type PageSizeOption } from '@/components/ui/data-table';
+import { Spinner } from '@/components/ui/spinner';
 import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
   AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
@@ -105,6 +107,26 @@ function TeacherDialog({
 function TeachersPageContent() {
   useRoleGuard([UserRole.ADMIN, UserRole.OPERATOR]);
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+
+  const initialPage = Number(searchParams.get('page')) || 1;
+  const rawLimit = searchParams.get('limit');
+  const initialLimit: PageSizeOption = rawLimit === 'all' ? 'all' : Number(rawLimit) || 10;
+  const initialSearch = searchParams.get('q') || '';
+
+  const updateUrlParams = (params: Record<string, string | number | null | undefined>) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    Object.entries(params).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === '') {
+        url.searchParams.delete(k);
+      } else {
+        url.searchParams.set(k, String(v));
+      }
+    });
+    window.history.replaceState(null, '', url.toString());
+  };
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<TeacherForm>(emptyForm);
@@ -193,6 +215,17 @@ function TeachersPageContent() {
             data={teachers || []}
             searchKey="full_name"
             searchPlaceholder="Cari berdasarkan NIP atau nama..."
+            pageSize={initialLimit === 'all' ? 10 : Number(initialLimit) || 10}
+            initialPage={initialPage}
+            initialSearch={initialSearch}
+            onStateChange={({ page, pageSize, search }) => {
+              updateUrlParams({
+                page,
+                limit: pageSize,
+                q: search || null,
+              });
+            }}
+            loading={isLoading}
             emptyMessage="Belum ada data guru"
           />
         </CardContent>
@@ -203,5 +236,11 @@ function TeachersPageContent() {
 }
 
 export default function TeachersPage() {
-  return <ErrorBoundary><TeachersPageContent /></ErrorBoundary>;
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<div className="flex justify-center py-12"><Spinner className="h-8 w-8 text-primary" /></div>}>
+        <TeachersPageContent />
+      </Suspense>
+    </ErrorBoundary>
+  );
 }

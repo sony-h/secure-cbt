@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { questionBankApi, academicApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
@@ -12,7 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable, PageSizeOption } from '@/components/ui/data-table';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from '@/components/ui/select';
@@ -60,10 +61,32 @@ interface Subject {
 function QuestionsPageContent() {
   useRoleGuard([UserRole.ADMIN, UserRole.TEACHER]);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+
+  const initialPage = Number(searchParams.get('page')) || 1;
+  const rawLimit = searchParams.get('limit');
+  const initialLimit: PageSizeOption = rawLimit === 'all' ? 'all' : Number(rawLimit) || 10;
+  const initialSearch = searchParams.get('q') || '';
+  const initialTab = searchParams.get('tab') || 'questions';
+
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [newBankName, setNewBankName] = useState('');
   const [newBankSubject, setNewBankSubject] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  const updateUrlParams = (params: Record<string, string | number | null | undefined>) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    Object.entries(params).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === '') {
+        url.searchParams.delete(k);
+      } else {
+        url.searchParams.set(k, String(v));
+      }
+    });
+    window.history.replaceState(null, '', url.toString());
+  };
 
   const { data: banks } = useQuery({
     queryKey: ['question-banks'],
@@ -227,7 +250,7 @@ function QuestionsPageContent() {
         </div>
       </div>
 
-      <Tabs defaultValue="questions" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(val) => { setActiveTab(val); updateUrlParams({ tab: val }); }} className="space-y-4">
         <TabsList>
           <TabsTrigger value="questions">Daftar Soal</TabsTrigger>
           <TabsTrigger value="banks">Bank Soal</TabsTrigger>
@@ -241,6 +264,16 @@ function QuestionsPageContent() {
                 data={questions || []}
                 searchKey="content"
                 searchPlaceholder="Cari soal..."
+                pageSize={initialLimit === 'all' ? 10 : Number(initialLimit) || 10}
+                initialPage={initialPage}
+                initialSearch={initialSearch}
+                onStateChange={({ page, pageSize, search }) => {
+                  updateUrlParams({
+                    page,
+                    limit: pageSize,
+                    q: search || null,
+                  });
+                }}
                 filters={[
                   {
                     column: 'bankName',
@@ -344,5 +377,11 @@ function QuestionsPageContent() {
 }
 
 export default function QuestionsPage() {
-  return <ErrorBoundary><QuestionsPageContent /></ErrorBoundary>;
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<div className="flex justify-center py-12"><Spinner className="h-8 w-8 text-primary" /></div>}>
+        <QuestionsPageContent />
+      </Suspense>
+    </ErrorBoundary>
+  );
 }

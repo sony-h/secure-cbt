@@ -93,6 +93,14 @@ export function QuestionStudio({
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  const handleNavigateBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/dashboard/questions');
+    }
+  };
+
   const [form, setForm] = useState<QuestionStudioData>(initialData);
   const [activeMobileTab, setActiveMobileTab] = useState<'editor' | 'preview'>('editor');
   const [equationModalOpen, setEquationModalOpen] = useState(false);
@@ -118,7 +126,7 @@ export function QuestionStudio({
       queryClient.invalidateQueries({ queryKey: ['questions'] });
       queryClient.invalidateQueries({ queryKey: ['question-banks'] });
       toast.success(isEditing ? 'Soal berhasil diperbarui' : 'Soal berhasil dibuat');
-      router.push('/dashboard/questions');
+      handleNavigateBack();
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || 'Gagal menyimpan soal');
@@ -271,7 +279,7 @@ export function QuestionStudio({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.push('/dashboard/questions')}
+            onClick={handleNavigateBack}
             className="rounded-full"
             title="Kembali ke Bank Soal"
           >
@@ -293,7 +301,7 @@ export function QuestionStudio({
         <div className="flex items-center gap-2.5">
           <Button
             variant="outline"
-            onClick={() => router.push('/dashboard/questions')}
+            onClick={handleNavigateBack}
             disabled={saveMutation.isPending}
           >
             Batal

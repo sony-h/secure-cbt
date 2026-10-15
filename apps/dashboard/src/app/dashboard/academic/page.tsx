@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { academicApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
@@ -10,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
+import { Spinner } from '@/components/ui/spinner';
 import type { ColumnDef } from '@tanstack/react-table';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -153,6 +155,24 @@ function AcademicPageContent() {
   const canEditAcademic = isAdmin || isOperator;
 
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+
+  const initialTab = searchParams.get('tab') || 'years';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  const updateUrlParams = (params: Record<string, string | number | null | undefined>) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    Object.entries(params).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === '') {
+        url.searchParams.delete(k);
+      } else {
+        url.searchParams.set(k, String(v));
+      }
+    });
+    window.history.replaceState(null, '', url.toString());
+  };
+
   const [yearOpen, setYearOpen] = useState(false);
   const [majorOpen, setMajorOpen] = useState(false);
   const [classOpen, setClassOpen] = useState(false);
@@ -238,7 +258,7 @@ function AcademicPageContent() {
     <div className="space-y-6">
       <div><h1 className="text-3xl font-bold tracking-tight">Data Akademik</h1><p className="text-muted-foreground">Kelola tahun ajaran, jurusan, kelas, dan mata pelajaran</p></div>
 
-      <Tabs defaultValue="years" className="w-full">
+      <Tabs value={activeTab} onValueChange={(val) => { setActiveTab(val); updateUrlParams({ tab: val }); }} className="w-full">
         <TabsList>
           <TabsTrigger value="years"><School className="mr-2 h-4 w-4" />Tahun Ajaran</TabsTrigger>
           <TabsTrigger value="majors"><School className="mr-2 h-4 w-4" />Jurusan</TabsTrigger>
@@ -253,7 +273,15 @@ function AcademicPageContent() {
               {isAdmin && <Button size="sm" onClick={() => setYearOpen(true)}><Plus className="mr-2 h-4 w-4" />Tambah</Button>}
             </CardHeader>
             <CardContent>
-              {years && <DataTable columns={getYearColumns(isAdmin, setEditingYear, setYearOpen, deleteYearMutation)} data={years} emptyMessage="Belum ada tahun ajaran" />}
+              {years && (
+                <DataTable
+                  columns={getYearColumns(isAdmin, setEditingYear, setYearOpen, deleteYearMutation)}
+                  data={years}
+                  searchKey="name"
+                  searchPlaceholder="Cari tahun ajaran..."
+                  emptyMessage="Belum ada tahun ajaran"
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -265,7 +293,15 @@ function AcademicPageContent() {
               {isAdmin && <Button size="sm" onClick={() => setMajorOpen(true)}><Plus className="mr-2 h-4 w-4" />Tambah</Button>}
             </CardHeader>
             <CardContent>
-              {majors && <DataTable columns={getMajorColumns(isAdmin, setEditingMajor, setMajorOpen, deleteMajorMutation)} data={majors} emptyMessage="Belum ada jurusan" />}
+              {majors && (
+                <DataTable
+                  columns={getMajorColumns(isAdmin, setEditingMajor, setMajorOpen, deleteMajorMutation)}
+                  data={majors}
+                  searchKey="name"
+                  searchPlaceholder="Cari jurusan..."
+                  emptyMessage="Belum ada jurusan"
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -277,7 +313,15 @@ function AcademicPageContent() {
               {canEditAcademic && <Button size="sm" onClick={() => { setEditingClassId(null); setClassForm(emptyClassForm); setClassOpen(true); }}><Plus className="mr-2 h-4 w-4" />Tambah Kelas</Button>}
             </CardHeader>
             <CardContent>
-              {classes && <DataTable columns={getClassColumns(canEditAcademic, setEditingClassId, setClassForm, setClassOpen, deleteClassMutation)} data={classes} emptyMessage="Belum ada kelas" />}
+              {classes && (
+                <DataTable
+                  columns={getClassColumns(canEditAcademic, setEditingClassId, setClassForm, setClassOpen, deleteClassMutation)}
+                  data={classes}
+                  searchKey="name"
+                  searchPlaceholder="Cari kelas..."
+                  emptyMessage="Belum ada kelas"
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -289,7 +333,15 @@ function AcademicPageContent() {
               {canEditAcademic && <Button size="sm" onClick={() => { setEditingSubjectId(null); setSubjectForm(emptySubjectForm); setSubjectOpen(true); }}><Plus className="mr-2 h-4 w-4" />Tambah Mapel</Button>}
             </CardHeader>
             <CardContent>
-              {subjects && <DataTable columns={getSubjectColumns(canEditAcademic, setEditingSubjectId, setSubjectForm, setSubjectOpen, deleteSubjectMutation)} data={subjects} emptyMessage="Belum ada mata pelajaran" />}
+              {subjects && (
+                <DataTable
+                  columns={getSubjectColumns(canEditAcademic, setEditingSubjectId, setSubjectForm, setSubjectOpen, deleteSubjectMutation)}
+                  data={subjects}
+                  searchKey="name"
+                  searchPlaceholder="Cari mata pelajaran..."
+                  emptyMessage="Belum ada mata pelajaran"
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -310,5 +362,11 @@ function AcademicPageContent() {
 }
 
 export default function AcademicPage() {
-  return <ErrorBoundary><AcademicPageContent /></ErrorBoundary>;
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<div className="flex justify-center py-12"><Spinner className="h-8 w-8 text-primary" /></div>}>
+        <AcademicPageContent />
+      </Suspense>
+    </ErrorBoundary>
+  );
 }

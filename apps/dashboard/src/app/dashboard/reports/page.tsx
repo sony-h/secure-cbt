@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { examApi, academicApi, reportApi, settingsApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
@@ -9,7 +10,8 @@ import { UserRole } from '@secure-cbt/shared';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
-import { DataTable } from '@/components/ui/data-table';
+import { DataTable, type PageSizeOption } from '@/components/ui/data-table';
+import { Spinner } from '@/components/ui/spinner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -27,8 +29,30 @@ interface GradeResult {
 
 function ReportsPageContent() {
   useRoleGuard([UserRole.ADMIN, UserRole.TEACHER]);
-  const [selectedExam, setSelectedExam] = useState<string>('');
-  const [selectedClass, setSelectedClass] = useState<string>('');
+  const searchParams = useSearchParams();
+
+  const initialExam = searchParams.get('exam') || '';
+  const initialClass = searchParams.get('class') || '';
+  const initialPage = Number(searchParams.get('page')) || 1;
+  const rawLimit = searchParams.get('limit');
+  const initialLimit: PageSizeOption = rawLimit === 'all' ? 'all' : Number(rawLimit) || 10;
+  const initialSearch = searchParams.get('q') || '';
+
+  const [selectedExam, setSelectedExam] = useState<string>(initialExam);
+  const [selectedClass, setSelectedClass] = useState<string>(initialClass);
+
+  const updateUrlParams = (params: Record<string, string | number | null | undefined>) => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    Object.entries(params).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === '') {
+        url.searchParams.delete(k);
+      } else {
+        url.searchParams.set(k, String(v));
+      }
+    });
+    window.history.replaceState(null, '', url.toString());
+  };
 
   const { data: exams } = useQuery({
     queryKey: ['report-exams'],
@@ -165,7 +189,14 @@ function ReportsPageContent() {
           <div className="flex items-end gap-3 mb-6 print:hidden">
             <div className="flex-1 space-y-2">
               <Label>Ujian</Label>
-              <Select value={selectedExam} onValueChange={(v) => { setSelectedExam(v); setSelectedClass(''); }}>
+              <Select
+                value={selectedExam}
+                onValueChange={(v) => {
+                  setSelectedExam(v);
+                  setSelectedClass('');
+                  updateUrlParams({ exam: v, class: null, page: 1 });
+                }}
+              >
                 <SelectTrigger><SelectValue placeholder="Pilih Ujian" /></SelectTrigger>
                 <SelectContent>
                   {exams?.map((e) => (<SelectItem key={e.id} value={e.id}>{e.title} ({e.subject?.name}) - {e._count?.exam_sessions || 0} peserta</SelectItem>))}
@@ -174,7 +205,13 @@ function ReportsPageContent() {
             </div>
             <div className="w-48 space-y-2">
               <Label>Kelas</Label>
-              <Select value={selectedClass} onValueChange={setSelectedClass}>
+              <Select
+                value={selectedClass}
+                onValueChange={(v) => {
+                  setSelectedClass(v);
+                  updateUrlParams({ class: v || null, page: 1 });
+                }}
+              >
                 <SelectTrigger><SelectValue placeholder="Semua Kelas" /></SelectTrigger>
                 <SelectContent>
                   {classes?.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name} {c.major?.name ? `- ${c.major.name}` : ''}</SelectItem>))}
@@ -190,7 +227,24 @@ function ReportsPageContent() {
           {!selectedExam ? (
             <EmptyState title="Pilih Ujian" description="Pilih ujian untuk melihat hasil" className="py-8 print:hidden" />
           ) : (
-            <DataTable columns={reportColumns} data={sortedResults} loading={isLoading} emptyMessage="Belum ada hasil ujian" />
+            <DataTable
+              columns={reportColumns}
+              data={sortedResults}
+              searchKey="student.full_name"
+              searchPlaceholder="Cari siswa..."
+              pageSize={initialLimit === 'all' ? 10 : Number(initialLimit) || 10}
+              initialPage={initialPage}
+              initialSearch={initialSearch}
+              onStateChange={({ page, pageSize, search }) => {
+                updateUrlParams({
+                  page,
+                  limit: pageSize,
+                  q: search || null,
+                });
+              }}
+              loading={isLoading}
+              emptyMessage="Belum ada hasil ujian"
+            />
           )}
         </CardContent>
       </Card>
@@ -212,5 +266,11 @@ function ReportsPageContent() {
 }
 
 export default function ReportsPage() {
-  return <ErrorBoundary><ReportsPageContent /></ErrorBoundary>;
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<div className="flex justify-center py-12"><Spinner className="h-8 w-8 text-primary" /></div>}>
+        <ReportsPageContent />
+      </Suspense>
+    </ErrorBoundary>
+  );
 }

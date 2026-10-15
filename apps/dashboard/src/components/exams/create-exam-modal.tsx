@@ -69,7 +69,7 @@ export function CreateExamModal({
       open={open}
       onClose={onClose}
       title={isEditing ? 'Edit Ujian' : 'Buat Ujian Baru'}
-      maxWidth="sm:max-w-xl lg:max-w-2xl"
+      maxWidth="sm:max-w-xl lg:max-w-3xl"
       footer={
         <div className="flex justify-between w-full">
           <div>
@@ -88,9 +88,9 @@ export function CreateExamModal({
         </div>
       }
     >
-      <div className="flex items-center gap-2 mb-6">
+      <div className="sticky -top-6 -mt-2 pt-2 pb-4 bg-background z-10 border-b mb-6 flex items-center gap-2 overflow-x-auto">
         {steps.map((s, i) => (
-          <div key={s} className="flex items-center gap-2">
+          <div key={s} className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setStep(i)}
               className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition ${
