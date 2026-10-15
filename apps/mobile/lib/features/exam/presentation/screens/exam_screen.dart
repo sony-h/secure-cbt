@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
+import 'package:secure_cbt_mobile/core/network/api_error_handler.dart';
 import 'package:secure_cbt_mobile/core/network/socket_client.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/exam_provider.dart';
@@ -73,7 +74,11 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       final response = await _dio.post('/sessions/resume', data: {
         'session_id': widget.sessionId,
       });
-      final session = response.data['data'];
+      final resData = response.data;
+      if (resData is! Map || resData['data'] is! Map) {
+        throw const FormatException('Data sesi ujian tidak valid');
+      }
+      final session = resData['data'] as Map<String, dynamic>;
       final questions = (session['questions'] as List<dynamic>?)
               ?.cast<Map<String, dynamic>>() ??
           [];
@@ -151,12 +156,13 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
     } on DioException catch (e) {
       AppLogger.error('Failed to load session', e);
       if (mounted) {
+        final message = ApiErrorHandler.extractErrorMessage(e, fallback: 'Tidak dapat memuat soal ujian.');
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
             title: const Text('Gagal Memuat Soal'),
-            content: Text(e.response?.data?['message'] ?? 'Tidak dapat memuat soal ujian.'),
+            content: Text(message),
             actions: [
               TextButton(onPressed: () => context.goNamed(RouteNames.token), child: const Text('KEMBALI')),
               TextButton(onPressed: () { Navigator.pop(ctx); _loadSessionData(); }, child: const Text('COBA LAGI')),

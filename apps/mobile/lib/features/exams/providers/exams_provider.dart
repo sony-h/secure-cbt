@@ -5,8 +5,14 @@ final examsDataProvider = FutureProvider((ref) async {
   final dio = ref.read(dioProvider);
   final examsRes = await dio.get('/exams/student');
   final subjectsRes = await dio.get('/academic/subjects');
+  final examsList = (examsRes.data is Map && examsRes.data['data'] is List)
+      ? (examsRes.data['data'] as List)
+      : [];
+  final subjectsList = (subjectsRes.data is Map && subjectsRes.data['data'] is List)
+      ? (subjectsRes.data['data'] as List)
+      : [];
   return {
-    'exams': (examsRes.data['data'] as List?) ?? [],
-    'subjects': (subjectsRes.data['data'] as List?) ?? [],
+    'exams': examsList,
+    'subjects': subjectsList,
   };
 });

@@ -5,7 +5,7 @@ final examResultProvider = FutureProvider.family((ref, String sessionId) async {
   final dio = ref.read(dioProvider);
   final response = await dio.get('/grading/result/$sessionId');
   final data = response.data;
-  if (data['success'] == true && data['data'] != null) {
+  if (data is Map && data['success'] == true && data['data'] != null) {
     return data['data'] as Map<String, dynamic>;
   }
   throw Exception('Hasil tidak ditemukan');

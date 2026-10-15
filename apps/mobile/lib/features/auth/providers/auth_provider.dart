@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
+import 'package:secure_cbt_mobile/core/network/api_error_handler.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 import 'package:secure_cbt_mobile/features/home/providers/home_provider.dart';
 import 'package:secure_cbt_mobile/features/exams/providers/exams_provider.dart';
@@ -67,10 +68,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'password': password,
       });
 
-      final data = response.data['data'];
+      if (response.data is! Map || response.data['data'] is! Map) {
+        throw const FormatException('Format data respons server tidak valid');
+      }
+
+      final data = response.data['data'] as Map<String, dynamic>;
       final accessToken = data['access_token'] as String;
       final refreshToken = data['refresh_token'] as String;
-      final user = data['user'];
+      final user = data['user'] as Map<String, dynamic>;
 
       await _storage.write(key: 'access_token', value: accessToken);
       await _storage.write(key: 'refresh_token', value: refreshToken);
@@ -90,8 +95,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       _ref.invalidate(examsDataProvider);
       _ref.invalidate(historyDataProvider);
       AppLogger.info('Login successful', username);
-    } on DioException catch (e) {
-      final message = e.response?.data?['message'] ?? 'Login gagal';
+    } catch (e) {
+      final message = ApiErrorHandler.extractErrorMessage(e, fallback: 'Login gagal');
       AppLogger.error('Login failed', e);
       throw Exception(message);
     }
@@ -120,20 +125,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (token != null) {
       try {
         final response = await _dio.get('/auth/me');
-        final user = response.data['data'];
-        state = AuthState(
-          isAuthenticated: true,
-          accessToken: token,
-          userId: user['id'] as String?,
-          username: user['username'] as String?,
-          fullName: user['full_name'] as String?,
-          role: user['role'] as String?,
-          nis: user['nis'] as String?,
-          className: user['class_name'] as String?,
-        );
-        _ref.invalidate(homeDataProvider);
-        _ref.invalidate(examsDataProvider);
-        _ref.invalidate(historyDataProvider);
+        if (response.data is Map && response.data['data'] is Map) {
+          final user = response.data['data'] as Map<String, dynamic>;
+          state = AuthState(
+            isAuthenticated: true,
+            accessToken: token,
+            userId: user['id'] as String?,
+            username: user['username'] as String?,
+            fullName: user['full_name'] as String?,
+            role: user['role'] as String?,
+            nis: user['nis'] as String?,
+            className: user['class_name'] as String?,
+          );
+          _ref.invalidate(homeDataProvider);
+          _ref.invalidate(examsDataProvider);
+          _ref.invalidate(historyDataProvider);
+        } else {
+          await _storage.deleteAll();
+        }
       } catch (e) {
         AppLogger.error('tryAutoLogin failed', e);
         await _storage.deleteAll();

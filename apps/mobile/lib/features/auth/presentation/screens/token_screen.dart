@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
+import 'package:secure_cbt_mobile/core/network/api_error_handler.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
@@ -87,7 +88,11 @@ class _TokenScreenState extends ConsumerState<TokenScreen> with SingleTickerProv
         if (widget.examId != null) 'exam_id': widget.examId,
       });
 
-      final session = response.data['data'];
+      final resData = response.data;
+      if (resData is! Map || resData['data'] is! Map) {
+        throw const FormatException('Data sesi ujian tidak valid');
+      }
+      final session = resData['data'] as Map<String, dynamic>;
       final examTitle = session['exam']?['title'] ?? 'Ujian';
 
       if (mounted) {
@@ -98,7 +103,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> with SingleTickerProv
       }
     } on DioException catch (e) {
       _triggerErrorShake();
-      final message = e.response?.data?['message'] ?? 'Token tidak valid atau sudah kedaluwarsa';
+      final message = ApiErrorHandler.extractErrorMessage(e, fallback: 'Token tidak valid atau sudah kedaluwarsa');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

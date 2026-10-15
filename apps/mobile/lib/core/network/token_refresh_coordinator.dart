@@ -48,7 +48,12 @@ class TokenRefreshCoordinator {
       'refresh_token': refreshToken,
     });
 
-    final data = response.data['data'];
+    final resData = response.data;
+    if (resData is! Map || resData['data'] is! Map) {
+      throw const FormatException('Invalid refresh response from server');
+    }
+
+    final data = resData['data'] as Map<String, dynamic>;
     final newAccess = data['access_token'] as String;
     final newRefresh = data['refresh_token'] as String;
 

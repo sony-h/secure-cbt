@@ -1269,8 +1269,13 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 ### 5. Automated Verification
 - Backend unit tests: **99/99 passing** across 14 test suites.
 - Dashboard component tests: **23/23 passing** across 5 test suites.
-- Mobile Flutter unit tests: **22/22 passing**.
+- Mobile Flutter unit tests: **29/29 passing** (including ApiErrorHandler and AuthProvider resilience tests).
 - Monorepo compile check: **0 errors** across shared, backend, and dashboard.
+
+### 6. Mobile Network Resiliency & Error Handling Hardening
+- Created centralized `ApiErrorHandler` (`apps/mobile/lib/core/network/api_error_handler.dart`) preventing `type 'String' is not a subtype of type 'int' of 'index'` crashes when servers return HTML (404, 502, 503, Cloudflare outages, captive portals).
+- Hardened response data parsing across `auth_provider.dart`, `token_screen.dart`, `exam_screen.dart`, `exam_submit_handler.dart`, `review_provider.dart`, `result_provider.dart`, `home_provider.dart`, `history_provider.dart`, `exams_provider.dart`, and `token_refresh_coordinator.dart`.
+- Added unit tests in `apps/mobile/test/core/network/api_error_handler_test.dart` and `apps/mobile/test/features/auth/auth_provider_test.dart`.
 
 ---
 

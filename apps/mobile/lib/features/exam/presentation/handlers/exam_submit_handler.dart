@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
+import 'package:secure_cbt_mobile/core/network/api_error_handler.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/exam_provider.dart';
 import 'package:secure_cbt_mobile/core/security/screen_security.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submission_transition_dialog.dart';
@@ -34,17 +35,17 @@ class ExamSubmitHandler {
         'reason': 'WARNING_LIMIT_EXCEEDED',
       });
     } catch (e) {
+      final errText = ApiErrorHandler.extractErrorMessage(e).toLowerCase();
       final isAlreadySubmitted = e is DioException &&
-          (e.response?.statusCode == 400 &&
-              (e.response?.data?['message']?.toString().toLowerCase().contains('dikumpulkan') == true ||
-               e.response?.data?['message']?.toString().toLowerCase().contains('completed') == true));
+          e.response?.statusCode == 400 &&
+          (errText.contains('dikumpulkan') || errText.contains('completed'));
 
       if (!isAlreadySubmitted) {
         AppLogger.error('Force submit failed', e);
         _submitting = false;
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Auto-submit gagal: ${e.toString()}'), backgroundColor: Theme.of(context).colorScheme.error),
+            SnackBar(content: Text('Auto-submit gagal: ${ApiErrorHandler.extractErrorMessage(e)}'), backgroundColor: Theme.of(context).colorScheme.error),
           );
         }
         return;
@@ -72,17 +73,20 @@ class ExamSubmitHandler {
     try {
       await dio.post('/sessions/submit', data: {'session_id': sessionId});
     } catch (e) {
+      final errText = ApiErrorHandler.extractErrorMessage(e).toLowerCase();
       final isAlreadySubmitted = e is DioException &&
-          (e.response?.statusCode == 400 &&
-              (e.response?.data?['message']?.toString().toLowerCase().contains('dikumpulkan') == true ||
-               e.response?.data?['message']?.toString().toLowerCase().contains('completed') == true));
+          e.response?.statusCode == 400 &&
+          (errText.contains('dikumpulkan') || errText.contains('completed'));
 
       if (!isAlreadySubmitted) {
         AppLogger.error('Submit failed', e);
         _submitting = false;
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Submit gagal: ${e.toString()}'), backgroundColor: Theme.of(context).colorScheme.error),
+            SnackBar(
+              content: Text('Submit gagal: ${ApiErrorHandler.extractErrorMessage(e)}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
           );
         }
         return;
