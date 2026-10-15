@@ -3,9 +3,9 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.4.0` (Mobile Android Build: `1.4.0+11`)  
+**Current Version:** `v1.5.0` (Mobile Android Build: `1.5.0+12`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 27 - Random Question Pool per Exam (Sub-sampling & Difficulty Point Weighting)  
+**Current Phase:** Phase 28 - Multi-Type Question Importer & Master Templates (Release v1.5.0+12)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
 **Last Updated:** 2026-10-14
@@ -1219,6 +1219,58 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - Dashboard component tests: **16/16 passing**.
 - Mobile Flutter tests: **22/22 passing** (including dual-score result widget test).
 - Monorepo typecheck: **0 errors** across shared, backend, and dashboard.
+
+---
+
+## Phase 28 — Multi-Type Question Importer & Master Templates — COMPLETE
+
+**Target Platform:** Full-Stack (Shared Contracts + Backend Parsers + Dashboard Preview + Mobile Release)  
+**Standard:** ANBK & Kemendikbud CBT Standard (All 6 Core Question Formats)  
+**Version:** `v1.5.0` (Mobile Android Build: `1.5.0+12`)  
+**Date:** 2026-10-15  
+
+### 1. Dynamic Shared Schemas (`@secure-cbt/shared`)
+- Enhanced Zod validation schemas in `question-import.schema.ts` with type-aware `.superRefine()`:
+  - `ESSAY`: 0 options required, optional grading rubric.
+  - `SHORT_ANSWER`: $\ge 1$ accepted answer key options.
+  - `MATCHING`: $\ge 2$ paired options with valid `{ left, right }` JSON payloads.
+  - `MULTIPLE_CHOICE`, `MULTI_SELECT`, `TRUE_FALSE`: $\ge 2$ options with at least one correct key marked.
+
+### 2. High-Precision Parsers with Auto-Detection (`WordParserService` & `ExcelParserService`)
+- **Word (.docx) Parser:**
+  - Robust parser supporting both 2-column table grids and natural paragraph blocks.
+  - Explicit `TIPE:` metadata tag parsing with priority normalization.
+  - Structural auto-detection for legacy templates:
+    - Arrow pair recognition (`->` and Unicode arrows `→`, `➔`, `➜`, `➡`, `⇒`).
+    - True/False key auto-detection (`BENAR`/`SALAH`, `TRUE`/`FALSE`) with automatic Benar/Salah option synthesis.
+    - Multi-select letter matching (`A, B, D`).
+    - Short answer auto-detection when options are omitted and key text is provided.
+    - Essay auto-detection when both options and keys are omitted.
+- **Excel (.xlsx) Parser:**
+  - Added support for new optional `Tipe Soal` column with fuzzy normalization.
+  - Backward-compatible auto-detection for legacy spreadsheets.
+  - Full support for multi-select comma keys and arrow matching pairs.
+
+### 3. Master Import Templates (`template-generator.ts`)
+- Master `.docx` template with clear formatting guidelines, badge tags, and 6 sample questions.
+- Master `.xlsx` template with Data Validation dropdowns for `Tipe Soal` and `Tingkat Kesulitan`, plus 6 sample questions.
+
+### 4. Dashboard Import Preview Experience (`import-questions-modal.tsx`)
+- Exported modular `QuestionImportPreviewItem` with unit test coverage.
+- Color-coded badges per question format:
+  - Blue: Pilihan Ganda (`MULTIPLE_CHOICE`)
+  - Purple: PG Kompleks (`MULTI_SELECT`)
+  - Amber: Benar / Salah (`TRUE_FALSE`)
+  - Cyan: Isian Singkat (`SHORT_ANSWER`)
+  - Indigo: Menjodohkan (`MATCHING`)
+  - Rose: Esai / Uraian (`ESSAY`)
+- Custom layout previews: paired pill cards for matching (`Premis → Pasangan`), key tags for short answer, and manual grading notice for essays.
+
+### 5. Automated Verification
+- Backend unit tests: **99/99 passing** across 14 test suites.
+- Dashboard component tests: **23/23 passing** across 5 test suites.
+- Mobile Flutter unit tests: **22/22 passing**.
+- Monorepo compile check: **0 errors** across shared, backend, and dashboard.
 
 ---
 
