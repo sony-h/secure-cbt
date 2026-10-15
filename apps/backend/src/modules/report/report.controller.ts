@@ -32,4 +32,12 @@ export class ReportController {
     const data = await this.reportService.getClassReport(id);
     return { success: true, message: 'Class report retrieved', data };
   }
+
+  @Get('session/:sessionId/review')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get full student session review for teachers and admins' })
+  async getSessionReview(@Param('sessionId') sessionId: string) {
+    const data = await this.reportService.getSessionReview(sessionId);
+    return { success: true, message: 'Session review retrieved', data };
+  }
 }

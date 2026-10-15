@@ -110,4 +110,90 @@ export class ReportService {
       students: studentReports,
     };
   }
+
+  async getSessionReview(sessionId: string) {
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { include: { class: true } },
+        score: true,
+        exam: {
+          include: {
+            subject: true,
+            exam_questions: {
+              include: {
+                question: {
+                  include: {
+                    options: { orderBy: { order: 'asc' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+        answers: true,
+      },
+    });
+
+    if (!session) throw new NotFoundException('Session not found');
+
+    const filteredQuestions = session.exam.exam_questions.filter(
+      (eq) => !eq.package_id || eq.package_id === session.package_id,
+    );
+
+    let orderedQuestions: typeof filteredQuestions;
+    if (session.question_order && Array.isArray(session.question_order)) {
+      const orderArray = session.question_order as string[];
+      orderedQuestions = orderArray
+        .map((id) => filteredQuestions.find((eq) => eq.id === id))
+        .filter(Boolean) as typeof filteredQuestions;
+    } else {
+      orderedQuestions = [...filteredQuestions].sort((a, b) => a.position - b.position);
+    }
+
+    const answerMap = new Map(session.answers.map((a) => [a.question_id, a]));
+
+    const questions = orderedQuestions.map((eq, index) => {
+      const q = eq.question;
+      const ans = answerMap.get(q.id);
+
+      return {
+        id: q.id,
+        number: index + 1,
+        type: q.type,
+        content: q.content,
+        image_url: q.image_url,
+        difficulty: q.difficulty,
+        explanation: q.explanation,
+        student_answer: ans?.answer_text ?? null,
+        is_correct: ans?.is_correct ?? false,
+        score: ans?.score ?? 0,
+        feedback: ans?.feedback ?? null,
+        options: (q.options || []).map((opt) => ({
+          id: opt.id,
+          content: opt.content,
+          image_url: opt.image_url,
+          is_correct: opt.is_correct,
+          order: opt.order,
+        })),
+      };
+    });
+
+    return {
+      session_id: session.id,
+      student_id: session.student_id,
+      student_name: session.student.full_name,
+      nis: session.student.nis,
+      class_name: session.student.class.name,
+      exam_id: session.exam_id,
+      exam_title: session.exam.title,
+      subject_name: session.exam.subject.name,
+      score: session.score?.total_score ?? null,
+      correct_count: session.score?.correct_count ?? null,
+      wrong_count: session.score?.wrong_count ?? null,
+      submitted_at: session.submitted_at?.toISOString() ?? null,
+      status: session.status,
+      questions,
+    };
+  }
 }
