@@ -30,6 +30,76 @@ export interface ReportQueryParams {
   sort_order?: 'asc' | 'desc';
 }
 
+export interface SessionReviewQuestionOption {
+  id: string;
+  content: string;
+  image_url: string | null;
+  is_correct: boolean;
+  order: number;
+}
+
+export interface SessionReviewQuestion {
+  id: string;
+  number: number;
+  type: string;
+  content: string;
+  image_url: string | null;
+  difficulty: string;
+  explanation: string | null;
+  student_answer: string | null;
+  is_correct: boolean;
+  score: number;
+  feedback: string | null;
+  options: SessionReviewQuestionOption[];
+}
+
+export interface SessionReviewData {
+  session_id: string;
+  student_id: string;
+  student_name: string;
+  nis: string;
+  class_name: string;
+  exam_id: string;
+  exam_title: string;
+  subject_name: string;
+  score: number | null;
+  correct_count: number | null;
+  wrong_count: number | null;
+  submitted_at: string | null;
+  status: string;
+  questions: SessionReviewQuestion[];
+}
+
+export interface ItemAnalysisDistractor {
+  option_id: string;
+  order: number;
+  content: string;
+  is_correct: boolean;
+  count: number;
+  percentage: number;
+}
+
+export interface ItemAnalysisQuestion {
+  question_id: string;
+  number: number;
+  content: string;
+  type: string;
+  difficulty: string;
+  total_answered: number;
+  correct_count: number;
+  wrong_count: number;
+  difficulty_index: number;
+  pass_rate: number;
+  distractor_distribution: ItemAnalysisDistractor[];
+}
+
+export interface ItemAnalysisData {
+  exam_id: string;
+  exam_title: string;
+  total_sessions: number;
+  questions: ItemAnalysisQuestion[];
+}
+
 export const academicApi = {
   getClasses: (params?: PaginationParams) => api.get('/academic/classes', { params }),
   getSubjects: (params?: PaginationParams) => api.get('/academic/subjects', { params }),
@@ -107,6 +177,9 @@ export const uploadApi = {
 
 export const reportApi = {
   getExamReport: (examId: string, params?: ReportQueryParams) => api.get(`/reports/exam/${examId}`, { params }),
+  getClassReport: (classId: string) => api.get(`/reports/class/${classId}`),
+  getSessionReview: (sessionId: string) => api.get(`/reports/session/${sessionId}/review`),
+  getItemAnalysis: (examId: string) => api.get(`/reports/exam/${examId}/item-analysis`),
 };
 
 export const monitoringApi = {
@@ -118,6 +191,8 @@ export const gradingApi = {
   getPendingEssays: (examId: string) => api.get(`/grading/pending/${examId}`),
   getSessionEssays: (sessionId: string) => api.get(`/grading/session/${sessionId}/essays`),
   gradeEssay: (data: { session_id: string; question_id: string; score: number; feedback: string }) => api.post('/grading/essay', data),
+  regradeExam: (examId: string) => api.post(`/grading/exam/${examId}/regrade`),
+  regradeSession: (sessionId: string) => api.post(`/grading/session/${sessionId}/regrade`),
 };
 
 export const settingsApi = {
