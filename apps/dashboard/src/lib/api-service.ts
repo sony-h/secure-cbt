@@ -203,9 +203,20 @@ export const monitoringApi = {
 };
 
 export const gradingApi = {
-  getPendingEssays: (examId: string) => api.get(`/grading/pending/${examId}`),
+  getPendingEssays: (
+    examId: string,
+    params?: { class_id?: string; status?: 'pending' | 'completed' | 'all' },
+  ) => api.get(`/grading/pending/${examId}`, { params }),
   getSessionEssays: (sessionId: string) => api.get(`/grading/session/${sessionId}/essays`),
-  gradeEssay: (data: { session_id: string; question_id: string; score: number; feedback: string }) => api.post('/grading/essay', data),
+  gradeEssay: (data: {
+    session_id: string;
+    question_id: string;
+    score: number;
+    feedback?: string;
+    revision_note?: string;
+  }) => api.post('/grading/essay', data),
+  getEssayHistory: (sessionId: string, questionId: string) =>
+    api.get(`/grading/session/${sessionId}/question/${questionId}/history`),
   regradeExam: (examId: string) => api.post(`/grading/exam/${examId}/regrade`),
   regradeSession: (sessionId: string) => api.post(`/grading/session/${sessionId}/regrade`),
 };

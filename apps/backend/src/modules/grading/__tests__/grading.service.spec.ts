@@ -14,9 +14,10 @@ describe('GradingService', () => {
   beforeEach(() => {
     mockPrisma = {
       answer: { findUnique: vi.fn(), update: vi.fn() },
-      examSession: { findUnique: vi.fn() },
+      examSession: { findUnique: vi.fn(), findMany: vi.fn() },
       questionOption: { findMany: vi.fn() },
-      score: { upsert: vi.fn(), findFirst: vi.fn() },
+      score: { upsert: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn() },
+      sessionLog: { create: vi.fn().mockResolvedValue({}), findMany: vi.fn().mockResolvedValue([]) },
       setting: { findFirst: vi.fn().mockResolvedValue({ passing_grade: 70 }) },
       $transaction: vi.fn((fn: any) => fn(mockPrisma)),
     };
@@ -25,27 +26,100 @@ describe('GradingService', () => {
   });
 
   describe('gradeEssay()', () => {
-    it('should update answer score and call calculateTotalScore in transaction', async () => {
+    it('should update answer score, log ESSAY_GRADED in SessionLog for initial grading, and call calculateTotalScore in transaction', async () => {
       const answerId = UUID();
+      const sessionId = UUID();
+      const questionId = UUID();
+      const graderId = UUID();
+
       mockPrisma.answer.findUnique.mockResolvedValue({
         id: answerId,
+        score: null,
+        feedback: null,
         question: { type: QuestionType.ESSAY },
       });
       mockPrisma.answer.update.mockResolvedValue({});
       mockPrisma.examSession.findUnique.mockResolvedValue({
-        id: UUID(), answers: [], package: null, exam: { exam_questions: [] },
+        id: sessionId, answers: [], package: null, exam: { exam_questions: [] },
       });
       mockPrisma.score.upsert.mockResolvedValue({});
 
       const result = await service.gradeEssay(
-        { session_id: UUID(), question_id: UUID(), score: 80, feedback: 'Good answer' },
-        UUID(),
+        { session_id: sessionId, question_id: questionId, score: 80, feedback: 'Good answer' },
+        graderId,
       );
 
       expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(mockPrisma.sessionLog.create).toHaveBeenCalledWith({
+        data: {
+          exam_session_id: sessionId,
+          event: 'ESSAY_GRADED',
+          description: expect.stringContaining('"score":80'),
+        },
+      });
+      const logData = JSON.parse(mockPrisma.sessionLog.create.mock.calls[0][0].data.description);
+      expect(logData).toMatchObject({
+        question_id: questionId,
+        score: 80,
+        feedback: 'Good answer',
+        grader_id: graderId,
+      });
       expect(mockPrisma.answer.update).toHaveBeenCalledWith({
         where: { id: answerId },
         data: { score: 80, is_correct: true, feedback: 'Good answer' },
+      });
+      expect(result).toEqual({ graded: true });
+    });
+
+    it('should log ESSAY_REVISED in SessionLog when revising an already graded essay', async () => {
+      const answerId = UUID();
+      const sessionId = UUID();
+      const questionId = UUID();
+      const graderId = UUID();
+
+      mockPrisma.answer.findUnique.mockResolvedValue({
+        id: answerId,
+        score: 70,
+        feedback: 'Initial feedback',
+        question: { type: QuestionType.ESSAY },
+      });
+      mockPrisma.answer.update.mockResolvedValue({});
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId, answers: [], package: null, exam: { exam_questions: [] },
+      });
+      mockPrisma.score.upsert.mockResolvedValue({});
+
+      const result = await service.gradeEssay(
+        {
+          session_id: sessionId,
+          question_id: questionId,
+          score: 85,
+          feedback: 'Improved feedback',
+          revision_note: 'Student provided additional supporting details',
+        },
+        graderId,
+      );
+
+      expect(mockPrisma.sessionLog.create).toHaveBeenCalledWith({
+        data: {
+          exam_session_id: sessionId,
+          event: 'ESSAY_REVISED',
+          description: expect.stringContaining('"previous_score":70'),
+        },
+      });
+      const logData = JSON.parse(mockPrisma.sessionLog.create.mock.calls[0][0].data.description);
+      expect(logData).toMatchObject({
+        question_id: questionId,
+        previous_score: 70,
+        new_score: 85,
+        previous_feedback: 'Initial feedback',
+        new_feedback: 'Improved feedback',
+        revision_note: 'Student provided additional supporting details',
+        grader_id: graderId,
+      });
+      expect(mockPrisma.answer.update).toHaveBeenCalledWith({
+        where: { id: answerId },
+        data: { score: 85, is_correct: true, feedback: 'Improved feedback' },
       });
       expect(result).toEqual({ graded: true });
     });
@@ -340,6 +414,191 @@ describe('GradingService', () => {
         old_score: 50,
         new_score: 80,
       });
+    });
+  });
+
+  describe('getEssayHistory()', () => {
+    it('should query SessionLog and return formatted history sorted newest first for matching questionId', async () => {
+      const sessionId = UUID();
+      const questionId = UUID();
+      const otherQuestionId = UUID();
+      const graderId = UUID();
+
+      const logGraded = {
+        id: UUID(),
+        event: 'ESSAY_GRADED',
+        exam_session_id: sessionId,
+        description: JSON.stringify({
+          question_id: questionId,
+          score: 75,
+          feedback: 'Cukup baik',
+          grader_id: graderId,
+          timestamp: '2026-10-15T10:00:00.000Z',
+        }),
+        created_at: new Date('2026-10-15T10:00:00.000Z'),
+      };
+
+      const logRevised = {
+        id: UUID(),
+        event: 'ESSAY_REVISED',
+        exam_session_id: sessionId,
+        description: JSON.stringify({
+          question_id: questionId,
+          previous_score: 75,
+          new_score: 90,
+          previous_feedback: 'Cukup baik',
+          new_feedback: 'Analisis mendalam',
+          revision_note: 'Siswa menambahkan argumentasi valid',
+          grader_id: graderId,
+          timestamp: '2026-10-15T11:00:00.000Z',
+        }),
+        created_at: new Date('2026-10-15T11:00:00.000Z'),
+      };
+
+      const logOtherQuestion = {
+        id: UUID(),
+        event: 'ESSAY_GRADED',
+        exam_session_id: sessionId,
+        description: JSON.stringify({
+          question_id: otherQuestionId,
+          score: 60,
+          feedback: 'Perlu revisi',
+          grader_id: graderId,
+          timestamp: '2026-10-15T10:30:00.000Z',
+        }),
+        created_at: new Date('2026-10-15T10:30:00.000Z'),
+      };
+
+      // Mock returns ordered by created_at desc (newest first)
+      mockPrisma.sessionLog.findMany.mockResolvedValue([logRevised, logOtherQuestion, logGraded]);
+
+      const history = await service.getEssayHistory(sessionId, questionId);
+
+      expect(mockPrisma.sessionLog.findMany).toHaveBeenCalledWith({
+        where: {
+          exam_session_id: sessionId,
+          event: { in: ['ESSAY_GRADED', 'ESSAY_REVISED'] },
+        },
+        orderBy: { created_at: 'desc' },
+      });
+
+      expect(history).toHaveLength(2);
+      expect(history[0]).toMatchObject({
+        id: logRevised.id,
+        event: 'ESSAY_REVISED',
+        question_id: questionId,
+        previous_score: 75,
+        new_score: 90,
+        revision_note: 'Siswa menambahkan argumentasi valid',
+        grader_id: graderId,
+      });
+      expect(history[1]).toMatchObject({
+        id: logGraded.id,
+        event: 'ESSAY_GRADED',
+        question_id: questionId,
+        score: 75,
+        feedback: 'Cukup baik',
+        grader_id: graderId,
+      });
+    });
+  });
+
+  describe('getPendingEssays()', () => {
+    const examId = UUID();
+
+    it('should query with status "pending" by default', async () => {
+      mockPrisma.examSession.findMany.mockResolvedValue([
+        {
+          id: 'ses-1',
+          student: { full_name: 'Student 1', nis: '001', class: { name: 'XII-A' } },
+          answers: [
+            { score: null, question: { type: QuestionType.ESSAY } },
+            { score: 80, question: { type: QuestionType.ESSAY } },
+          ],
+        },
+      ]);
+
+      const res = await service.getPendingEssays(examId);
+
+      expect(mockPrisma.examSession.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            exam_id: examId,
+            answers: {
+              some: {
+                question: { type: QuestionType.ESSAY },
+                score: null,
+              },
+            },
+          }),
+        }),
+      );
+      expect(res).toEqual([
+        {
+          session_id: 'ses-1',
+          student_name: 'Student 1',
+          nis: '001',
+          class_name: 'XII-A',
+          pending_count: 1,
+          graded_count: 1,
+          total_essays: 2,
+        },
+      ]);
+    });
+
+    it('should query with status "completed" when specified', async () => {
+      mockPrisma.examSession.findMany.mockResolvedValue([
+        {
+          id: 'ses-2',
+          student: { full_name: 'Student 2', nis: '002', class: { name: 'XII-B' } },
+          answers: [
+            { score: 90, question: { type: QuestionType.ESSAY } },
+            { score: 85, question: { type: QuestionType.ESSAY } },
+          ],
+        },
+      ]);
+
+      const res = await service.getPendingEssays(examId, undefined, 'completed');
+
+      expect(mockPrisma.examSession.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            exam_id: examId,
+            answers: {
+              some: { question: { type: QuestionType.ESSAY } },
+              none: { question: { type: QuestionType.ESSAY }, score: null },
+            },
+          }),
+        }),
+      );
+      expect(res).toEqual([
+        {
+          session_id: 'ses-2',
+          student_name: 'Student 2',
+          nis: '002',
+          class_name: 'XII-B',
+          pending_count: 0,
+          graded_count: 2,
+          total_essays: 2,
+        },
+      ]);
+    });
+
+    it('should query with status "all" when specified', async () => {
+      mockPrisma.examSession.findMany.mockResolvedValue([]);
+
+      await service.getPendingEssays(examId, undefined, 'all');
+
+      expect(mockPrisma.examSession.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            exam_id: examId,
+            answers: {
+              some: { question: { type: QuestionType.ESSAY } },
+            },
+          }),
+        }),
+      );
     });
   });
 });

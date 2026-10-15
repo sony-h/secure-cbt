@@ -12,7 +12,7 @@ export class GradingService {
   ) {}
 
   async gradeEssay(dto: GradeEssayInput, graderId: string) {
-    const { session_id, question_id, score, feedback } = gradeEssaySchema.parse(dto);
+    const { session_id, question_id, score, feedback, revision_note } = gradeEssaySchema.parse(dto);
 
     return await this.prisma.$transaction(async (tx) => {
       const answer = await tx.answer.findUnique({
@@ -21,6 +21,34 @@ export class GradingService {
       });
       if (!answer) throw new NotFoundException('Answer not found');
       if (answer.question.type !== QuestionType.ESSAY) throw new NotFoundException('Question is not an essay type');
+
+      const isRevision = answer.score !== null;
+      const logPayload = isRevision
+        ? {
+            question_id,
+            previous_score: answer.score,
+            new_score: score,
+            previous_feedback: answer.feedback ?? null,
+            new_feedback: feedback ?? null,
+            revision_note: dto.revision_note || null,
+            grader_id: graderId,
+            timestamp: new Date().toISOString(),
+          }
+        : {
+            question_id,
+            score,
+            feedback: feedback ?? null,
+            grader_id: graderId,
+            timestamp: new Date().toISOString(),
+          };
+
+      await tx.sessionLog.create({
+        data: {
+          exam_session_id: session_id,
+          event: isRevision ? 'ESSAY_REVISED' : 'ESSAY_GRADED',
+          description: JSON.stringify(logPayload),
+        },
+      });
 
       await tx.answer.update({
         where: { id: answer.id },
@@ -341,37 +369,129 @@ export class GradingService {
     };
   }
 
-  async getPendingEssays(examId: string, classId?: string) {
+  async getPendingEssays(
+    examId: string,
+    classId?: string,
+    status: 'pending' | 'completed' | 'all' = 'pending',
+  ) {
     const where: any = {
       exam_id: examId,
       status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED] },
-      answers: {
+    };
+    if (classId) where.student = { class_id: classId };
+
+    if (status === 'completed') {
+      where.answers = {
+        some: { question: { type: QuestionType.ESSAY } },
+        none: { question: { type: QuestionType.ESSAY }, score: null },
+      };
+    } else if (status === 'all') {
+      where.answers = {
+        some: { question: { type: QuestionType.ESSAY } },
+      };
+    } else {
+      // 'pending'
+      where.answers = {
         some: {
           question: { type: QuestionType.ESSAY },
           score: null,
         },
-      },
-    };
-    if (classId) where.student = { class_id: classId };
+      };
+    }
 
     const sessions = await this.prisma.examSession.findMany({
       where,
       include: {
         student: { include: { class: true } },
         answers: {
-          where: { question: { type: QuestionType.ESSAY }, score: null },
+          where: { question: { type: QuestionType.ESSAY } },
           include: { question: true },
         },
       },
     });
 
-    return sessions.map((s) => ({
-      session_id: s.id,
-      student_name: s.student.full_name,
-      nis: s.student.nis,
-      class_name: s.student.class.name,
-      pending_count: s.answers.length,
-    }));
+    return sessions.map((s) => {
+      const pendingCount = s.answers.filter((a) => a.score === null).length;
+      const gradedCount = s.answers.filter((a) => a.score !== null).length;
+      return {
+        session_id: s.id,
+        student_name: s.student.full_name,
+        nis: s.student.nis,
+        class_name: s.student.class?.name || '',
+        pending_count: pendingCount,
+        graded_count: gradedCount,
+        total_essays: s.answers.length,
+      };
+    });
+  }
+
+  async getEssayHistory(sessionId: string, questionId: string) {
+    const logs = await this.prisma.sessionLog.findMany({
+      where: {
+        exam_session_id: sessionId,
+        event: { in: ['ESSAY_GRADED', 'ESSAY_REVISED'] },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const matchingLogs = logs
+      .map((log) => {
+        try {
+          const parsed = JSON.parse(log.description || '{}');
+          if (parsed.question_id !== questionId) return null;
+          return {
+            id: log.id,
+            event: log.event,
+            question_id: parsed.question_id,
+            previous_score: parsed.previous_score ?? null,
+            new_score: parsed.new_score ?? null,
+            score: parsed.score ?? parsed.new_score ?? null,
+            previous_feedback: parsed.previous_feedback ?? null,
+            new_feedback: parsed.new_feedback ?? null,
+            feedback: parsed.feedback ?? parsed.new_feedback ?? null,
+            revision_note: parsed.revision_note ?? null,
+            grader_id: parsed.grader_id,
+            timestamp: parsed.timestamp || log.created_at.toISOString(),
+            created_at: log.created_at,
+          };
+        } catch {
+          return null;
+        }
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    const graderIds = [
+      ...new Set(
+        matchingLogs
+          .map((item) => item.grader_id)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    ];
+
+    if (this.prisma.user?.findMany && graderIds.length > 0) {
+      try {
+        const graders = await this.prisma.user.findMany({
+          where: { id: { in: graderIds } },
+          select: {
+            id: true,
+            username: true,
+            teacher: { select: { full_name: true } },
+          },
+        });
+        const graderMap = new Map<string, string>();
+        for (const g of graders) {
+          graderMap.set(g.id, g.teacher?.full_name || g.username);
+        }
+        return matchingLogs.map((item) => ({
+          ...item,
+          grader_name: graderMap.get(item.grader_id) || null,
+        }));
+      } catch {
+        // Fallback without grader names if user query fails
+      }
+    }
+
+    return matchingLogs;
   }
 
   async getSessionEssays(sessionId: string) {

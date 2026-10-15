@@ -42,10 +42,25 @@ export class GradingController {
 
   @Get('pending/:examId')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Get sessions with ungraded essays' })
-  async getPendingEssays(@Param('examId') examId: string, @Query('class_id') classId?: string) {
-    const data = await this.gradingService.getPendingEssays(examId, classId);
-    return { success: true, message: 'Pending essays retrieved', data };
+  @ApiOperation({ summary: 'Get sessions with essays (filtered by status)' })
+  async getPendingEssays(
+    @Param('examId') examId: string,
+    @Query('class_id') classId?: string,
+    @Query('status') status?: 'pending' | 'completed' | 'all',
+  ) {
+    const data = await this.gradingService.getPendingEssays(examId, classId, status);
+    return { success: true, message: 'Essays retrieved', data };
+  }
+
+  @Get('session/:sessionId/question/:questionId/history')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get revision history for an essay question' })
+  async getEssayHistory(
+    @Param('sessionId') sessionId: string,
+    @Param('questionId') questionId: string,
+  ) {
+    const data = await this.gradingService.getEssayHistory(sessionId, questionId);
+    return { success: true, message: 'Essay history retrieved', data };
   }
 
   @Get('session/:sessionId/essays')
