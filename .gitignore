@@ -32,6 +32,7 @@ coverage/
 # Git Worktrees
 .worktrees/
 worktrees/
+.superpowers/
 
 # Prisma
 *.db
