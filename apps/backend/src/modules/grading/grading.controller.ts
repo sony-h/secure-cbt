@@ -55,4 +55,20 @@ export class GradingController {
     const data = await this.gradingService.getSessionEssays(sessionId);
     return { success: true, message: 'Session essays retrieved', data };
   }
+
+  @Post('exam/:id/regrade')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Regrade all submitted sessions for an exam' })
+  async regradeExam(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    const data = await this.gradingService.regradeExam(id, req.user.sub);
+    return { success: true, message: 'Exam regrading completed', data };
+  }
+
+  @Post('session/:id/regrade')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Regrade a single session' })
+  async regradeSession(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    const data = await this.gradingService.regradeSession(id, req.user.sub);
+    return { success: true, message: 'Session regrading completed', data };
+  }
 }

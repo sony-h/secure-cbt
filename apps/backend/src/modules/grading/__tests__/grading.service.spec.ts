@@ -259,4 +259,87 @@ describe('GradingService', () => {
       expect(result.total_score).toBe(85);
     });
   });
+
+  describe('regradeExam()', () => {
+    it('should re-evaluate all submitted sessions for an exam and return score changes', async () => {
+      const examId = UUID();
+      const graderId = UUID();
+      const sessionId = UUID();
+
+      mockPrisma.exam = { findUnique: vi.fn().mockResolvedValue({ id: examId, title: 'KKA Exam' }) };
+      mockPrisma.examSession.findMany = vi.fn().mockResolvedValue([
+        {
+          id: sessionId,
+          student_id: UUID(),
+          student: { full_name: 'Ahmad Siswa', nis: '202501001' },
+          score: { total_score: 0 },
+        },
+      ]);
+      mockPrisma.score.findUnique = vi.fn().mockResolvedValue({ total_score: 0 });
+      mockPrisma.score.upsert = vi.fn().mockResolvedValue({});
+
+      // Mock calculateTotalScore internal behavior
+      vi.spyOn(service, 'calculateTotalScore').mockResolvedValue({
+        total_score: 100,
+        raw_points_earned: 10,
+        raw_points_possible: 10,
+        correct_count: 5,
+        wrong_count: 0,
+        essay_score: 0,
+        total_questions: 5,
+      });
+
+      const res = await service.regradeExam(examId, graderId);
+
+      expect(mockPrisma.examSession.findMany).toHaveBeenCalled();
+      expect(service.calculateTotalScore).toHaveBeenCalledWith(
+        mockPrisma,
+        sessionId,
+        { forceReevaluate: true },
+      );
+      expect(res.regraded_count).toBe(1);
+      expect(res.score_changes).toHaveLength(1);
+      expect(res.score_changes[0]).toEqual({
+        session_id: sessionId,
+        student_name: 'Ahmad Siswa',
+        nis: '202501001',
+        old_score: 0,
+        new_score: 100,
+      });
+    });
+  });
+
+  describe('regradeSession()', () => {
+    it('should re-evaluate a single session and update score', async () => {
+      const sessionId = UUID();
+      const graderId = UUID();
+
+      mockPrisma.examSession.findUnique = vi.fn().mockResolvedValue({
+        id: sessionId,
+        student: { full_name: 'Budi Siswa', nis: '202501002' },
+        score: { total_score: 50 },
+      });
+      mockPrisma.score.upsert = vi.fn().mockResolvedValue({});
+
+      vi.spyOn(service, 'calculateTotalScore').mockResolvedValue({
+        total_score: 80,
+        raw_points_earned: 8,
+        raw_points_possible: 10,
+        correct_count: 4,
+        wrong_count: 1,
+        essay_score: 0,
+        total_questions: 5,
+      });
+
+      const res = await service.regradeSession(sessionId, graderId);
+
+      expect(res).toEqual({
+        session_id: sessionId,
+        student_name: 'Budi Siswa',
+        nis: '202501002',
+        old_score: 50,
+        new_score: 80,
+      });
+    });
+  });
 });

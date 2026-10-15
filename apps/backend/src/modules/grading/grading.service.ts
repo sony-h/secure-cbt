@@ -401,4 +401,108 @@ export class GradingService {
       })),
     };
   }
+
+  async regradeExam(examId: string, graderId?: string) {
+    const exam = await this.prisma.exam.findUnique({
+      where: { id: examId },
+      select: { id: true, title: true },
+    });
+    if (!exam) throw new NotFoundException('Exam not found');
+
+    const sessions = await this.prisma.examSession.findMany({
+      where: {
+        exam_id: examId,
+        status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED] },
+      },
+      include: {
+        student: { select: { full_name: true, nis: true } },
+        score: { select: { total_score: true } },
+      },
+    });
+
+    return this.prisma.$transaction(async (tx) => {
+      const settings = await tx.setting.findFirst({ select: { passing_grade: true } });
+      const scoreChanges = [];
+
+      for (const session of sessions) {
+        const oldScore = session.score?.total_score ?? 0;
+        const scoreData = await this.calculateTotalScore(tx, session.id, { forceReevaluate: true });
+
+        await tx.score.upsert({
+          where: { exam_session_id: session.id },
+          create: {
+            exam_session_id: session.id,
+            ...scoreData,
+            passing_grade_at_score: settings?.passing_grade ?? null,
+            graded_by: graderId,
+            graded_at: new Date(),
+          },
+          update: {
+            ...scoreData,
+            passing_grade_at_score: settings?.passing_grade ?? null,
+            graded_by: graderId,
+            graded_at: new Date(),
+          },
+        });
+
+        scoreChanges.push({
+          session_id: session.id,
+          student_name: session.student?.full_name ?? '',
+          nis: session.student?.nis ?? '',
+          old_score: oldScore,
+          new_score: scoreData.total_score,
+        });
+      }
+
+      this.eventEmitter.emit('exam.regraded', { examId, graderId, count: sessions.length });
+
+      return {
+        total_sessions: sessions.length,
+        regraded_count: scoreChanges.length,
+        score_changes: scoreChanges,
+      };
+    });
+  }
+
+  async regradeSession(sessionId: string, graderId?: string) {
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { full_name: true, nis: true } },
+        score: { select: { total_score: true } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      const settings = await tx.setting.findFirst({ select: { passing_grade: true } });
+      const oldScore = session.score?.total_score ?? 0;
+      const scoreData = await this.calculateTotalScore(tx, session.id, { forceReevaluate: true });
+
+      await tx.score.upsert({
+        where: { exam_session_id: session.id },
+        create: {
+          exam_session_id: session.id,
+          ...scoreData,
+          passing_grade_at_score: settings?.passing_grade ?? null,
+          graded_by: graderId,
+          graded_at: new Date(),
+        },
+        update: {
+          ...scoreData,
+          passing_grade_at_score: settings?.passing_grade ?? null,
+          graded_by: graderId,
+          graded_at: new Date(),
+        },
+      });
+
+      return {
+        session_id: session.id,
+        student_name: session.student?.full_name ?? '',
+        nis: session.student?.nis ?? '',
+        old_score: oldScore,
+        new_score: scoreData.total_score,
+      };
+    });
+  }
 }
