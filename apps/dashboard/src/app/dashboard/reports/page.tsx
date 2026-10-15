@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { StudentSessionReviewModal } from '@/components/reports/student-session-review-modal';
 import { ItemAnalysisView } from '@/components/reports/item-analysis-view';
+import { FormalReportModal } from '@/components/reports/formal-report-modal';
 
 interface Exam { id: string; title: string; subject?: { name: string }; status: string; _count?: { exam_sessions: number }; }
 interface ClassItem { id: string; name: string; major?: { name: string }; }
@@ -61,6 +62,7 @@ function ReportsPageContent() {
     studentName?: string;
     nis?: string;
   } | null>(null);
+  const [isFormalReportOpen, setIsFormalReportOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'students' | 'item-analysis'>('students');
   const queryClient = useQueryClient();
 
@@ -321,6 +323,15 @@ function ReportsPageContent() {
               <Button variant="outline" disabled={!results?.length} onClick={handleExportCSV}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" />Export CSV
               </Button>
+              <Button
+                variant="default"
+                disabled={!selectedExam || !results?.length}
+                onClick={() => setIsFormalReportOpen(true)}
+                className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <Printer className="h-4 w-4" />
+                Cetak Laporan Resmi (PDF)
+              </Button>
               <Button variant="outline" disabled={!results?.length} onClick={() => window.print()}>
                 <Printer className="mr-2 h-4 w-4" />Cetak PDF
               </Button>
@@ -375,6 +386,15 @@ function ReportsPageContent() {
         sessionId={selectedReviewSession?.sessionId ?? null}
         studentName={selectedReviewSession?.studentName}
         nis={selectedReviewSession?.nis}
+      />
+
+      <FormalReportModal
+        open={isFormalReportOpen}
+        onClose={() => setIsFormalReportOpen(false)}
+        exam={exams?.find((e) => e.id === selectedExam)}
+        className={classes?.find((c) => c.id === selectedClass)?.name}
+        results={sortedResults}
+        settings={settings}
       />
 
       <div className="hidden print:flex justify-between items-center pt-12 text-sm text-slate-800">
