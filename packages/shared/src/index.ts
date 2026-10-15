@@ -16,6 +16,7 @@ export type {
   SaveAnswerInput, BatchSyncAnswerInput,
   LoginInput, RefreshTokenInput, ChangePasswordInput,
   CreateQuestionInput, UpdateQuestionInput, CreateQuestionBankInput,
+  BulkDeleteQuestionsInput, BulkMoveQuestionsInput, BulkDeleteBanksInput,
   GradeEssayInput,
   UpdateSettingsInput,
   CreateUserInput, UpdateUserInput,

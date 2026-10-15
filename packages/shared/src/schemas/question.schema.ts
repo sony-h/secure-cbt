@@ -58,6 +58,22 @@ export const createQuestionBankSchema = z.object({
   subject_id: z.string().uuid({ message: 'ID mata pelajaran tidak valid' }),
 });
 
+export const bulkDeleteQuestionsSchema = z.object({
+  ids: z.array(z.string().uuid({ message: 'ID soal tidak valid' })).min(1, { message: 'Pilih minimal 1 soal' }),
+});
+
+export const bulkMoveQuestionsSchema = z.object({
+  ids: z.array(z.string().uuid({ message: 'ID soal tidak valid' })).min(1, { message: 'Pilih minimal 1 soal' }),
+  target_bank_id: z.string().uuid({ message: 'ID bank soal tujuan tidak valid' }),
+});
+
+export const bulkDeleteBanksSchema = z.object({
+  ids: z.array(z.string().uuid({ message: 'ID bank soal tidak valid' })).min(1, { message: 'Pilih minimal 1 bank soal' }),
+});
+
 export type CreateQuestionInput = z.infer<typeof createQuestionSchema>;
 export type UpdateQuestionInput = z.infer<typeof updateQuestionSchema>;
 export type CreateQuestionBankInput = z.infer<typeof createQuestionBankSchema>;
+export type BulkDeleteQuestionsInput = z.infer<typeof bulkDeleteQuestionsSchema>;
+export type BulkMoveQuestionsInput = z.infer<typeof bulkMoveQuestionsSchema>;
+export type BulkDeleteBanksInput = z.infer<typeof bulkDeleteBanksSchema>;
