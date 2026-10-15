@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateQuestionInput, UpdateQuestionInput, createQuestionSchema, updateQuestionSchema,
-  createQuestionBankSchema, PaginationQuery, QuestionType,
+  createQuestionBankSchema, PaginationQuery, QuestionType, ExamStatus,
 } from '@secure-cbt/shared';
 import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class QuestionBankService {
@@ -42,7 +43,59 @@ export class QuestionBankService {
 
   async deleteBank(id: string) {
     await this.prisma.questionBank.findUniqueOrThrow({ where: { id } });
-    return this.prisma.questionBank.update({ where: { id }, data: { deleted_at: new Date() } });
+
+    const questions = await this.prisma.question.findMany({
+      where: { question_bank_id: id, deleted_at: null },
+      select: { id: true },
+    });
+    const questionIds = questions.map((q) => q.id);
+
+    await this.assertQuestionsNotLinkedToActiveOrDraftExams(this.prisma, questionIds);
+
+    return this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      await tx.question.updateMany({
+        where: { question_bank_id: id, deleted_at: null },
+        data: { deleted_at: now },
+      });
+      return tx.questionBank.update({
+        where: { id },
+        data: { deleted_at: now },
+      });
+    });
+  }
+
+  async assertQuestionsNotLinkedToActiveOrDraftExams(
+    tx: Prisma.TransactionClient | PrismaService,
+    questionIds: string[],
+  ): Promise<void> {
+    if (!questionIds || questionIds.length === 0) return;
+
+    const now = new Date();
+    const activeExamQuestions = await tx.examQuestion.findMany({
+      where: {
+        question_id: { in: questionIds },
+        exam: {
+          deleted_at: null,
+          OR: [
+            { status: { in: [ExamStatus.DRAFT, ExamStatus.PUBLISHED, ExamStatus.ONGOING] } },
+            { end_at: { gt: now }, status: { notIn: [ExamStatus.FINISHED, ExamStatus.CANCELLED] } },
+          ],
+        },
+      },
+      include: {
+        exam: {
+          select: { id: true, title: true, status: true },
+        },
+      },
+    });
+
+    if (activeExamQuestions.length > 0) {
+      const examTitles = Array.from(new Set(activeExamQuestions.map((eq: any) => eq.exam.title))).join(', ');
+      throw new BadRequestException(
+        `Tidak dapat menghapus soal karena masih terhubung dengan ujian aktif/draft: "${examTitles}". Harap lepaskan soal dari ujian terlebih dahulu.`,
+      );
+    }
   }
 
   // Questions
@@ -168,6 +221,7 @@ export class QuestionBankService {
 
   async remove(id: string) {
     await this.findById(id);
+    await this.assertQuestionsNotLinkedToActiveOrDraftExams(this.prisma, [id]);
     await this.prisma.question.update({ where: { id }, data: { deleted_at: new Date() } });
     return { deleted: true };
   }
