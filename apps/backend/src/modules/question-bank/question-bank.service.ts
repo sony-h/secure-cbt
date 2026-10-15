@@ -247,4 +247,56 @@ export class QuestionBankService {
     }
     return this.findById(newQuestion.id);
   }
+
+  async bulkDelete(ids: string[]) {
+    if (!ids || !ids.length) return { count: 0 };
+    await this.assertQuestionsNotLinkedToActiveOrDraftExams(this.prisma, ids);
+    const result = await this.prisma.question.updateMany({
+      where: { id: { in: ids }, deleted_at: null },
+      data: { deleted_at: new Date() },
+    });
+    return { count: result.count };
+  }
+
+  async bulkMove(ids: string[], targetBankId: string) {
+    if (!ids || !ids.length) return { count: 0 };
+    const targetBank = await this.prisma.questionBank.findFirst({
+      where: { id: targetBankId, deleted_at: null },
+    });
+    if (!targetBank) throw new NotFoundException('Target question bank not found');
+
+    const result = await this.prisma.question.updateMany({
+      where: { id: { in: ids }, deleted_at: null },
+      data: { question_bank_id: targetBankId },
+    });
+    return { count: result.count };
+  }
+
+  async bulkDeleteBanks(ids: string[]) {
+    if (!ids || !ids.length) return { count: 0, questions_count: 0 };
+
+    const questions = await this.prisma.question.findMany({
+      where: { question_bank_id: { in: ids }, deleted_at: null },
+      select: { id: true },
+    });
+    const questionIds = questions.map((q) => q.id);
+
+    await this.assertQuestionsNotLinkedToActiveOrDraftExams(this.prisma, questionIds);
+
+    return this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const qResult = await tx.question.updateMany({
+        where: { question_bank_id: { in: ids }, deleted_at: null },
+        data: { deleted_at: now },
+      });
+      const bResult = await tx.questionBank.updateMany({
+        where: { id: { in: ids }, deleted_at: null },
+        data: { deleted_at: now },
+      });
+      return {
+        count: bResult.count,
+        questions_count: qResult.count,
+      };
+    });
+  }
 }

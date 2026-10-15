@@ -27,6 +27,9 @@ import {
   updateQuestionSchema,
   createQuestionBankSchema,
   confirmImportQuestionsSchema,
+  bulkDeleteQuestionsSchema,
+  bulkMoveQuestionsSchema,
+  bulkDeleteBanksSchema,
   PaginationQuery,
   QuestionType,
 } from '@secure-cbt/shared';
@@ -36,6 +39,9 @@ type CreateQuestionDto = z.infer<typeof createQuestionSchema>;
 type UpdateQuestionDto = z.infer<typeof updateQuestionSchema>;
 type CreateQuestionBankDto = z.infer<typeof createQuestionBankSchema>;
 type ConfirmImportQuestionsDto = z.infer<typeof confirmImportQuestionsSchema>;
+type BulkDeleteQuestionsDto = z.infer<typeof bulkDeleteQuestionsSchema>;
+type BulkMoveQuestionsDto = z.infer<typeof bulkMoveQuestionsSchema>;
+type BulkDeleteBanksDto = z.infer<typeof bulkDeleteBanksSchema>;
 
 @ApiTags('questions')
 @ApiBearerAuth()
@@ -108,6 +114,33 @@ export class QuestionBankController {
   async deleteBank(@Param('id') id: string) {
     await this.questionBankService.deleteBank(id);
     return { success: true, message: 'Question bank deleted', data: null };
+  }
+
+  @Post('banks/bulk-delete')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Bulk delete question banks and cascade delete questions' })
+  async bulkDeleteBanks(@Body() body: BulkDeleteBanksDto) {
+    const validated = bulkDeleteBanksSchema.parse(body);
+    const data = await this.questionBankService.bulkDeleteBanks(validated.ids);
+    return { success: true, message: 'Question banks deleted successfully', data };
+  }
+
+  @Post('bulk-delete')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Bulk delete questions with exam guard' })
+  async bulkDelete(@Body() body: BulkDeleteQuestionsDto) {
+    const validated = bulkDeleteQuestionsSchema.parse(body);
+    const data = await this.questionBankService.bulkDelete(validated.ids);
+    return { success: true, message: 'Questions deleted successfully', data };
+  }
+
+  @Post('bulk-move')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Bulk move questions to another question bank' })
+  async bulkMove(@Body() body: BulkMoveQuestionsDto) {
+    const validated = bulkMoveQuestionsSchema.parse(body);
+    const data = await this.questionBankService.bulkMove(validated.ids, validated.target_bank_id);
+    return { success: true, message: 'Questions moved successfully', data };
   }
 
   @Get()

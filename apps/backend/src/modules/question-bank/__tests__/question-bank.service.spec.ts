@@ -140,4 +140,104 @@ describe('QuestionBankService - Deletion & Exam Guard', () => {
       });
     });
   });
+
+  describe('bulkDelete()', () => {
+    it('should block deletion if any question in the batch is linked to active/draft exam', async () => {
+      const q1 = UUID();
+      const q2 = UUID();
+      mockPrisma.examQuestion.findMany.mockResolvedValue([
+        {
+          question_id: q1,
+          exam: { id: UUID(), title: 'Ujian Aktif', status: ExamStatus.ONGOING },
+        },
+      ]);
+
+      await expect(service.bulkDelete([q1, q2])).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.question.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('should soft-delete all questions in batch when safe', async () => {
+      const q1 = UUID();
+      const q2 = UUID();
+      mockPrisma.examQuestion.findMany.mockResolvedValue([]);
+      mockPrisma.question.updateMany.mockResolvedValue({ count: 2 });
+
+      const res = await service.bulkDelete([q1, q2]);
+
+      expect(res.count).toBe(2);
+      expect(mockPrisma.question.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [q1, q2] }, deleted_at: null },
+        data: { deleted_at: expect.any(Date) },
+      });
+    });
+  });
+
+  describe('bulkMove()', () => {
+    it('should throw NotFoundException if target bank does not exist or is deleted', async () => {
+      const targetBankId = UUID();
+      mockPrisma.questionBank.findFirst.mockResolvedValue(null);
+
+      await expect(service.bulkMove([UUID()], targetBankId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should update question_bank_id for all specified questions', async () => {
+      const targetBankId = UUID();
+      const q1 = UUID();
+      const q2 = UUID();
+      mockPrisma.questionBank.findFirst.mockResolvedValue({ id: targetBankId, title: 'Bank Baru' });
+      mockPrisma.question.updateMany.mockResolvedValue({ count: 2 });
+
+      const res = await service.bulkMove([q1, q2], targetBankId);
+
+      expect(res.count).toBe(2);
+      expect(mockPrisma.question.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [q1, q2] }, deleted_at: null },
+        data: { question_bank_id: targetBankId },
+      });
+    });
+  });
+
+  describe('bulkDeleteBanks()', () => {
+    it('should block deletion if questions in any of the banks are in active exams', async () => {
+      const b1 = UUID();
+      const b2 = UUID();
+      const q1 = UUID();
+
+      mockPrisma.question.findMany.mockResolvedValue([{ id: q1 }]);
+      mockPrisma.examQuestion.findMany.mockResolvedValue([
+        {
+          question_id: q1,
+          exam: { id: UUID(), title: 'Draft Exam', status: ExamStatus.DRAFT },
+        },
+      ]);
+
+      await expect(service.bulkDeleteBanks([b1, b2])).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.questionBank.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('should cascade soft-delete all questions and banks in batch', async () => {
+      const b1 = UUID();
+      const b2 = UUID();
+      const q1 = UUID();
+      const q2 = UUID();
+
+      mockPrisma.question.findMany.mockResolvedValue([{ id: q1 }, { id: q2 }]);
+      mockPrisma.examQuestion.findMany.mockResolvedValue([]);
+      mockPrisma.question.updateMany.mockResolvedValue({ count: 2 });
+      mockPrisma.questionBank.updateMany.mockResolvedValue({ count: 2 });
+
+      const res = await service.bulkDeleteBanks([b1, b2]);
+
+      expect(res.count).toBe(2);
+      expect(res.questions_count).toBe(2);
+      expect(mockPrisma.question.updateMany).toHaveBeenCalledWith({
+        where: { question_bank_id: { in: [b1, b2] }, deleted_at: null },
+        data: { deleted_at: expect.any(Date) },
+      });
+      expect(mockPrisma.questionBank.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: [b1, b2] }, deleted_at: null },
+        data: { deleted_at: expect.any(Date) },
+      });
+    });
+  });
 });
