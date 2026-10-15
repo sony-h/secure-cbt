@@ -99,4 +99,36 @@ describe('DataTable Component', () => {
     fireEvent.click(resetBtn);
     expect(screen.queryByText(/Reset Filter/i)).toBeNull();
   });
+
+  it('supports row selection when enableRowSelection is true', () => {
+    const handleSelectionChange = vi.fn();
+    render(
+      <DataTable
+        columns={columns}
+        data={mockData}
+        enableRowSelection={true}
+        onRowSelectionChange={handleSelectionChange}
+      />
+    );
+
+    const selectAllCheckbox = screen.getByLabelText(/Pilih semua baris di halaman ini/i);
+    expect(selectAllCheckbox).toBeTruthy();
+
+    const firstRowCheckbox = screen.getByLabelText('Pilih baris 1');
+    expect(firstRowCheckbox).toBeTruthy();
+
+    fireEvent.click(firstRowCheckbox);
+    expect(handleSelectionChange).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ id: 'item-1' })])
+    );
+
+    // Toggle select all on page
+    fireEvent.click(selectAllCheckbox);
+    expect(handleSelectionChange).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'item-1' }),
+        expect.objectContaining({ id: 'item-2' }),
+      ])
+    );
+  });
 });

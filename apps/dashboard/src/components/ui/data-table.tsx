@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -11,6 +11,7 @@ import {
   type ColumnDef,
   type SortingState,
   type ColumnFiltersState,
+  type RowSelectionState,
 } from '@tanstack/react-table';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './table';
 import { Button } from './button';
@@ -52,6 +53,11 @@ interface DataTableProps<TData> {
   initialSearch?: string;
   initialPage?: number;
   onStateChange?: (state: { page: number; pageSize: PageSizeOption; search: string }) => void;
+  enableRowSelection?: boolean;
+  onRowSelectionChange?: (selectedRows: TData[]) => void;
+  rowSelection?: RowSelectionState;
+  onRowSelectionModelChange?: (selection: RowSelectionState) => void;
+  getRowId?: (originalRow: TData, index: number) => string;
 }
 
 export function DataTable<TData extends Record<string, any>>({
@@ -71,11 +77,59 @@ export function DataTable<TData extends Record<string, any>>({
   initialSearch = '',
   initialPage = 1,
   onStateChange,
+  enableRowSelection = false,
+  onRowSelectionChange,
+  rowSelection: controlledRowSelection,
+  onRowSelectionModelChange,
+  getRowId,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState(initialSearch);
   const [selectedPageSize, setSelectedPageSize] = useState<PageSizeOption>(pageSize);
+  const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({});
+
+  const rowSelection = controlledRowSelection ?? internalRowSelection;
+  const onRowSelectionChangeRef = useRef(onRowSelectionChange);
+  onRowSelectionChangeRef.current = onRowSelectionChange;
+
+  const tableColumns = useMemo(() => {
+    if (!enableRowSelection) return columns;
+    const selectColumn: ColumnDef<TData, any> = {
+      id: 'select',
+      header: ({ table }) => (
+        <div className="flex items-center justify-center px-1">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-input text-primary focus:ring-primary cursor-pointer align-middle"
+            checked={table.getIsAllPageRowsSelected()}
+            ref={(input) => {
+              if (input) {
+                input.indeterminate = table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected();
+              }
+            }}
+            onChange={table.getToggleAllPageRowsSelectedHandler()}
+            aria-label="Pilih semua baris di halaman ini"
+          />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center justify-center px-1">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-input text-primary focus:ring-primary cursor-pointer align-middle"
+            checked={row.getIsSelected()}
+            disabled={!row.getCanSelect()}
+            onChange={row.getToggleSelectedHandler()}
+            aria-label={`Pilih baris ${row.index + 1}`}
+          />
+        </div>
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    };
+    return [selectColumn, ...columns];
+  }, [columns, enableRowSelection]);
 
   const isAll = selectedPageSize === 'all';
   const effectivePageSize = isAll ? 999999 : (manualPageSize || (selectedPageSize as number));
@@ -92,7 +146,9 @@ export function DataTable<TData extends Record<string, any>>({
 
   const table = useReactTable({
     data,
-    columns,
+    columns: tableColumns,
+    enableRowSelection: enableRowSelection ?? false,
+    getRowId: getRowId ?? ((row: any, index: number) => (row && row.id ? String(row.id) : String(index))),
     initialState: {
       pagination,
     },
@@ -100,11 +156,20 @@ export function DataTable<TData extends Record<string, any>>({
       sorting,
       columnFilters,
       globalFilter,
+      rowSelection,
       ...(manualPage !== undefined ? { pagination } : {}),
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
+    onRowSelectionChange: (updater) => {
+      const next = typeof updater === 'function' ? updater(rowSelection) : updater;
+      if (onRowSelectionModelChange) {
+        onRowSelectionModelChange(next);
+      } else {
+        setInternalRowSelection(next);
+      }
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -116,6 +181,13 @@ export function DataTable<TData extends Record<string, any>>({
         }
       : {}),
   });
+
+  useEffect(() => {
+    if (enableRowSelection && onRowSelectionChangeRef.current) {
+      const selected = table.getSelectedRowModel().flatRows.map((r) => r.original);
+      onRowSelectionChangeRef.current(selected);
+    }
+  }, [rowSelection, enableRowSelection, data, table]);
 
   // Sync internal page size change with tanstack table
   useEffect(() => {
@@ -238,13 +310,13 @@ export function DataTable<TData extends Record<string, any>>({
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-32 text-center">
+                <TableCell colSpan={tableColumns.length} className="h-32 text-center">
                   <div className="flex items-center justify-center text-muted-foreground">Memuat...</div>
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={tableColumns.length} className="h-32 text-center text-muted-foreground">
                   {emptyMessage}
                 </TableCell>
               </TableRow>

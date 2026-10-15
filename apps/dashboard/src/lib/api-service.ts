@@ -153,6 +153,9 @@ export const questionBankApi = {
   updateQuestion: (id: string, data: Partial<{ type: string; content: string; image_url: string | null; difficulty: string; explanation: string | null; options: { content: string; is_correct: boolean; image_url?: string | null }[]; tags: string[] }>) => api.patch(`/questions/${id}`, data),
   deleteQuestion: (id: string) => api.delete(`/questions/${id}`),
   duplicateQuestion: (id: string) => api.post(`/questions/${id}/duplicate`),
+  bulkDeleteQuestions: (ids: string[]) => api.post('/questions/bulk-delete', { ids }),
+  bulkMoveQuestions: (data: { ids: string[]; target_bank_id: string }) => api.post('/questions/bulk-move', data),
+  bulkDeleteBanks: (ids: string[]) => api.post('/questions/banks/bulk-delete', { ids }),
   previewImport: (formData: FormData) =>
     api.post('/questions/import/preview', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
