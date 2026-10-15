@@ -131,4 +131,56 @@ describe('DataTable Component', () => {
       ])
     );
   });
+
+  it('renders animated skeleton rows when loading is true with default 5 rows', () => {
+    const { container } = render(<DataTable columns={columns} data={mockData} loading={true} />);
+
+    // Should not render text "Memuat..."
+    expect(screen.queryByText('Memuat...')).toBeNull();
+    // Should not render actual data rows
+    expect(screen.queryByText('Question 1')).toBeNull();
+
+    // 5 rows in tbody
+    const tbodyRows = container.querySelectorAll('tbody tr');
+    expect(tbodyRows).toHaveLength(5);
+
+    // 5 rows * 3 columns = 15 skeletons
+    const skeletons = container.querySelectorAll('.animate-pulse');
+    expect(skeletons).toHaveLength(15);
+  });
+
+  it('renders custom number of skeleton rows when skeletonRows is provided', () => {
+    const { container } = render(
+      <DataTable columns={columns} data={mockData} loading={true} skeletonRows={3} />
+    );
+
+    const tbodyRows = container.querySelectorAll('tbody tr');
+    expect(tbodyRows).toHaveLength(3);
+
+    const skeletons = container.querySelectorAll('.animate-pulse');
+    expect(skeletons).toHaveLength(3 * 3);
+  });
+
+  it('renders checkbox skeleton for selection column when loading and enableRowSelection is true', () => {
+    const { container } = render(
+      <DataTable
+        columns={columns}
+        data={mockData}
+        loading={true}
+        enableRowSelection={true}
+        skeletonRows={2}
+      />
+    );
+
+    const tbodyRows = container.querySelectorAll('tbody tr');
+    expect(tbodyRows).toHaveLength(2);
+
+    // 4 columns per row (1 select + 3 data columns) = 8 skeletons
+    const skeletons = container.querySelectorAll('.animate-pulse');
+    expect(skeletons).toHaveLength(2 * 4);
+
+    // Checkbox column skeleton has 'h-4 w-4'
+    const checkboxSkeletons = container.querySelectorAll('.animate-pulse.h-4.w-4');
+    expect(checkboxSkeletons).toHaveLength(2);
+  });
 });

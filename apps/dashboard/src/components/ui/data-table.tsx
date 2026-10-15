@@ -14,6 +14,7 @@ import {
   type RowSelectionState,
 } from '@tanstack/react-table';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './table';
+import { Skeleton } from './skeleton';
 import { Button } from './button';
 import { Input } from './input';
 import {
@@ -45,6 +46,7 @@ interface DataTableProps<TData> {
   pageSize?: number;
   pageSizeOptions?: PageSizeOption[];
   loading?: boolean;
+  skeletonRows?: number;
   emptyMessage?: string;
   manualPage?: number;
   manualTotal?: number;
@@ -69,6 +71,7 @@ export function DataTable<TData extends Record<string, any>>({
   pageSize = 10,
   pageSizeOptions = [10, 25, 50, 100, 'all'],
   loading = false,
+  skeletonRows = 5,
   emptyMessage = 'Tidak ada data',
   manualPage,
   manualTotal,
@@ -309,11 +312,19 @@ export function DataTable<TData extends Record<string, any>>({
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={tableColumns.length} className="h-32 text-center">
-                  <div className="flex items-center justify-center text-muted-foreground">Memuat...</div>
-                </TableCell>
-              </TableRow>
+              Array.from({ length: skeletonRows }).map((_, rowIndex) => (
+                <TableRow key={`skeleton-row-${rowIndex}`}>
+                  {tableColumns.map((col, colIndex) => (
+                    <TableCell key={`skeleton-cell-${rowIndex}-${col.id ?? (col as any).accessorKey ?? colIndex}`}>
+                      {col.id === 'select' ? (
+                        <Skeleton className="h-4 w-4 rounded mx-auto" />
+                      ) : (
+                        <Skeleton className="h-5 w-full max-w-[85%] rounded" />
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
             ) : table.getRowModel().rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={tableColumns.length} className="h-32 text-center text-muted-foreground">
