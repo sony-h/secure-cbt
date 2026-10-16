@@ -36,4 +36,28 @@ describe('RichQuestionEditor', () => {
     expect(calledValue).toContain('```python');
     expect(calledValue).toContain('```');
   });
+
+  it('defaults to Tulis (edit) mode without split button and toggles between Tulis and Pratinjau', () => {
+    const handleChange = vi.fn();
+    render(<RichQuestionEditor value="Soal nomor 1" onChange={handleChange} />);
+
+    // Split button must not exist
+    expect(screen.queryByTitle(/Mode Split/i)).toBeNull();
+
+    // Editor textarea is present by default
+    expect(screen.getByRole('textbox')).toBeTruthy();
+
+    // Switch to Pratinjau mode
+    const previewBtn = screen.getByTitle(/Mode Pratinjau Saja/i);
+    fireEvent.click(previewBtn);
+
+    // Textarea is hidden in preview mode
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.getByText(/Live Preview/i)).toBeTruthy();
+
+    // Switch back to Tulis
+    const editBtn = screen.getByTitle(/Mode Tulis Saja/i);
+    fireEvent.click(editBtn);
+    expect(screen.getByRole('textbox')).toBeTruthy();
+  });
 });

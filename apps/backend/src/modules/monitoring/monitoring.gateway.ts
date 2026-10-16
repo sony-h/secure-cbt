@@ -41,12 +41,14 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
 
     if (role === 'student' && typeof userId === 'string') {
       this.studentSockets.set(userId, client.id);
+      client.join(`student:${userId}`);
     }
 
     if (typeof examId === 'string' && examId.length > 0) {
       client.join(`exam:${examId}`);
 
-      if (role === 'teacher') {
+      if (role === 'teacher' || role === 'proctor' || role === 'admin') {
+        client.join(`exam:${examId}:proctors`);
         // Send currently connected student user IDs to this teacher
         const connectedStudentIds = Array.from(this.studentSockets.keys());
         client.emit('connected.students', { examId, studentIds: connectedStudentIds });
@@ -114,6 +116,7 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
     const { examId, studentId, studentName, deviceId } = data;
     if (studentId) {
       this.studentSockets.set(studentId, client.id);
+      client.join(`student:${studentId}`);
     }
     if (examId) {
       this.server.to(`exam:${examId}`).emit(SocketEvent.STUDENT_CONNECTED, {
@@ -123,6 +126,19 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
         deviceId,
         timestamp: new Date().toISOString(),
       });
+    }
+  }
+
+  @SubscribeMessage('teacher.connected')
+  handleTeacherConnected(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { examId: string },
+  ): void {
+    if (data?.examId) {
+      client.join(`exam:${data.examId}`);
+      client.join(`exam:${data.examId}:proctors`);
+      const connectedStudentIds = Array.from(this.studentSockets.keys());
+      client.emit('connected.students', { examId: data.examId, studentIds: connectedStudentIds });
     }
   }
 
@@ -211,10 +227,15 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
   }
 
   notifyStudentAction(studentUserId: string, examId: string, event: string, payload: any): void {
+    const actionPayload = { studentUserId, ...payload };
     const socketId = this.studentSockets.get(studentUserId);
     if (socketId) {
-      this.server.to(socketId).emit(event, payload);
+      this.server.to(socketId).emit(event, actionPayload);
     }
-    this.server.to(`exam:${examId}`).emit(event, { studentUserId, ...payload });
+    // Also emit to targeted student room
+    this.server.to(`student:${studentUserId}`).emit(event, actionPayload);
+
+    // Notify only teachers / proctors monitoring this exam room
+    this.server.to(`exam:${examId}:proctors`).emit(event, actionPayload);
   }
 }

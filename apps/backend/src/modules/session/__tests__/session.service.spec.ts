@@ -10,6 +10,7 @@ function UUID() { return crypto.randomUUID?.() ?? '00000000-0000-0000-0000-00000
 function createMockPrisma() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mock: Record<string, any> = {
+    user: { findUnique: vi.fn() },
     examToken: { findUnique: vi.fn() },
     student: { findUnique: vi.fn() },
     examClass: { findFirst: vi.fn() },
@@ -600,6 +601,51 @@ describe('SessionService', () => {
         examId,
         studentId,
       }));
+    });
+
+    it('should record proctor teacher full_name in session log instead of raw user ID', async () => {
+      const sessionId = UUID();
+      const examId = UUID();
+      const studentId = UUID();
+      const proctorUserId = UUID();
+
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        exam_id: examId,
+        student_id: studentId,
+        status: SessionStatus.ACTIVE,
+        student: { full_name: 'Test Student', user_id: 'user-std' },
+      });
+
+      mockPrisma.user.findUnique.mockResolvedValue({
+        username: 'pak_budi',
+        teacher: { full_name: 'Budi Santoso, S.Pd.' },
+      });
+
+      let capturedLogData: any;
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.examSession = {
+          update: vi.fn().mockResolvedValue({ id: sessionId, status: SessionStatus.SUBMITTED }),
+        };
+        tx.sessionLog = {
+          create: vi.fn().mockImplementation(async ({ data }: any) => {
+            capturedLogData = data;
+            return {};
+          }),
+        };
+        tx.score = { upsert: vi.fn().mockResolvedValue({}) };
+        tx.setting = { findFirst: vi.fn().mockResolvedValue({ passing_grade: 75 }) };
+        return fn(tx);
+      });
+
+      mockGradingService.calculateTotalScore.mockResolvedValue({
+        total_score: 85, correct_count: 8, wrong_count: 2, essay_score: 0, total_questions: 10,
+      });
+
+      await service.forceSubmit(sessionId, proctorUserId);
+      expect(capturedLogData?.description).toContain('Budi Santoso, S.Pd.');
+      expect(capturedLogData?.description).not.toContain(proctorUserId);
     });
   });
 

@@ -159,9 +159,18 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
           });
         });
 
-        // Real-time force submit listener
+        // Real-time force submit listener (targeted to specific session / student)
         socket.setOnForceSubmit((data) {
           if (!mounted) return;
+          final targetSessionId = data['sessionId']?.toString();
+          final targetUserId = data['studentUserId']?.toString();
+          if (targetSessionId != null && targetSessionId.isNotEmpty && targetSessionId != widget.sessionId) {
+            return;
+          }
+          if (targetUserId != null && targetUserId.isNotEmpty && authState.userId != null && targetUserId != authState.userId) {
+            return;
+          }
+
           final reason = data['message']?.toString() ?? 'Ujian telah dikumpulkan paksa oleh pengawas.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -173,9 +182,18 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
           _submitHandler?.forceSubmit();
         });
 
-        // Real-time time extension listener
+        // Real-time time extension listener (targeted to specific session / student)
         socket.setOnTimeExtended((data) {
           if (!mounted) return;
+          final targetSessionId = data['sessionId']?.toString();
+          final targetUserId = data['studentUserId']?.toString();
+          if (targetSessionId != null && targetSessionId.isNotEmpty && targetSessionId != widget.sessionId) {
+            return;
+          }
+          if (targetUserId != null && targetUserId.isNotEmpty && authState.userId != null && targetUserId != authState.userId) {
+            return;
+          }
+
           final additionalMinutes = data['additionalMinutes'] as int? ??
               (data['additional_minutes'] as int? ?? 0);
           final additionalSeconds = data['additionalSeconds'] as int? ??
@@ -204,9 +222,18 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
           }
         });
 
-        // Real-time warnings reset listener
+        // Real-time warnings reset listener (targeted to specific session / student)
         socket.setOnWarningsReset((data) {
           if (!mounted) return;
+          final targetSessionId = data['sessionId']?.toString();
+          final targetUserId = data['studentUserId']?.toString();
+          if (targetSessionId != null && targetSessionId.isNotEmpty && targetSessionId != widget.sessionId) {
+            return;
+          }
+          if (targetUserId != null && targetUserId.isNotEmpty && authState.userId != null && targetUserId != authState.userId) {
+            return;
+          }
+
           notifier.resetWarnings();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

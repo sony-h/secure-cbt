@@ -15,7 +15,6 @@ import {
   ListOrdered,
   Indent,
   Eye,
-  Columns,
   Sparkles,
   ChevronDown,
 } from 'lucide-react';
@@ -56,7 +55,7 @@ export function RichQuestionEditor({
   showLanguageSelector = true,
   className = '',
 }: RichQuestionEditorProps) {
-  const [viewMode, setViewMode] = useState<'split' | 'edit' | 'preview'>('split');
+  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Helper to wrap or insert text around current selection
@@ -335,17 +334,6 @@ export function RichQuestionEditor({
         <div className="flex items-center gap-1 border-l border-border pl-1.5 ml-auto">
           <Button
             type="button"
-            variant={viewMode === 'split' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('split')}
-            className="h-7 px-2 text-[11px] gap-1 hidden md:flex"
-            title="Mode Split (Tulis & Preview Berdampingan)"
-          >
-            <Columns className="h-3.5 w-3.5" />
-            <span>Split</span>
-          </Button>
-          <Button
-            type="button"
             variant={viewMode === 'edit' ? 'secondary' : 'ghost'}
             size="sm"
             onClick={() => setViewMode('edit')}
@@ -369,9 +357,9 @@ export function RichQuestionEditor({
       </div>
 
       {/* Editor Body */}
-      <div className="flex-1 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-border">
+      <div className="flex-1 flex flex-col">
         {/* Editor Textarea */}
-        {(viewMode === 'edit' || viewMode === 'split') && (
+        {viewMode === 'edit' && (
           <div className="flex-1 relative flex flex-col">
             <textarea
               ref={textareaRef}
@@ -386,11 +374,9 @@ export function RichQuestionEditor({
         )}
 
         {/* Live Preview Panel */}
-        {(viewMode === 'preview' || viewMode === 'split') && (
+        {viewMode === 'preview' && (
           <div
-            className={`flex-1 p-3 bg-muted/15 overflow-y-auto ${
-              viewMode === 'split' ? 'hidden md:block' : ''
-            }`}
+            className="flex-1 p-3 bg-muted/15 overflow-y-auto"
             style={{ minHeight }}
           >
             <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground/60 mb-1.5 flex items-center gap-1 select-none">

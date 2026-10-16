@@ -468,6 +468,28 @@ export class SessionService {
     return updated;
   }
 
+  private async resolveProctorName(proctorUserId: string): Promise<string> {
+    if (!proctorUserId) return 'Pengawas';
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: proctorUserId },
+        select: {
+          username: true,
+          teacher: { select: { full_name: true } },
+        },
+      });
+      if (user?.teacher?.full_name) {
+        return user.teacher.full_name;
+      }
+      if (user?.username) {
+        return user.username;
+      }
+    } catch {
+      // Fallback
+    }
+    return proctorUserId;
+  }
+
   async forceSubmit(sessionId: string, proctorUserId: string) {
     const session = await this.prisma.examSession.findUnique({
       where: { id: sessionId },
@@ -485,6 +507,8 @@ export class SessionService {
       return session;
     }
 
+    const proctorName = await this.resolveProctorName(proctorUserId);
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const updatedSession = await tx.examSession.update({
         where: { id: sessionId },
@@ -495,7 +519,7 @@ export class SessionService {
         data: {
           exam_session_id: sessionId,
           event: 'FORCED_SUBMIT',
-          description: `Ujian dikumpulkan paksa oleh pengawas (${proctorUserId})`,
+          description: `Ujian dikumpulkan paksa oleh pengawas (${proctorName})`,
         },
       });
 
@@ -549,6 +573,8 @@ export class SessionService {
     });
     if (!session) throw new NotFoundException('Session not found');
 
+    const proctorName = await this.resolveProctorName(proctorUserId);
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const updatedSession = await tx.examSession.update({
         where: { id: sessionId },
@@ -559,7 +585,7 @@ export class SessionService {
         data: {
           exam_session_id: sessionId,
           event: 'WARNINGS_RESET',
-          description: `Peringatan pelanggaran direset ke 0 oleh pengawas (${proctorUserId})`,
+          description: `Peringatan pelanggaran direset ke 0 oleh pengawas (${proctorName})`,
         },
       });
 
@@ -602,6 +628,7 @@ export class SessionService {
     const additionalSeconds = additionalMinutes * 60;
     const currentRemaining = session.remaining_time_seconds ?? 0;
     const newRemaining = currentRemaining + additionalSeconds;
+    const proctorName = await this.resolveProctorName(proctorUserId);
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const updatedSession = await tx.examSession.update({
@@ -613,7 +640,7 @@ export class SessionService {
         data: {
           exam_session_id: sessionId,
           event: 'TIME_EXTENDED',
-          description: `Waktu ujian ditambah ${additionalMinutes} menit oleh pengawas (${proctorUserId})`,
+          description: `Waktu ujian ditambah ${additionalMinutes} menit oleh pengawas (${proctorName})`,
         },
       });
 
@@ -651,6 +678,8 @@ export class SessionService {
       throw new BadRequestException('Tidak dapat membuka kunci sesi ujian yang sudah selesai');
     }
 
+    const proctorName = await this.resolveProctorName(proctorUserId);
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const updatedSession = await tx.examSession.update({
         where: { id: sessionId },
@@ -664,7 +693,7 @@ export class SessionService {
         data: {
           exam_session_id: sessionId,
           event: 'SESSION_UNLOCKED',
-          description: `Kunci sesi dibuka oleh pengawas (${proctorUserId})`,
+          description: `Kunci sesi dibuka oleh pengawas (${proctorName})`,
         },
       });
 

@@ -3,9 +3,9 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.7.0` (Mobile Android Build: `1.7.0+14`)  
+**Current Version:** `v1.7.1` (Mobile Android Build: `1.7.1+15`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 30 - Question Audio Stimulus & Punitive Violation Deterrence (Release v1.7.0+14)  
+**Current Phase:** Phase 31 - Mission Control Target Isolation, Review UUID Resolution & Studio Streamlining (Release v1.7.1+15)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
 **Last Updated:** 2026-10-16
@@ -1339,6 +1339,28 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - **Backend:** 154/154 vitest tests passing across 17 test files.
 - **Dashboard:** 50/50 vitest tests passing across 11 test files; Next.js production build clean.
 - **Mobile:** 74/74 Flutter unit & widget tests passing; `flutter analyze` 0 issues.
+
+---
+
+## Phase 31 Completion Summary (v1.7.1+15)
+
+**Target Platform:** Full-Stack (Backend + Dashboard + Mobile)  
+**Standard:** Mission Control Real-time Routing Isolation & Review Humanization  
+**Version:** `v1.7.1` (Mobile Android Build: `1.7.1+15`)  
+**Date:** 2026-10-16  
+
+### 1. Mission Control Real-time Routing Isolation
+- **Backend Room Segregation:** Updated `MonitoringGateway` to join teachers and proctors to dedicated `exam:${examId}:proctors` rooms. Student mission control actions (`SESSION_FORCE_SUBMIT`, `SESSION_TIME_EXTENDED`, `SESSION_WARNINGS_RESET`) are now routed exclusively to targeted student direct sockets/rooms and the proctor room—preventing cross-student leakage.
+- **Mobile Multi-Student Defense-in-Depth:** Updated mobile socket listeners (`setOnForceSubmit`, `setOnTimeExtended`, `setOnWarningsReset`) to verify both `sessionId` and `studentUserId` against the currently running session before executing actions.
+
+### 2. Human-Readable Review & Proctor Logs
+- **Backend Proctor Name Resolution:** In `SessionService`, `forceSubmit`, `resetWarnings`, `extendTime`, and `unlockSession` now look up proctor teacher `full_name` or `username` so session logs record human names (e.g. `(Budi Santoso, S.Pd.)`) instead of raw user UUIDs.
+- **Dashboard Legacy Log Sanitization:** Monitoring activity log drawer replaces any legacy raw UUID patterns with a clean `(Pengawas)` label.
+- **Dashboard Review Modal Breakdown:** Added dedicated `MATCHING` question breakdown in `StudentSessionReviewModal` with premise, student choice, and correct pair labels, and UUID fallback resolution for objective/short-answer questions.
+- **Mobile Exam Review Humanization:** Updated `_buildObjectiveOptionsReview`, `_buildShortAnswerReview`, and `_buildMatchingReview` to trim multi-select answers, resolve option UUIDs to content text, and display clean pair matches.
+
+### 3. Question Studio Editor Streamlining
+- **Removed Split Mode:** Removed `split` mode view and icon toggle from `RichQuestionEditor`; simplified to clean `Tulis` (default active) and `Pratinjau` modes for focused question authoring.
 
 ---
 
