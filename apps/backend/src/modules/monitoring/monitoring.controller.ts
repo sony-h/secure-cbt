@@ -49,7 +49,7 @@ export class MonitoringController {
   async broadcastAnnouncement(
     @Req() req: AuthenticatedRequest,
     @Param('id') examId: string,
-    @Body() body: { message: string; urgency?: 'low' | 'high' },
+    @Body() body: { message: string; urgency?: 'low' | 'high'; studentUserId?: string; studentName?: string },
   ) {
     if (!body.message || !body.message.trim()) {
       throw new BadRequestException('Pesan pengumuman tidak boleh kosong');
@@ -59,6 +59,8 @@ export class MonitoringController {
       id: randomUUID(),
       message: body.message.trim(),
       urgency,
+      studentUserId: body.studentUserId,
+      studentName: body.studentName,
       sender: req.user?.username || 'Pengawas',
       timestamp: new Date().toISOString(),
     };

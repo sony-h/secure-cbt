@@ -41,7 +41,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { ProctorBroadcastModal } from '@/components/monitoring/proctor-broadcast-modal';
+import { ProctorBroadcastModal, BroadcastTargetStudent } from '@/components/monitoring/proctor-broadcast-modal';
 import { StudentActionDialog, ActionStudentSession } from '@/components/monitoring/student-action-dialog';
 
 interface Exam {
@@ -84,6 +84,7 @@ function MonitoringPageContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [broadcastModalOpen, setBroadcastModalOpen] = useState(false);
+  const [broadcastTargetStudent, setBroadcastTargetStudent] = useState<BroadcastTargetStudent | null>(null);
   const [actionSession, setActionSession] = useState<ActionStudentSession | null>(null);
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const socketRef = useRef<Socket | null>(null);
@@ -351,6 +352,7 @@ function MonitoringPageContent() {
     if (e) e.stopPropagation();
     setActionSession({
       id: s.id,
+      student_user_id: s.student_user_id,
       student: s.student,
       status: s.status,
       warning_count: s.warning_count,
@@ -370,10 +372,6 @@ function MonitoringPageContent() {
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
               Pusat Kendali Pengawasan (Mission Control)
             </h1>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/20">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Live Telemetry
-            </span>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
             Pantau integritas ujian, kelola tindakan langsung siswa, dan siarkan pengumuman real-time.
@@ -384,7 +382,10 @@ function MonitoringPageContent() {
         <div className="flex items-center gap-2.5 shrink-0">
           <Button
             type="button"
-            onClick={() => setBroadcastModalOpen(true)}
+            onClick={() => {
+              setBroadcastTargetStudent(null);
+              setBroadcastModalOpen(true);
+            }}
             disabled={!selectedExamId}
             className="rounded-xl gap-2 font-bold bg-primary text-primary-foreground shadow-sm hover:shadow"
           >
@@ -894,8 +895,13 @@ function MonitoringPageContent() {
       <ProctorBroadcastModal
         examId={selectedExamId}
         examTitle={currentExam?.title}
+        activeSessions={sessionData}
+        defaultStudent={broadcastTargetStudent}
         open={broadcastModalOpen}
-        onOpenChange={setBroadcastModalOpen}
+        onOpenChange={(open) => {
+          setBroadcastModalOpen(open);
+          if (!open) setBroadcastTargetStudent(null);
+        }}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['monitoring', selectedExamId] });
         }}
@@ -906,6 +912,14 @@ function MonitoringPageContent() {
         session={actionSession}
         open={actionDialogOpen}
         onOpenChange={setActionDialogOpen}
+        onSendMessage={(session) => {
+          setBroadcastTargetStudent({
+            id: session.id,
+            student_user_id: session.student_user_id,
+            student: session.student,
+          });
+          setBroadcastModalOpen(true);
+        }}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['monitoring', selectedExamId] });
           if (selectedSession) {

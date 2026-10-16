@@ -205,8 +205,10 @@ export const sessionApi = {
 export const monitoringApi = {
   getExamSessions: (examId: string) => api.get(`/monitoring/exams/${examId}`),
   getSessionLogs: (sessionId: string) => api.get(`/monitoring/sessions/${sessionId}`),
-  broadcastAnnouncement: (examId: string, data: { message: string; urgency?: 'low' | 'high' }) =>
-    api.post(`/monitoring/exams/${examId}/broadcast`, data),
+  broadcastAnnouncement: (
+    examId: string,
+    data: { message: string; urgency?: 'low' | 'high'; studentUserId?: string; studentName?: string },
+  ) => api.post(`/monitoring/exams/${examId}/broadcast`, data),
 };
 
 export const gradingApi = {

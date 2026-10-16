@@ -22,10 +22,12 @@ import {
   Loader2,
   UserCheck,
   CheckCircle,
+  Megaphone,
 } from 'lucide-react';
 
 export interface ActionStudentSession {
   id: string;
+  student_user_id?: string;
   student: {
     nis: string;
     full_name: string;
@@ -41,6 +43,7 @@ interface StudentActionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  onSendMessage?: (session: ActionStudentSession) => void;
 }
 
 export function StudentActionDialog({
@@ -48,6 +51,7 @@ export function StudentActionDialog({
   open,
   onOpenChange,
   onSuccess,
+  onSendMessage,
 }: StudentActionDialogProps) {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmForceSubmit, setConfirmForceSubmit] = useState(false);
@@ -241,7 +245,36 @@ export function StudentActionDialog({
             </div>
           </div>
 
-          {/* Action 4: Force Submit */}
+          {/* Action 4: Kirim Pesan Langsung */}
+          {onSendMessage && (
+            <div className="p-3.5 rounded-xl border border-sky-500/30 bg-sky-500/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
+                    <Megaphone className="h-3.5 w-3.5" /> Kirim Pesan / Teguran Khusus
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Kirim pesan broadcast yang hanya akan muncul pada layar siswa ini.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isCompleted || loadingAction !== null}
+                  onClick={() => {
+                    onOpenChange(false);
+                    onSendMessage(session);
+                  }}
+                  className="rounded-xl text-xs font-bold shrink-0 border-sky-500/40 text-sky-600 hover:bg-sky-500 hover:text-white transition-all"
+                >
+                  Kirim Pesan
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Action 5: Force Submit */}
           <div className={`p-3.5 rounded-xl border transition-all ${confirmForceSubmit ? 'border-rose-500 bg-rose-500/10' : 'border-rose-500/30 bg-rose-500/5'}`}>
             <div className="flex items-start justify-between gap-3">
               <div>

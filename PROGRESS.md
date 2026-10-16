@@ -3,9 +3,9 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.7.1` (Mobile Android Build: `1.7.1+15`)  
+**Current Version:** `v1.7.2` (Mobile Android Build: `1.7.2+16`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 31 - Mission Control Target Isolation, Review UUID Resolution & Studio Streamlining (Release v1.7.1+15)  
+**Current Phase:** Phase 32 - Mission Control Targeted Broadcasts & Telemetry Refinement (Release v1.7.2+16)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
 **Last Updated:** 2026-10-16
@@ -1361,6 +1361,22 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 
 ### 3. Question Studio Editor Streamlining
 - **Removed Split Mode:** Removed `split` mode view and icon toggle from `RichQuestionEditor`; simplified to clean `Tulis` (default active) and `Pratinjau` modes for focused question authoring.
+
+---
+
+## Phase 32 Completion Summary (v1.7.2+16)
+
+**Version:** `v1.7.2` (Mobile Android Build: `1.7.2+16`)  
+**Date:** 2026-10-16  
+
+### 1. Mission Control Targeted Proctor Broadcasts
+- **Audience Targeting Toggle:** Upgraded `ProctorBroadcastModal` to feature a target audience selector (`Semua Siswa di Ruangan` vs `Siswa Tertentu`). When "Siswa Tertentu" is chosen, proctors can pick a specific student from the active sessions list.
+- **Direct Messaging Shortcut:** Integrated a "Kirim Pesan" action directly inside `StudentActionDialog` on the monitoring grid/list view, pre-selecting that student in the broadcast modal for instant proctor interventions.
+- **Backend Socket Room Routing:** Updated `MonitoringGateway.broadcastToExam` and `MonitoringController` to accept optional `studentUserId` and `studentName`. If present, the message is emitted only to that student's socket, their student room (`student:${studentUserId}`), and the proctor room (`exam:${examId}:proctors`), never leaking to other students in the room.
+- **Mobile Targeted Banner & Badge:** Updated `exam_screen.dart` to verify `targetUserId` matches the logged-in student, and display a distinctive `PRIBADI` badge and title (`PESAN KHUSUS UNTUK ANDA` / `PESAN PRIBADI PENGAWAS`) when the message is personal.
+
+### 2. Monitoring UI Cleanliness
+- **Telemetry Badge Removal:** Removed the static "Live Telemetry" badge next to the title on `apps/dashboard/src/app/dashboard/monitoring/page.tsx` for a clean, professional header aesthetic.
 
 ---
 

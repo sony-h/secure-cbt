@@ -222,8 +222,28 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
     return room ? room.size : 0;
   }
 
-  broadcastToExam(examId: string, payload: { id: string; message: string; urgency: 'low' | 'high'; sender?: string; timestamp: string }): void {
-    this.server.to(`exam:${examId}`).emit('exam.broadcast', payload);
+  broadcastToExam(
+    examId: string,
+    payload: {
+      id: string;
+      message: string;
+      urgency: 'low' | 'high';
+      studentUserId?: string;
+      studentName?: string;
+      sender?: string;
+      timestamp: string;
+    },
+  ): void {
+    if (payload.studentUserId) {
+      const socketId = this.studentSockets.get(payload.studentUserId);
+      if (socketId) {
+        this.server.to(socketId).emit('exam.broadcast', payload);
+      }
+      this.server.to(`student:${payload.studentUserId}`).emit('exam.broadcast', payload);
+      this.server.to(`exam:${examId}:proctors`).emit('exam.broadcast', payload);
+    } else {
+      this.server.to(`exam:${examId}`).emit('exam.broadcast', payload);
+    }
   }
 
   notifyStudentAction(studentUserId: string, examId: string, event: string, payload: any): void {

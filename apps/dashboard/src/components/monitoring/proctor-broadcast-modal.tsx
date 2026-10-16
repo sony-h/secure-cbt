@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,18 +14,31 @@ import { monitoringApi } from '@/lib/api-service';
 import { toast } from 'sonner';
 import {
   Megaphone,
-  Radio,
   AlertTriangle,
   Info,
   Sparkles,
   Send,
   Loader2,
   CheckCircle2,
+  Users,
+  User,
 } from 'lucide-react';
+
+export interface BroadcastTargetStudent {
+  id: string;
+  student_user_id?: string;
+  student: {
+    nis: string;
+    full_name: string;
+    class?: { name: string };
+  };
+}
 
 interface ProctorBroadcastModalProps {
   examId: string | null;
   examTitle?: string;
+  activeSessions?: BroadcastTargetStudent[];
+  defaultStudent?: BroadcastTargetStudent | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -41,13 +54,34 @@ const PRESET_MESSAGES = [
 export function ProctorBroadcastModal({
   examId,
   examTitle,
+  activeSessions = [],
+  defaultStudent,
   open,
   onOpenChange,
   onSuccess,
 }: ProctorBroadcastModalProps) {
+  const [targetMode, setTargetMode] = useState<'all' | 'specific'>('all');
+  const [selectedSessionId, setSelectedSessionId] = useState<string>('');
   const [message, setMessage] = useState('');
   const [urgency, setUrgency] = useState<'low' | 'high'>('low');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (defaultStudent) {
+      setTargetMode('specific');
+      setSelectedSessionId(defaultStudent.id);
+    } else {
+      setTargetMode('all');
+      if (activeSessions && activeSessions.length > 0) {
+        setSelectedSessionId(activeSessions[0].id);
+      }
+    }
+  }, [defaultStudent, open, activeSessions]);
+
+  const targetStudent =
+    targetMode === 'specific'
+      ? activeSessions.find((s) => s.id === selectedSessionId) || defaultStudent || null
+      : null;
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -59,15 +93,25 @@ export function ProctorBroadcastModal({
       toast.error('Tuliskan pesan pengumuman');
       return;
     }
+    if (targetMode === 'specific' && !targetStudent) {
+      toast.error('Pilih siswa target penerima pesan');
+      return;
+    }
 
     try {
       setIsSubmitting(true);
       await monitoringApi.broadcastAnnouncement(examId, {
         message: message.trim(),
         urgency,
+        studentUserId: targetMode === 'specific' ? targetStudent?.student_user_id : undefined,
+        studentName: targetMode === 'specific' ? targetStudent?.student.full_name : undefined,
       });
 
-      toast.success('Pengumuman berhasil disiarkan ke semua peserta!');
+      toast.success(
+        targetMode === 'specific' && targetStudent
+          ? `Pesan berhasil dikirim ke ${targetStudent.student.full_name}!`
+          : 'Pengumuman berhasil disiarkan ke semua peserta!',
+      );
       setMessage('');
       setUrgency('low');
       onOpenChange(false);
@@ -104,6 +148,73 @@ export function ProctorBroadcastModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Target Audience Selector */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>Target Penerima</span>
+              <span className="text-[11px] font-normal text-muted-foreground">Pilih jangkauan siaran pesan</span>
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setTargetMode('all')}
+                className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  targetMode === 'all'
+                    ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 font-bold'
+                    : 'border-border/70 bg-card hover:bg-muted/40 text-muted-foreground'
+                }`}
+              >
+                <Users className="h-4 w-4 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs">Semua Siswa di Ruangan</div>
+                  <div className="text-[10px] text-muted-foreground font-normal">Disiarkan ke seluruh peserta ujian</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTargetMode('specific')}
+                className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  targetMode === 'specific'
+                    ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30 font-bold'
+                    : 'border-border/70 bg-card hover:bg-muted/40 text-muted-foreground'
+                }`}
+              >
+                <User className="h-4 w-4 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs">Siswa Tertentu</div>
+                  <div className="text-[10px] text-muted-foreground font-normal">Hanya terkirim ke 1 siswa</div>
+                </div>
+              </button>
+            </div>
+
+            {targetMode === 'specific' && (
+              <div className="pt-1 space-y-1.5 animate-in fade-in-50 duration-200">
+                <label htmlFor="target-student-select" className="text-xs font-semibold text-muted-foreground">
+                  Pilih Peserta Ujian:
+                </label>
+                {activeSessions && activeSessions.length > 0 ? (
+                  <select
+                    id="target-student-select"
+                    value={selectedSessionId}
+                    onChange={(e) => setSelectedSessionId(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  >
+                    {activeSessions.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.student.full_name} ({s.student.nis}) - {s.student.class?.name || 'Kelas'}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 italic">
+                    Belum ada siswa yang sedang aktif pada sesi ini.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Urgency Selector Tabs */}
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
@@ -242,7 +353,11 @@ export function ProctorBroadcastModal({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className={`text-xs font-extrabold uppercase tracking-wider ${urgency === 'high' ? 'text-rose-700 dark:text-rose-300' : 'text-sky-700 dark:text-sky-300'}`}>
-                      {urgency === 'high' ? 'Peringatan Pengawas' : 'Pengumuman Pengawas'}
+                      {targetMode === 'specific'
+                        ? 'Pesan Pribadi Pengawas'
+                        : urgency === 'high'
+                        ? 'Peringatan Pengawas'
+                        : 'Pengumuman Pengawas'}
                     </p>
                     <span className="text-[10px] text-muted-foreground ml-auto">Baru saja</span>
                   </div>
@@ -272,12 +387,17 @@ export function ProctorBroadcastModal({
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Menyiarkan...
+                  Mengirim...
+                </>
+              ) : targetMode === 'specific' && targetStudent ? (
+                <>
+                  <Send className="h-4 w-4" />
+                  Kirim Pesan ke {targetStudent.student.full_name}
                 </>
               ) : (
                 <>
                   <Send className="h-4 w-4" />
-                  Kirim Pengumuman Sekarang
+                  Siarkan Pengumuman Sekarang
                 </>
               )}
             </Button>

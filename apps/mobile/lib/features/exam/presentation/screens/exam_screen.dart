@@ -142,12 +142,18 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         // Real-time broadcast announcement listener
         socket.setOnBroadcast((data) {
           if (!mounted) return;
+          final targetUserId = data['studentUserId']?.toString();
+          if (targetUserId != null && targetUserId.isNotEmpty && authState.userId != null && targetUserId != authState.userId) {
+            return;
+          }
           final msg = data['message']?.toString() ?? '';
           final urgency = data['urgency']?.toString() ?? 'low';
+          final isPersonal = targetUserId != null && targetUserId.isNotEmpty;
           setState(() {
             _activeBroadcast = {
               'message': msg,
               'urgency': urgency,
+              'isPersonal': isPersonal,
               'timestamp': DateTime.now(),
             };
           });
@@ -414,9 +420,10 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                             : Column(
                                 children: [
                                   if (_activeBroadcast != null)
-                                    _ExamBroadcastBanner(
+                                    ExamBroadcastBanner(
                                       message: _activeBroadcast!['message'] as String? ?? '',
                                       urgency: _activeBroadcast!['urgency'] as String? ?? 'low',
+                                      isPersonal: _activeBroadcast!['isPersonal'] as bool? ?? false,
                                       onDismiss: () {
                                         setState(() {
                                           _broadcastTimer?.cancel();
@@ -912,22 +919,25 @@ class _WarningDangerOverlayState extends State<_WarningDangerOverlay> {
   }
 }
 
-class _ExamBroadcastBanner extends StatefulWidget {
+class ExamBroadcastBanner extends StatefulWidget {
   final String message;
   final String urgency;
+  final bool isPersonal;
   final VoidCallback onDismiss;
 
-  const _ExamBroadcastBanner({
+  const ExamBroadcastBanner({
+    super.key,
     required this.message,
     required this.urgency,
+    this.isPersonal = false,
     required this.onDismiss,
   });
 
   @override
-  State<_ExamBroadcastBanner> createState() => _ExamBroadcastBannerState();
+  State<ExamBroadcastBanner> createState() => _ExamBroadcastBannerState();
 }
 
-class _ExamBroadcastBannerState extends State<_ExamBroadcastBanner>
+class _ExamBroadcastBannerState extends State<ExamBroadcastBanner>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _pulseAnim;
@@ -948,7 +958,7 @@ class _ExamBroadcastBannerState extends State<_ExamBroadcastBanner>
   }
 
   @override
-  void didUpdateWidget(covariant _ExamBroadcastBanner oldWidget) {
+  void didUpdateWidget(covariant ExamBroadcastBanner oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.urgency == 'high' && !_animController.isAnimating) {
       _animController.repeat(reverse: true);
@@ -1027,7 +1037,9 @@ class _ExamBroadcastBannerState extends State<_ExamBroadcastBanner>
                     Row(
                       children: [
                         Text(
-                          isHigh ? 'PERINGATAN PENGAWAS' : 'PENGUMUMAN PENGAWAS',
+                          widget.isPersonal
+                              ? (isHigh ? 'PESAN PRIBADI PENGAWAS' : 'PESAN KHUSUS UNTUK ANDA')
+                              : (isHigh ? 'PERINGATAN PENGAWAS' : 'PENGUMUMAN PENGAWAS'),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w900,
@@ -1035,6 +1047,26 @@ class _ExamBroadcastBannerState extends State<_ExamBroadcastBanner>
                             color: titleColor,
                           ),
                         ),
+                        if (widget.isPersonal) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: isHigh
+                                  ? const Color(0xFFE11D48).withValues(alpha: 0.3)
+                                  : const Color(0xFF0284C7).withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'PRIBADI',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                         if (isHigh) ...[
                           const SizedBox(width: 6),
                           Container(
