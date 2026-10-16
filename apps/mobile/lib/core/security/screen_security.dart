@@ -89,6 +89,45 @@ class ScreenSecurity {
     }
   }
 
+  @visibleForTesting
+  static bool? isAndroidOverride;
+
+  static bool get _isAndroid => isAndroidOverride ?? (!kIsWeb && Platform.isAndroid);
+
+  /// Triggers a punitive vibration burst on Android.
+  /// Falls back to [HapticFeedback.heavyImpact] if vibration channel fails or on other platforms.
+  static Future<void> vibrateViolation({int durationMs = 3000}) async {
+    if (!_isAndroid) {
+      try {
+        await HapticFeedback.heavyImpact();
+      } catch (_) {}
+      return;
+    }
+    _ensureMethodCallHandler();
+    try {
+      await _channel.invokeMethod('vibrateViolation', {'durationMs': durationMs});
+    } on MissingPluginException {
+      try {
+        await HapticFeedback.heavyImpact();
+      } catch (_) {}
+    } catch (_) {
+      try {
+        await HapticFeedback.heavyImpact();
+      } catch (_) {}
+    }
+  }
+
+  /// Cancels any ongoing vibration burst on Android.
+  static Future<void> stopVibration() async {
+    if (!_isAndroid) return;
+    _ensureMethodCallHandler();
+    try {
+      await _channel.invokeMethod('stopVibration');
+    } on MissingPluginException {
+      // MethodChannel not registered (e.g., during tests)
+    } catch (_) {}
+  }
+
   /// Called by iOS native code when a screenshot is detected.
   /// Reserved for future iOS setup — wire to AppDelegate.swift when added.
   @visibleForTesting

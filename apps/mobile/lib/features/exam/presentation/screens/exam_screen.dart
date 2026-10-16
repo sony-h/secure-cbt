@@ -23,6 +23,7 @@ import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_submi
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_violation_handler.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/security/screen_security.dart';
+import 'package:secure_cbt_mobile/core/security/violation_alarm_service.dart';
 
 class ExamScreen extends ConsumerStatefulWidget {
   final String sessionId;
@@ -49,6 +50,10 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
   StreamSubscription<bool>? _windowFocusSubscription;
   Map<String, dynamic>? _activeBroadcast;
   Timer? _broadcastTimer;
+  bool _vibrationEnabled = true;
+  bool _alarmEnabled = true;
+  int _alarmDuration = 3;
+  String _alarmSound = 'sharp_beep';
 
   @override
   void initState() {
@@ -61,6 +66,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
 
   @override
   void dispose() {
+    ref.read(violationAlarmServiceProvider).stopAlarm();
     _broadcastTimer?.cancel();
     _multiWindowSubscription?.cancel();
     _windowFocusSubscription?.cancel();
@@ -92,7 +98,12 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
               ?.cast<Map<String, dynamic>>() ??
           [];
       final remainingSeconds = session['remaining_time_seconds'] as int? ?? 0;
-      final warningLimit = session['exam']?['warning_limit'] as int? ?? 3;
+      final examData = session['exam'] as Map<String, dynamic>?;
+      final warningLimit = examData?['warning_limit'] as int? ?? (session['warning_limit'] as int? ?? 3);
+      _vibrationEnabled = (examData?['violation_vibration_enabled'] ?? session['violation_vibration_enabled']) as bool? ?? true;
+      _alarmEnabled = (examData?['violation_alarm_enabled'] ?? session['violation_alarm_enabled']) as bool? ?? true;
+      _alarmDuration = (examData?['violation_alarm_duration_seconds'] ?? session['violation_alarm_duration_seconds']) as int? ?? 3;
+      _alarmSound = (examData?['violation_alarm_sound'] ?? session['violation_alarm_sound'])?.toString() ?? 'sharp_beep';
 
       if (questions.isEmpty) {
         if (mounted) {
@@ -126,9 +137,6 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
         socket.connect(authState.userId!, examId, studentName: studentName);
         notifier.setOnAnswerSaved((questionId) {
           socket.emitAnswerSaved(widget.sessionId, questionId, examId);
-        });
-        notifier.setOnViolation((event, count, sessionId) {
-          socket.emitViolation(examId, count, event, sessionId ?? widget.sessionId, studentName: studentName);
         });
 
         // Real-time broadcast announcement listener
@@ -216,6 +224,19 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
           );
         });
       }
+
+      notifier.setOnViolation((event, count, sessionId) {
+        if (authState.userId != null) {
+          final socket = ref.read(monitoringSocketProvider);
+          socket.emitViolation(examId, count, event, sessionId ?? widget.sessionId, studentName: studentName);
+        }
+        ref.read(violationAlarmServiceProvider).triggerAlarm(
+              vibrationEnabled: _vibrationEnabled,
+              alarmEnabled: _alarmEnabled,
+              durationSeconds: _alarmDuration,
+              soundName: _alarmSound,
+            );
+      });
 
       _precacheExamImages(questions);
 
@@ -344,6 +365,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                 ? _WarningDangerOverlay(
                     examState: examState,
                     onCountdownComplete: () {
+                      ref.read(violationAlarmServiceProvider).stopAlarm();
                       ref.read(examProvider.notifier).finishWarningOverlayCountdown();
                     },
                   )
