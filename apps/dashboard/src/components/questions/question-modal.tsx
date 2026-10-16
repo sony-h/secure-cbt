@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select';
 import { X, Plus } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
+import { AudioStimulusField } from './audio-stimulus-field';
 
 export type QuestionFormData = {
   question_bank_id: string;
@@ -20,6 +21,8 @@ export type QuestionFormData = {
   explanation: string;
   options: { content: string; is_correct: boolean }[];
   tags: string[];
+  audio_url?: string | null;
+  audio_play_limit?: number | null;
 };
 
 type QuestionBank = {
@@ -57,6 +60,8 @@ export const emptyQuestionForm: QuestionFormData = {
   explanation: '',
   options: makeEmptyOptions(),
   tags: [],
+  audio_url: null,
+  audio_play_limit: 2,
 };
 
 export function QuestionModal({
@@ -150,6 +155,17 @@ export function QuestionModal({
             value={form.content}
             onChange={(e) => setForm({ ...form, content: e.target.value })}
             placeholder="Tulis pertanyaan di sini..."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Audio Stimulus (Opsional)</Label>
+          <AudioStimulusField
+            audioUrl={form.audio_url}
+            playLimit={form.audio_play_limit}
+            onAudioUploaded={(url) => setForm({ ...form, audio_url: url })}
+            onAudioRemoved={() => setForm({ ...form, audio_url: null })}
+            onPlayLimitChange={(limit) => setForm({ ...form, audio_play_limit: limit })}
           />
         </div>
 

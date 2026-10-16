@@ -37,6 +37,10 @@ export interface ExamFormData {
   points_easy: number;
   points_medium: number;
   points_hard: number;
+  violation_vibration_enabled: boolean;
+  violation_alarm_enabled: boolean;
+  violation_alarm_duration_seconds: number;
+  violation_alarm_sound: string;
 }
 
 export const emptyExamForm: ExamFormData = {
@@ -46,6 +50,10 @@ export const emptyExamForm: ExamFormData = {
   warning_limit: 3, auto_submit_enabled: true, fullscreen_required: true,
   is_random_pool: false, pool_question_count: null, pool_mode: 'BALANCED',
   points_easy: 1, points_medium: 2, points_hard: 3,
+  violation_vibration_enabled: true,
+  violation_alarm_enabled: true,
+  violation_alarm_duration_seconds: 3,
+  violation_alarm_sound: 'sharp_beep',
 };
 
 export function CreateExamModal({

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RandomPoolCard } from '../random-pool-card';
+import { ViolationDeterrenceCard } from '../violation-deterrence-card';
 import type { ExamFormData } from '../create-exam-modal';
 
 interface Props {
@@ -25,6 +26,11 @@ export function SettingsStep({ form, setForm }: Props) {
         form={form}
         setForm={setForm}
         totalSelectedQuestions={form.question_ids?.length || 0}
+      />
+
+      <ViolationDeterrenceCard
+        form={form}
+        setForm={setForm}
       />
 
       <div className="grid grid-cols-2 gap-4">

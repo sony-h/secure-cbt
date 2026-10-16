@@ -43,6 +43,10 @@ interface Exam {
   points_easy?: number;
   points_medium?: number;
   points_hard?: number;
+  violation_vibration_enabled?: boolean;
+  violation_alarm_enabled?: boolean;
+  violation_alarm_duration_seconds?: number;
+  violation_alarm_sound?: string;
   created_at: string;
   classes?: { class: { id: string; name: string } }[];
   exam_token?: { token: string; expires_at: string } | null;
@@ -179,6 +183,10 @@ function ExamsPageContent() {
         points_easy: full.points_easy ?? 1,
         points_medium: full.points_medium ?? 2,
         points_hard: full.points_hard ?? 3,
+        violation_vibration_enabled: full.violation_vibration_enabled ?? true,
+        violation_alarm_enabled: full.violation_alarm_enabled ?? true,
+        violation_alarm_duration_seconds: full.violation_alarm_duration_seconds ?? 3,
+        violation_alarm_sound: full.violation_alarm_sound ?? 'sharp_beep',
       });
       setModalOpen(true);
     } catch {

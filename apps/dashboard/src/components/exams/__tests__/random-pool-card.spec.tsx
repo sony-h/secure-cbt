@@ -26,6 +26,10 @@ describe('RandomPoolCard', () => {
     points_easy: 1,
     points_medium: 2,
     points_hard: 3,
+    violation_vibration_enabled: true,
+    violation_alarm_enabled: true,
+    violation_alarm_duration_seconds: 3,
+    violation_alarm_sound: 'sharp_beep',
   };
 
   it('renders disabled state when is_random_pool is false', () => {

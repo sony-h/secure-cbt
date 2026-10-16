@@ -32,6 +32,7 @@ import {
 import { toast } from 'sonner';
 import { EquationBuilderModal } from './equation-builder-modal';
 import { ImageDropzone } from './image-dropzone';
+import { AudioStimulusField } from './audio-stimulus-field';
 import { QuestionPhonePreview } from './question-phone-preview';
 import { RichQuestionEditor } from './rich-question-editor';
 import { RichOptionEditor } from './rich-option-editor';
@@ -42,6 +43,8 @@ export interface QuestionStudioData {
   type: string;
   content: string;
   image_url?: string | null;
+  audio_url?: string | null;
+  audio_play_limit?: number | null;
   difficulty: string;
   explanation: string;
   options: { content: string; is_correct: boolean; image_url?: string | null }[];
@@ -68,6 +71,8 @@ export const defaultQuestionStudioData: QuestionStudioData = {
   type: 'MULTIPLE_CHOICE',
   content: '',
   image_url: null,
+  audio_url: null,
+  audio_play_limit: 2,
   difficulty: 'MEDIUM',
   explanation: '',
   options: [
@@ -183,6 +188,8 @@ export function QuestionStudio({
       type: form.type,
       content: form.content.trim(),
       image_url: form.image_url || null,
+      audio_url: form.audio_url || null,
+      audio_play_limit: form.audio_url ? (form.audio_play_limit ?? 2) : null,
       difficulty: form.difficulty,
       explanation: form.explanation.trim() || null,
       options:
@@ -525,6 +532,20 @@ export function QuestionStudio({
                   onImageUploaded={(url) => setForm({ ...form, image_url: url })}
                   onImageRemoved={() => setForm({ ...form, image_url: null })}
                   label="Unggah Gambar Stimulus Soal (Diagram / Grafik / Bacaan)"
+                />
+              </div>
+
+              {/* Stimulus Audio Field */}
+              <div className="space-y-1.5 pt-2 border-t border-border/50">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  Audio Stimulus / Soal Listening (Opsional)
+                </Label>
+                <AudioStimulusField
+                  audioUrl={form.audio_url}
+                  playLimit={form.audio_play_limit}
+                  onAudioUploaded={(url) => setForm({ ...form, audio_url: url })}
+                  onAudioRemoved={() => setForm({ ...form, audio_url: null })}
+                  onPlayLimitChange={(limit) => setForm({ ...form, audio_play_limit: limit })}
                 />
               </div>
             </CardContent>
@@ -913,6 +934,8 @@ export function QuestionStudio({
               content={form.content}
               type={form.type}
               imageUrl={form.image_url}
+              audioUrl={form.audio_url}
+              audioPlayLimit={form.audio_play_limit}
               difficulty={form.difficulty}
               explanation={form.explanation}
               options={form.options}

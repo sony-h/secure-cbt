@@ -3,13 +3,15 @@
 import React, { useState } from 'react';
 import { MathRenderer } from '@/components/ui/math-renderer';
 import { Badge } from '@/components/ui/badge';
-import { Flag, Check, Smartphone, ZoomIn } from 'lucide-react';
+import { Flag, Check, Smartphone, ZoomIn, Volume2 } from 'lucide-react';
 import { resolveMediaUrl } from '@/lib/utils';
 
 interface QuestionPhonePreviewProps {
   content: string;
   type: string;
   imageUrl?: string | null;
+  audioUrl?: string | null;
+  audioPlayLimit?: number | null;
   difficulty: string;
   explanation?: string | null;
   options: { content: string; is_correct: boolean; image_url?: string | null }[];
@@ -21,6 +23,8 @@ export function QuestionPhonePreview({
   content,
   type,
   imageUrl,
+  audioUrl,
+  audioPlayLimit,
   difficulty,
   explanation,
   options,
@@ -110,6 +114,31 @@ export function QuestionPhonePreview({
               <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-medium gap-1">
                 <ZoomIn className="h-3.5 w-3.5" /> Perbesar
               </div>
+            </div>
+          )}
+
+          {audioUrl && (
+            <div className="rounded-lg border border-border/80 bg-muted/60 p-2 space-y-1.5">
+              <div className="flex items-center justify-between gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Volume2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="text-[10px] font-bold text-foreground tracking-tight uppercase">
+                    Audio Stimulus
+                  </span>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="text-[9px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/20 shrink-0 font-medium"
+                >
+                  {audioPlayLimit ? `Batas: ${audioPlayLimit}x` : 'Bebas Diputar'}
+                </Badge>
+              </div>
+              <audio
+                controls
+                src={resolveMediaUrl(audioUrl)}
+                className="w-full h-7 rounded outline-none"
+                preload="metadata"
+              />
             </div>
           )}
 
