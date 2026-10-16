@@ -11,7 +11,7 @@ export type {
   CreateTeacherInput, UpdateTeacherInput,
   CreateAcademicYearInput, UpdateAcademicYearInput, CreateMajorInput, UpdateMajorInput,
   CreateClassInput, UpdateClassInput, CreateSubjectInput, UpdateSubjectInput,
-  CreateExamInput, UpdateExamInput, GenerateTokenInput,
+  CreateExamInput, UpdateExamInput, GenerateTokenInput, ViolationAlarmSound,
   StartSessionInput, ResumeSessionInput, SubmitSessionInput,
   SaveAnswerInput, BatchSyncAnswerInput,
   LoginInput, RefreshTokenInput, ChangePasswordInput,

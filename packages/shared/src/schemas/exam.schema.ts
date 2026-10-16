@@ -1,6 +1,15 @@
 import { z } from 'zod';
 import { PoolMode } from '../enums';
 
+export const violationAlarmSoundSchema = z.enum([
+  'sharp_beep',
+  'siren',
+  'digital_pulse',
+  'warning_radar',
+]);
+
+export type ViolationAlarmSound = z.infer<typeof violationAlarmSoundSchema>;
+
 export const createExamSchema = z.object({
   title: z.string().min(1, { message: 'Judul ujian wajib diisi' }).max(200, { message: 'Judul ujian maksimal 200 karakter' }),
   description: z.string().max(2000, { message: 'Deskripsi maksimal 2000 karakter' }).optional(),
@@ -22,6 +31,10 @@ export const createExamSchema = z.object({
   points_easy: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional().default(1),
   points_medium: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional().default(2),
   points_hard: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional().default(3),
+  violation_vibration_enabled: z.boolean().default(true),
+  violation_alarm_enabled: z.boolean().default(true),
+  violation_alarm_duration_seconds: z.union([z.literal(3), z.literal(5)]).default(3),
+  violation_alarm_sound: violationAlarmSoundSchema.default('sharp_beep'),
 });
 
 export const updateExamSchema = z.object({
@@ -44,6 +57,10 @@ export const updateExamSchema = z.object({
   points_easy: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional(),
   points_medium: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional(),
   points_hard: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional(),
+  violation_vibration_enabled: z.boolean().default(true),
+  violation_alarm_enabled: z.boolean().default(true),
+  violation_alarm_duration_seconds: z.union([z.literal(3), z.literal(5)]).default(3),
+  violation_alarm_sound: violationAlarmSoundSchema.default('sharp_beep'),
 });
 
 export const generateTokenSchema = z.object({

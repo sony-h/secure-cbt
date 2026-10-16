@@ -245,6 +245,8 @@ model Question {
   type             QuestionType
   content          String         @db.Text
   image_url        String?        @db.Text
+  audio_url        String?        @db.Text
+  audio_play_limit Int?           @default(2)
   difficulty       DifficultyLevel @default(MEDIUM)
   explanation      String?         @db.Text
   created_at       DateTime       @default(now())
@@ -313,10 +315,14 @@ model Exam {
   is_random_pool       Boolean    @default(false)
   pool_question_count  Int?
   pool_mode            PoolMode   @default(BALANCED)
-  points_easy          Int        @default(1)
-  points_medium        Int        @default(2)
-  points_hard          Int        @default(3)
-  created_at           DateTime   @default(now())
+  points_easy                      Int        @default(1)
+  points_medium                    Int        @default(2)
+  points_hard                      Int        @default(3)
+  violation_vibration_enabled      Boolean    @default(true)
+  violation_alarm_enabled          Boolean    @default(true)
+  violation_alarm_duration_seconds Int        @default(3)
+  violation_alarm_sound            String     @default("sharp_beep")
+  created_at                       DateTime   @default(now())
   updated_at           DateTime   @updatedAt
   deleted_at           DateTime?
 

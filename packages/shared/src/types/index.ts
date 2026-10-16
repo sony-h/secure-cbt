@@ -63,3 +63,4 @@ export interface JwtPayload {
 
 // Re-import for self-contained types
 import { UserRole } from '../enums';
+export type { ViolationAlarmSound } from '../schemas/exam.schema';
