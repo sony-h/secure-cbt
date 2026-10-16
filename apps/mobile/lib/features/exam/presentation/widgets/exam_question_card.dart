@@ -6,6 +6,7 @@ import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 import 'package:secure_cbt_mobile/core/widgets/rich_exam_text.dart';
+import 'package:secure_cbt_mobile/features/exam/presentation/widgets/listening_audio_player.dart';
 import 'package:secure_cbt_mobile/features/exam/providers/exam_state.dart';
 
 class ExamQuestionCard extends StatefulWidget {
@@ -89,6 +90,14 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
   Widget build(BuildContext context) {
     final content = widget.question['question']?['content'] ?? widget.question['content'] ?? '';
     final imageUrl = widget.question['question']?['image_url'] ?? widget.question['image_url'];
+    final audioUrlRaw = widget.question['question']?['audio_url'] ?? widget.question['audio_url'];
+    final audioUrl = audioUrlRaw?.toString();
+    final playLimitRaw = widget.question['question']?['audio_play_limit'] ?? widget.question['audio_play_limit'];
+    final int? playLimit = playLimitRaw is int
+        ? playLimitRaw
+        : (playLimitRaw is num
+            ? playLimitRaw.toInt()
+            : (playLimitRaw != null ? int.tryParse(playLimitRaw.toString()) : null));
     final options = (widget.question['question']?['options'] as List<dynamic>?) ??
         (widget.question['options'] as List<dynamic>?) ??
         [];
@@ -250,6 +259,15 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
                       ),
                     ),
                   ),
+                ],
+                if (audioUrl != null && audioUrl.isNotEmpty) ...[
+                  ListeningAudioPlayer(
+                    audioUrl: audioUrl,
+                    playLimit: playLimit,
+                    sessionId: widget.examState.sessionId ?? '',
+                    questionId: questionId.toString(),
+                  ),
+                  const SizedBox(height: 16),
                 ],
                 RichExamText(
                   text: content,

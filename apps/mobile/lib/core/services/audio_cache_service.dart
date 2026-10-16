@@ -125,7 +125,8 @@ class AudioCacheService {
     // Extract unique audio items: Map<rawUrl, resolvedUrl>
     final audioEntries = <String, String>{};
     for (final q in questions) {
-      final raw = (q['audio_url'] ?? q['audioUrl']) as String?;
+      final qData = q['question'] is Map ? (q['question'] as Map) : null;
+      final raw = (qData?['audio_url'] ?? qData?['audioUrl'] ?? q['audio_url'] ?? q['audioUrl']) as String?;
       if (raw != null && raw.trim().isNotEmpty) {
         final trimmed = raw.trim();
         final resolved = resolveMediaUrl(trimmed);
