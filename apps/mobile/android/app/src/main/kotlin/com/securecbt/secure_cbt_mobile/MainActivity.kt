@@ -124,6 +124,12 @@ class MainActivity : FlutterActivity() {
         securityChannel?.invokeMethod("onWindowFocusChanged", hasFocus)
     }
 
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        securityChannel?.setMethodCallHandler(null)
+        securityChannel = null
+        super.cleanUpFlutterEngine(flutterEngine)
+    }
+
     override fun onDestroy() {
         stopVibrationNative()
         super.onDestroy()

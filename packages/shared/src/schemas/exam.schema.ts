@@ -57,10 +57,10 @@ export const updateExamSchema = z.object({
   points_easy: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional(),
   points_medium: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional(),
   points_hard: z.number().int().min(1, { message: 'Bobot poin minimal 1' }).optional(),
-  violation_vibration_enabled: z.boolean().default(true),
-  violation_alarm_enabled: z.boolean().default(true),
-  violation_alarm_duration_seconds: z.union([z.literal(3), z.literal(5)]).default(3),
-  violation_alarm_sound: violationAlarmSoundSchema.default('sharp_beep'),
+  violation_vibration_enabled: z.boolean().optional(),
+  violation_alarm_enabled: z.boolean().optional(),
+  violation_alarm_duration_seconds: z.union([z.literal(3), z.literal(5)]).optional(),
+  violation_alarm_sound: violationAlarmSoundSchema.optional(),
 });
 
 export const generateTokenSchema = z.object({

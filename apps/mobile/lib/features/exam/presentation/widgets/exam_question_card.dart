@@ -266,6 +266,7 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
                     playLimit: playLimit,
                     sessionId: widget.examState.sessionId ?? '',
                     questionId: questionId.toString(),
+                    isActive: widget.examState.currentIndex == widget.index,
                   ),
                   const SizedBox(height: 16),
                 ],

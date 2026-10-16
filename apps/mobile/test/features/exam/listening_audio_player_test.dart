@@ -72,6 +72,7 @@ void main() {
     String sessionId = 'session-123',
     String questionId = 'question-456',
     AudioPlayer? audioPlayer,
+    bool isActive = true,
   }) {
     return ProviderScope(
       overrides: [
@@ -86,6 +87,7 @@ void main() {
             sessionId: sessionId,
             questionId: questionId,
             audioPlayer: audioPlayer ?? mockAudioPlayer,
+            isActive: isActive,
           ),
         ),
       ),
@@ -319,6 +321,58 @@ void main() {
 
       final slider = tester.widget<Slider>(find.byType(Slider));
       expect(slider.onChanged, isNull);
+    });
+
+    testWidgets('prevents rewinding backward when playLimit is active', (tester) async {
+      await tester.pumpWidget(
+        buildTestWidget(
+          audioUrl: '/audio/restricted-seek.mp3',
+          playLimit: 2,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      durationController.add(const Duration(minutes: 2));
+      positionController.add(const Duration(seconds: 40));
+      stateController.add(PlayerState.playing);
+      await tester.pump();
+
+      // Tap backward (to the left of current 40s position)
+      final sliderFinder = find.byType(Slider);
+      final topLeft = tester.getTopLeft(sliderFinder);
+      await tester.tapAt(topLeft + const Offset(10, 10));
+      await tester.pump();
+
+      // Should NOT call seek because rewinding is blocked when playLimit is set
+      verifyNever(() => mockAudioPlayer.seek(any(that: predicate<Duration>((d) => d.inSeconds < 40))));
+    });
+
+    testWidgets('pauses audio playback when isActive changes from true to false', (tester) async {
+      when(() => mockAudioPlayer.pause()).thenAnswer((_) async {});
+
+      await tester.pumpWidget(
+        buildTestWidget(
+          audioUrl: '/audio/active-switch.mp3',
+          playLimit: 2,
+          isActive: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      stateController.add(PlayerState.playing);
+      await tester.pump();
+
+      // Update widget with isActive: false (simulates swiping away)
+      await tester.pumpWidget(
+        buildTestWidget(
+          audioUrl: '/audio/active-switch.mp3',
+          playLimit: 2,
+          isActive: false,
+        ),
+      );
+      await tester.pump();
+
+      verify(() => mockAudioPlayer.pause()).called(1);
     });
 
     testWidgets('resets player and reloads play count when widget updates to different question', (tester) async {

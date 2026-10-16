@@ -152,8 +152,9 @@ class AudioCacheService {
       if (await file.exists() && (await file.length()) > 0) {
         result[rawUrl] = file.path;
       } else {
+        String? tempFilePath;
         try {
-          final tempFilePath = '${file.path}.tmp';
+          tempFilePath = '${file.path}.tmp';
           await _dio.download(resolvedUrl, tempFilePath);
           final tempFile = File(tempFilePath);
           if (!await tempFile.exists() || (await tempFile.length()) == 0) {
@@ -161,7 +162,14 @@ class AudioCacheService {
           }
           await tempFile.rename(file.path);
           result[rawUrl] = file.path;
+          tempFilePath = null;
         } catch (e, st) {
+          if (tempFilePath != null) {
+            try {
+              final tmp = File(tempFilePath);
+              if (await tmp.exists()) await tmp.delete();
+            } catch (_) {}
+          }
           AppLogger.error('Failed to pre-cache audio: $resolvedUrl', e, st);
           if (e is AudioCacheException) rethrow;
           throw AudioCacheException('Failed to download audio file: $resolvedUrl', e);

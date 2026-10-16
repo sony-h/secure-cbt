@@ -192,11 +192,11 @@ describe('Audio Stimulus and Violation Deterrence Schemas', () => {
     });
 
     it('validates violation deterrence fields in updateExamSchema', () => {
-      const parsedDefault = updateExamSchema.parse({});
-      expect(parsedDefault.violation_vibration_enabled).toBe(true);
-      expect(parsedDefault.violation_alarm_enabled).toBe(true);
-      expect(parsedDefault.violation_alarm_duration_seconds).toBe(3);
-      expect(parsedDefault.violation_alarm_sound).toBe('sharp_beep');
+      const parsedEmpty = updateExamSchema.parse({});
+      expect(parsedEmpty.violation_vibration_enabled).toBeUndefined();
+      expect(parsedEmpty.violation_alarm_enabled).toBeUndefined();
+      expect(parsedEmpty.violation_alarm_duration_seconds).toBeUndefined();
+      expect(parsedEmpty.violation_alarm_sound).toBeUndefined();
 
       const parsedCustom = updateExamSchema.parse({
         violation_vibration_enabled: false,

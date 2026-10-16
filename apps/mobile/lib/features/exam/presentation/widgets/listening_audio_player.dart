@@ -7,6 +7,7 @@ import 'package:secure_cbt_mobile/core/logger/logger.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/core/services/audio_cache_service.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
+import 'package:secure_cbt_mobile/features/exam/providers/exam_provider.dart';
 
 class ListeningAudioPlayer extends ConsumerStatefulWidget {
   final String audioUrl;
@@ -14,6 +15,7 @@ class ListeningAudioPlayer extends ConsumerStatefulWidget {
   final String sessionId;
   final String questionId;
   final AudioPlayer? audioPlayer;
+  final bool isActive;
 
   const ListeningAudioPlayer({
     super.key,
@@ -22,6 +24,7 @@ class ListeningAudioPlayer extends ConsumerStatefulWidget {
     required this.sessionId,
     required this.questionId,
     this.audioPlayer,
+    this.isActive = true,
   });
 
   @override
@@ -120,6 +123,11 @@ class _ListeningAudioPlayerState extends ConsumerState<ListeningAudioPlayer> {
   @override
   void didUpdateWidget(covariant ListeningAudioPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.isActive && !widget.isActive) {
+      if (_playerState == PlayerState.playing) {
+        _player.pause();
+      }
+    }
     if (oldWidget.questionId != widget.questionId ||
         oldWidget.audioUrl != widget.audioUrl ||
         oldWidget.sessionId != widget.sessionId) {
@@ -191,6 +199,10 @@ class _ListeningAudioPlayerState extends ConsumerState<ListeningAudioPlayer> {
         _playerState != PlayerState.paused) {
       return;
     }
+    // Enforce ANBK/TOEFL standard: prevent rewinding backwards when play limit is active
+    if (widget.playLimit != null && value < _position.inMilliseconds) {
+      return;
+    }
     final target = Duration(milliseconds: value.toInt());
     _player.seek(target);
     setState(() => _position = target);
@@ -210,6 +222,17 @@ class _ListeningAudioPlayerState extends ConsumerState<ListeningAudioPlayer> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(
+      examProvider.select(
+        (s) => s.isWarningOverlayActive || s.isDualScreenBlocked || s.isFocusLostBlocked,
+      ),
+      (prev, isBlocked) {
+        if (isBlocked && _playerState == PlayerState.playing) {
+          _player.pause();
+        }
+      },
+    );
+
     final isPlaying = _playerState == PlayerState.playing;
     final isPaused = _playerState == PlayerState.paused;
     final isExhausted = _isLimitReached && !isPlaying && !isPaused;

@@ -50,7 +50,7 @@ export default function EditQuestionPage({ params }: EditQuestionPageProps) {
     content: data.content,
     image_url: data.image_url || null,
     audio_url: data.audio_url || null,
-    audio_play_limit: data.audio_play_limit ?? 2,
+    audio_play_limit: data.audio_play_limit !== undefined ? data.audio_play_limit : 2,
     difficulty: data.difficulty,
     explanation: data.explanation || '',
     options: (data.options || []).map((o: any) => ({

@@ -189,7 +189,9 @@ export function QuestionStudio({
       content: form.content.trim(),
       image_url: form.image_url || null,
       audio_url: form.audio_url || null,
-      audio_play_limit: form.audio_url ? (form.audio_play_limit ?? 2) : null,
+      audio_play_limit: form.audio_url
+        ? (form.audio_play_limit !== undefined ? form.audio_play_limit : 2)
+        : null,
       difficulty: form.difficulty,
       explanation: form.explanation.trim() || null,
       options:
