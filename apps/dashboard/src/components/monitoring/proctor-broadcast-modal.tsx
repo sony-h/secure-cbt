@@ -73,7 +73,7 @@ export function ProctorBroadcastModal({
     } else {
       setTargetMode('all');
       if (activeSessions && activeSessions.length > 0) {
-        setSelectedSessionId(activeSessions[0].id);
+        setSelectedSessionId(activeSessions[0]!.id);
       }
     }
   }, [defaultStudent, open, activeSessions]);
