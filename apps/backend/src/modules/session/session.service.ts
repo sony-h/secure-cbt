@@ -149,12 +149,22 @@ export class SessionService {
           type: eq.question.type,
           content: eq.question.content,
           image_url: eq.question.image_url,
+          audio_url: eq.question.audio_url ?? null,
+          audio_play_limit: eq.question.audio_play_limit ?? null,
           options: opts.map((o) => ({ id: o.id, content: o.content, image_url: o.image_url })),
         },
       };
     });
 
-    return { ...session, questions };
+    const examData = {
+      ...session.exam,
+      violation_vibration_enabled: session.exam?.violation_vibration_enabled ?? exam.violation_vibration_enabled ?? true,
+      violation_alarm_enabled: session.exam?.violation_alarm_enabled ?? exam.violation_alarm_enabled ?? true,
+      violation_alarm_duration_seconds: session.exam?.violation_alarm_duration_seconds ?? exam.violation_alarm_duration_seconds ?? 3,
+      violation_alarm_sound: session.exam?.violation_alarm_sound ?? exam.violation_alarm_sound ?? 'sharp_beep',
+    };
+
+    return { ...session, exam: examData, questions };
   }
 
   async resume(dto: { session_id: string }, userId: string) {
@@ -213,12 +223,22 @@ export class SessionService {
           type: eq.question.type,
           content: eq.question.content,
           image_url: eq.question.image_url,
+          audio_url: eq.question.audio_url ?? null,
+          audio_play_limit: eq.question.audio_play_limit ?? null,
           options: opts.map((o) => ({ id: o.id, content: o.content, image_url: o.image_url })),
         },
       };
     });
 
-    return { ...session, questions };
+    const examData = {
+      ...session.exam,
+      violation_vibration_enabled: session.exam?.violation_vibration_enabled ?? true,
+      violation_alarm_enabled: session.exam?.violation_alarm_enabled ?? true,
+      violation_alarm_duration_seconds: session.exam?.violation_alarm_duration_seconds ?? 3,
+      violation_alarm_sound: session.exam?.violation_alarm_sound ?? 'sharp_beep',
+    };
+
+    return { ...session, exam: examData, questions };
   }
 
   async submit(dto: SubmitSessionInput, userId: string) {
@@ -377,6 +397,8 @@ export class SessionService {
         type: q.type,
         content: q.content,
         image_url: q.image_url,
+        audio_url: q.audio_url ?? null,
+        audio_play_limit: q.audio_play_limit ?? null,
         difficulty: q.difficulty,
         explanation: q.explanation,
         student_answer: ans?.answer_text ?? null,

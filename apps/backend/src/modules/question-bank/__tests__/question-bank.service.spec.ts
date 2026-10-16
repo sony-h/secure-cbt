@@ -240,4 +240,91 @@ describe('QuestionBankService - Deletion & Exam Guard', () => {
       });
     });
   });
+
+  describe('create() with audio stimulus', () => {
+    it('should persist audio_url and audio_play_limit when creating a question', async () => {
+      const bankId = UUID();
+      const questionId = UUID();
+      mockPrisma.questionBank.findUnique.mockResolvedValue({ id: bankId });
+      mockPrisma.question.create.mockResolvedValue({
+        id: questionId,
+        question_bank_id: bankId,
+        type: QuestionType.MULTIPLE_CHOICE,
+        content: 'Audio listening question',
+        audio_url: 'https://example.com/audio/sample.mp3',
+        audio_play_limit: 2,
+        difficulty: 'MEDIUM',
+      });
+      mockPrisma.question.findUnique.mockResolvedValue({
+        id: questionId,
+        question_bank_id: bankId,
+        type: QuestionType.MULTIPLE_CHOICE,
+        content: 'Audio listening question',
+        audio_url: 'https://example.com/audio/sample.mp3',
+        audio_play_limit: 2,
+        difficulty: 'MEDIUM',
+        options: [],
+        tags: [],
+      });
+
+      const res = await service.create({
+        question_bank_id: bankId,
+        type: QuestionType.MULTIPLE_CHOICE,
+        content: 'Audio listening question',
+        audio_url: 'https://example.com/audio/sample.mp3',
+        audio_play_limit: 2,
+        difficulty: 'MEDIUM' as any,
+        options: [
+          { content: 'Opt A', is_correct: true },
+          { content: 'Opt B', is_correct: false },
+        ],
+      });
+
+      expect(mockPrisma.question.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          audio_url: 'https://example.com/audio/sample.mp3',
+          audio_play_limit: 2,
+        }),
+      });
+      expect(res?.audio_url).toBe('https://example.com/audio/sample.mp3');
+      expect(res?.audio_play_limit).toBe(2);
+    });
+  });
+
+  describe('update() with audio stimulus', () => {
+    it('should update audio_url and audio_play_limit', async () => {
+      const questionId = UUID();
+      mockPrisma.question.findFirst.mockResolvedValue({
+        id: questionId,
+        deleted_at: null,
+      });
+      mockPrisma.question.update.mockResolvedValue({
+        id: questionId,
+        audio_url: 'https://example.com/audio/updated.wav',
+        audio_play_limit: 1,
+      });
+      mockPrisma.question.findUnique.mockResolvedValue({
+        id: questionId,
+        audio_url: 'https://example.com/audio/updated.wav',
+        audio_play_limit: 1,
+        options: [],
+        tags: [],
+      });
+
+      const res = await service.update(questionId, {
+        audio_url: 'https://example.com/audio/updated.wav',
+        audio_play_limit: 1,
+      });
+
+      expect(mockPrisma.question.update).toHaveBeenCalledWith({
+        where: { id: questionId },
+        data: expect.objectContaining({
+          audio_url: 'https://example.com/audio/updated.wav',
+          audio_play_limit: 1,
+        }),
+      });
+      expect(res?.audio_url).toBe('https://example.com/audio/updated.wav');
+      expect(res?.audio_play_limit).toBe(1);
+    });
+  });
 });

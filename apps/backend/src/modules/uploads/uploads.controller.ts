@@ -26,6 +26,32 @@ const ALLOWED_MIME_TYPES = [
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
+const ALLOWED_AUDIO_MIME_TYPES = [
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/x-m4a',
+  'audio/m4a',
+  'audio/aac',
+  'audio/ogg',
+  'audio/webm',
+];
+
+const MAX_AUDIO_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+
+const AUDIO_MIME_TO_EXTENSION: Record<string, string> = {
+  'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3',
+  'audio/wav': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/x-m4a': 'm4a',
+  'audio/m4a': 'm4a',
+  'audio/aac': 'aac',
+  'audio/ogg': 'ogg',
+  'audio/webm': 'webm',
+};
+
 @ApiTags('uploads')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -103,6 +129,45 @@ export class UploadsController {
         width,
         height,
       },
+    };
+  }
+
+  @Post('audio')
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Upload question audio file' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_AUDIO_FILE_SIZE },
+    }),
+  )
+  async uploadAudio(@UploadedFile() file?: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('File audio wajib diunggah');
+    }
+
+    if (!ALLOWED_AUDIO_MIME_TYPES.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Format audio tidak didukung. Harap gunakan format MP3, WAV, M4A, AAC, OGG, atau WebM.',
+      );
+    }
+
+    const extension =
+      AUDIO_MIME_TO_EXTENSION[file.mimetype] ||
+      file.originalname?.split('.').pop()?.toLowerCase() ||
+      'mp3';
+    const filename = `${uuidv4()}.${extension}`;
+    const result = await this.storageService.uploadFile(
+      file.buffer,
+      filename,
+      file.mimetype,
+      'questions/audio',
+    );
+
+    return {
+      success: true,
+      message: 'Audio berhasil diunggah',
+      data: result,
     };
   }
 }

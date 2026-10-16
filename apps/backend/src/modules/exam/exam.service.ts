@@ -90,6 +90,10 @@ export class ExamService {
           points_easy: data.points_easy ?? 1,
           points_medium: data.points_medium ?? 2,
           points_hard: data.points_hard ?? 3,
+          violation_vibration_enabled: data.violation_vibration_enabled ?? true,
+          violation_alarm_enabled: data.violation_alarm_enabled ?? true,
+          violation_alarm_duration_seconds: data.violation_alarm_duration_seconds ?? 3,
+          violation_alarm_sound: data.violation_alarm_sound ?? 'sharp_beep',
           status: ExamStatus.PUBLISHED,
         },
       }).catch(err => {
@@ -159,6 +163,10 @@ export class ExamService {
           points_easy: data.points_easy,
           points_medium: data.points_medium,
           points_hard: data.points_hard,
+          violation_vibration_enabled: data.violation_vibration_enabled,
+          violation_alarm_enabled: data.violation_alarm_enabled,
+          violation_alarm_duration_seconds: data.violation_alarm_duration_seconds,
+          violation_alarm_sound: data.violation_alarm_sound,
         },
       });
 

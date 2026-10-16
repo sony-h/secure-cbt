@@ -169,6 +169,80 @@ describe('SessionService', () => {
         }),
       );
     });
+
+    it('should include audio_url, audio_play_limit and exam violation settings in start output', async () => {
+      const examId = UUID();
+      const studentId = UUID();
+      const questionId = UUID();
+
+      mockPrisma.examToken.findUnique.mockResolvedValue({
+        id: UUID(),
+        token: 'AUDIO123',
+        expires_at: new Date(Date.now() + 3600000),
+        exam: {
+          id: examId,
+          status: ExamStatus.PUBLISHED,
+          start_at: new Date(Date.now() - 3600000),
+          end_at: new Date(Date.now() + 3600000),
+          randomize_questions: false,
+          randomize_answers: false,
+          duration_minutes: 60,
+          violation_vibration_enabled: true,
+          violation_alarm_enabled: true,
+          violation_alarm_duration_seconds: 5,
+          violation_alarm_sound: 'siren',
+        },
+      });
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId, class_id: UUID() });
+      mockPrisma.examClass.findFirst.mockResolvedValue({ id: UUID() });
+      mockPrisma.examSession.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      mockPrisma.examPackage.findMany.mockResolvedValue([]);
+      mockPrisma.examSession.create.mockResolvedValue({
+        id: 'session-audio',
+        exam_id: examId,
+        status: SessionStatus.ACTIVE,
+        exam: {
+          id: examId,
+          violation_vibration_enabled: true,
+          violation_alarm_enabled: true,
+          violation_alarm_duration_seconds: 5,
+          violation_alarm_sound: 'siren',
+          exam_questions: [
+            {
+              id: 'eq-audio-1',
+              position: 1,
+              package_id: null,
+              question: {
+                id: questionId,
+                type: 'MULTIPLE_CHOICE',
+                content: 'Listen to the audio and choose the correct answer',
+                image_url: null,
+                audio_url: 'https://example.com/audio/listening-1.mp3',
+                audio_play_limit: 2,
+                options: [
+                  { id: 'opt-1', content: 'Option A', image_url: null },
+                  { id: 'opt-2', content: 'Option B', image_url: null },
+                ],
+              },
+            },
+          ],
+          randomize_questions: false,
+          randomize_answers: false,
+        },
+      });
+
+      const result = await service.start({ token: 'AUDIO123', device_id: 'device-1' }, 'user-1');
+
+      expect(result.questions).toHaveLength(1);
+      expect((result.questions[0] as any).question.audio_url).toBe('https://example.com/audio/listening-1.mp3');
+      expect((result.questions[0] as any).question.audio_play_limit).toBe(2);
+      expect((result.exam as any).violation_vibration_enabled).toBe(true);
+      expect((result.exam as any).violation_alarm_enabled).toBe(true);
+      expect((result.exam as any).violation_alarm_duration_seconds).toBe(5);
+      expect((result.exam as any).violation_alarm_sound).toBe('siren');
+    });
   });
 
   describe('resume()', () => {
@@ -199,6 +273,55 @@ describe('SessionService', () => {
       const qWithImg: any = result.questions.find((q: any) => q.id === 'eq-1');
       expect(qWithImg?.question.image_url).toBe('https://example.com/q1.webp');
       expect(qWithImg?.question.options[0]?.image_url).toBe('https://example.com/o1.webp');
+    });
+
+    it('should include audio_url, audio_play_limit and exam violation settings in resume output', async () => {
+      const studentId = UUID();
+      const questionId = UUID();
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId });
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: UUID(),
+        student_id: studentId,
+        status: SessionStatus.ACTIVE,
+        package_id: null,
+        question_order: ['eq-audio-1'],
+        exam: {
+          randomize_questions: false,
+          randomize_answers: false,
+          violation_vibration_enabled: false,
+          violation_alarm_enabled: true,
+          violation_alarm_duration_seconds: 3,
+          violation_alarm_sound: 'digital_pulse',
+          exam_questions: [
+            {
+              id: 'eq-audio-1',
+              position: 1,
+              package_id: null,
+              question: {
+                id: questionId,
+                type: 'MULTIPLE_CHOICE',
+                content: 'Listening Comprehension',
+                image_url: null,
+                audio_url: 'https://example.com/audio/dialogue.wav',
+                audio_play_limit: 3,
+                options: [{ id: 'opt-1', content: 'Response A', image_url: null }],
+              },
+            },
+          ],
+        },
+        package: null,
+      });
+      mockPrisma.examSession.update.mockResolvedValue({});
+
+      const result = await service.resume({ session_id: UUID() }, 'user-1');
+
+      expect(result.questions).toHaveLength(1);
+      expect((result.questions[0] as any).question.audio_url).toBe('https://example.com/audio/dialogue.wav');
+      expect((result.questions[0] as any).question.audio_play_limit).toBe(3);
+      expect((result.exam as any).violation_vibration_enabled).toBe(false);
+      expect((result.exam as any).violation_alarm_enabled).toBe(true);
+      expect((result.exam as any).violation_alarm_duration_seconds).toBe(3);
+      expect((result.exam as any).violation_alarm_sound).toBe('digital_pulse');
     });
 
     it('should throw for completed sessions', async () => {
