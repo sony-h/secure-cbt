@@ -3,12 +3,12 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.6.0` (Mobile Android Build: `1.6.0+13`)  
+**Current Version:** `v1.7.0` (Mobile Android Build: `1.7.0+14`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 29 - Mission Control Superpowers, Formal Reports & Grading Audits (Release v1.6.0+13)  
+**Current Phase:** Phase 30 - Question Audio Stimulus & Punitive Violation Deterrence (Release v1.7.0+14)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
-**Last Updated:** 2026-10-14
+**Last Updated:** 2026-10-16
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -1308,6 +1308,37 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 ### 6. Essay Grading History & Audit Trail
 - Immutable `SessionLog` tracking for score revisions (`ESSAY_REVISED`) preserving previous score, feedback, grader, and revision notes.
 - Added "Belum Dinilai" and "Sudah Dinilai" review tabs with collapsible audit timeline.
+
+---
+
+## Phase 30 — Question Audio Stimulus & Punitive Violation Deterrence — COMPLETE
+
+**Target Platform:** Full-Stack (Database + Backend + Dashboard + Mobile)  
+**Standard:** ANBK / TOEFL Listening Comprehension & Physical Cheating Deterrence  
+**Version:** `v1.7.0` (Mobile Android Build: `1.7.0+14`)  
+**Date:** 2026-10-16  
+
+### 1. Audio Stimulus for Listening Comprehension
+- **Schema & Persistence:** Extended `Question` with `audio_url` and `audio_play_limit` (supports 1x, 2x, 3x, or unlimited `null`).
+- **Backend Media Upload:** Added `POST /api/v1/uploads/audio` endpoint supporting MP3, WAV, M4A, AAC, and OGG up to 25MB with role-based guard (`ADMIN`, `TEACHER`, `OPERATOR`).
+- **Dashboard Audio Editor:** Added `AudioStimulusField` in `QuestionStudio` with drag-and-drop uploader, HTML5 preview player, and ANBK/TOEFL play limit dropdown.
+- **Mobile In-Exam Player:** Built `ListeningAudioPlayer` with interactive progress bar, elapsed/total duration counters, play/pause controls, and dynamic status badges (`Sisa: 2x`, `Tanpa Batas`, `Batas Pemutaran Habis`).
+- **Zero-Buffering Pre-caching:** Background pre-caching via `AudioCacheService` downloading audio files to device storage before exam start.
+- **Offline Play Tracking & Anti-Exploit:** Persistent SQLite/Drift play counter (`LocalQuestionAudioPlays`) with forward-only seek restriction on limited audio questions to prevent infinite rewind exploits.
+- **Audio Isolation:** Auto-pauses audio when swiping to adjacent questions or when security warning overlays appear.
+
+### 2. Punitive Violation Deterrence (Native Haptics & Alarm Burst)
+- **Exam Security Configuration:** Extended `Exam` with `violation_vibration_enabled`, `violation_alarm_enabled`, `violation_alarm_duration_seconds` (3s or 5s), and `violation_alarm_sound` (`sharp_beep`, `siren`, `digital_pulse`, `warning_radar`).
+- **Dashboard Security Panel:** Added "Pengaturan Alarm & Getar Pelanggaran" card in Exam modal with switches, duration selector, and sound tone dropdown.
+- **Native Android Vibration:** Implemented aggressive pulsing waveform pattern via `MainActivity.kt` MethodChannel (`vibrateViolation`) with automatic duration timeout and engine cleanup.
+- **Offline Audio Alarms:** Packaged 4 alarm sound effects (<50KB each) directly in `apps/mobile/assets/sounds/` and created `ViolationAlarmService` with full-volume loop and timed burst cutoff.
+- **Security Event Hook:** Automatically triggers haptics and alarm burst on `APP_MINIMIZED`, `STATUS_BAR_EXPANDED`, and `SPLIT_SCREEN` violations.
+
+### 3. Automated Verification & Test Coverage
+- **Shared Schemas:** 14/14 unit tests passing.
+- **Backend:** 154/154 vitest tests passing across 17 test files.
+- **Dashboard:** 50/50 vitest tests passing across 11 test files; Next.js production build clean.
+- **Mobile:** 74/74 Flutter unit & widget tests passing; `flutter analyze` 0 issues.
 
 ---
 
