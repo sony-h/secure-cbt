@@ -157,10 +157,10 @@ describe('FormalReportModal & Helpers', () => {
       expect(roleInputs.length).toBe(3);
 
       // Edit the new signer
-      fireEvent.change(roleInputs[2], { target: { value: 'Pengawas Ujian' } });
+      fireEvent.change(roleInputs[2]!, { target: { value: 'Pengawas Ujian' } });
 
       const nameInputs = screen.getAllByPlaceholderText(/Cth: Dadik Wahyu Ratmoko/i);
-      fireEvent.change(nameInputs[2], { target: { value: 'Budi Santoso, M.Pd' } });
+      fireEvent.change(nameInputs[2]!, { target: { value: 'Budi Santoso, M.Pd' } });
 
       // Switch back to Preview tab
       const previewTab = screen.getByRole('tab', { name: /Pratinjau Cetak Formal/i });

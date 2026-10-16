@@ -3,9 +3,9 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.5.0` (Mobile Android Build: `1.5.0+12`)  
+**Current Version:** `v1.6.0` (Mobile Android Build: `1.6.0+13`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 28 - Multi-Type Question Importer & Master Templates (Release v1.5.0+12)  
+**Current Phase:** Phase 29 - Mission Control Superpowers, Formal Reports & Grading Audits (Release v1.6.0+13)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
 **Last Updated:** 2026-10-14
@@ -1276,6 +1276,38 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - Created centralized `ApiErrorHandler` (`apps/mobile/lib/core/network/api_error_handler.dart`) preventing `type 'String' is not a subtype of type 'int' of 'index'` crashes when servers return HTML (404, 502, 503, Cloudflare outages, captive portals).
 - Hardened response data parsing across `auth_provider.dart`, `token_screen.dart`, `exam_screen.dart`, `exam_submit_handler.dart`, `review_provider.dart`, `result_provider.dart`, `home_provider.dart`, `history_provider.dart`, `exams_provider.dart`, and `token_refresh_coordinator.dart`.
 - Added unit tests in `apps/mobile/test/core/network/api_error_handler_test.dart` and `apps/mobile/test/features/auth/auth_provider_test.dart`.
+
+---
+
+## Phase 29 — Mission Control Superpowers, Formal Reports & Grading Audits — COMPLETE
+
+**Target Platform:** Full-Stack (Backend + Admin Dashboard + Mobile App)  
+**Standard:** Indonesian Formal School Standard (Wonosobo Standard & ANBK Ready)  
+**Version:** `v1.6.0` (Mobile Android Build: `1.6.0+13`)  
+**Date:** 2026-10-16  
+
+### 1. Math & Code Protection in Question Parsers
+- Removed `=` delimiter from matching question regex in `WordParserService` and `ExcelParserService`.
+- Preserved arrow delimiters exclusively (`->`, `→`, `➔`, `➜`, `➡`, `⇒`) so math equations (e.g. $y = 2x + 1$) and programming syntax (`const x = 10;`) in options remain untouched without being misdetected as matching questions.
+
+### 2. Modern Table Loading Skeletons
+- Upgraded `DataTable` with animated, realistic skeleton rows matching table column configurations.
+
+### 3. Mission Control Proctor Actions & Real-Time Socket Broadcast
+- **Live Proctor Controls:** Added Force Submit, Reset Strikes, Extend Time (+5, +10, +15, +30 min), and Unlock Session with audit logging.
+- **Urgency Broadcast:** Real-time announcements over WebSocket namespace `/monitoring` with Low Urgency (subtle frosted banner) and High Urgency (pulsing amber/rose banner) supported on student mobile app.
+- **Search & Filters:** Student search by NIS/name and class/rombel dropdown.
+
+### 4. Formal School PDF Report & Custom Signatures
+- Designed official layout conforming to `assets/KKA-X AKL.pdf` (SMK Informatika Wonosobo standard) with school kop, metadata, score table, summary box (*Rata-Rata*, *Terendah*, *Tertinggi*), and dynamic multi-column signature block (roles, names, NIP) remembered in local storage.
+
+### 5. Formatted Excel Templates & Score Report Export
+- Upgraded question template with 3 distinct sheets (Panduan, Input Soal with data validation dropdowns, Contoh Soal Multi-Tipe).
+- Added `.xlsx` score export featuring Deep Navy header band, student marks, Excel formulas (`AVERAGE`, `MIN`, `MAX`), and signature footer.
+
+### 6. Essay Grading History & Audit Trail
+- Immutable `SessionLog` tracking for score revisions (`ESSAY_REVISED`) preserving previous score, feedback, grader, and revision notes.
+- Added "Belum Dinilai" and "Sudah Dinilai" review tabs with collapsible audit timeline.
 
 ---
 
