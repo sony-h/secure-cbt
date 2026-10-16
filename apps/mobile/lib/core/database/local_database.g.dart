@@ -712,17 +712,341 @@ class LocalExamsCompanion extends UpdateCompanion<LocalExam> {
   }
 }
 
+class $LocalQuestionAudioPlaysTable extends LocalQuestionAudioPlays
+    with TableInfo<$LocalQuestionAudioPlaysTable, LocalQuestionAudioPlay> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalQuestionAudioPlaysTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sessionIdMeta =
+      const VerificationMeta('sessionId');
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+      'session_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _questionIdMeta =
+      const VerificationMeta('questionId');
+  @override
+  late final GeneratedColumn<String> questionId = GeneratedColumn<String>(
+      'question_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _playsUsedMeta =
+      const VerificationMeta('playsUsed');
+  @override
+  late final GeneratedColumn<int> playsUsed = GeneratedColumn<int>(
+      'plays_used', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastPlayedAtMeta =
+      const VerificationMeta('lastPlayedAt');
+  @override
+  late final GeneratedColumn<DateTime> lastPlayedAt = GeneratedColumn<DateTime>(
+      'last_played_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, sessionId, questionId, playsUsed, lastPlayedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_question_audio_plays';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<LocalQuestionAudioPlay> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(_sessionIdMeta,
+          sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta));
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('question_id')) {
+      context.handle(
+          _questionIdMeta,
+          questionId.isAcceptableOrUnknown(
+              data['question_id']!, _questionIdMeta));
+    } else if (isInserting) {
+      context.missing(_questionIdMeta);
+    }
+    if (data.containsKey('plays_used')) {
+      context.handle(_playsUsedMeta,
+          playsUsed.isAcceptableOrUnknown(data['plays_used']!, _playsUsedMeta));
+    }
+    if (data.containsKey('last_played_at')) {
+      context.handle(
+          _lastPlayedAtMeta,
+          lastPlayedAt.isAcceptableOrUnknown(
+              data['last_played_at']!, _lastPlayedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalQuestionAudioPlay map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalQuestionAudioPlay(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      sessionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}session_id'])!,
+      questionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}question_id'])!,
+      playsUsed: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}plays_used'])!,
+      lastPlayedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_played_at']),
+    );
+  }
+
+  @override
+  $LocalQuestionAudioPlaysTable createAlias(String alias) {
+    return $LocalQuestionAudioPlaysTable(attachedDatabase, alias);
+  }
+}
+
+class LocalQuestionAudioPlay extends DataClass
+    implements Insertable<LocalQuestionAudioPlay> {
+  final String id;
+  final String sessionId;
+  final String questionId;
+  final int playsUsed;
+  final DateTime? lastPlayedAt;
+  const LocalQuestionAudioPlay(
+      {required this.id,
+      required this.sessionId,
+      required this.questionId,
+      required this.playsUsed,
+      this.lastPlayedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['session_id'] = Variable<String>(sessionId);
+    map['question_id'] = Variable<String>(questionId);
+    map['plays_used'] = Variable<int>(playsUsed);
+    if (!nullToAbsent || lastPlayedAt != null) {
+      map['last_played_at'] = Variable<DateTime>(lastPlayedAt);
+    }
+    return map;
+  }
+
+  LocalQuestionAudioPlaysCompanion toCompanion(bool nullToAbsent) {
+    return LocalQuestionAudioPlaysCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      questionId: Value(questionId),
+      playsUsed: Value(playsUsed),
+      lastPlayedAt: lastPlayedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPlayedAt),
+    );
+  }
+
+  factory LocalQuestionAudioPlay.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalQuestionAudioPlay(
+      id: serializer.fromJson<String>(json['id']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      questionId: serializer.fromJson<String>(json['questionId']),
+      playsUsed: serializer.fromJson<int>(json['playsUsed']),
+      lastPlayedAt: serializer.fromJson<DateTime?>(json['lastPlayedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'questionId': serializer.toJson<String>(questionId),
+      'playsUsed': serializer.toJson<int>(playsUsed),
+      'lastPlayedAt': serializer.toJson<DateTime?>(lastPlayedAt),
+    };
+  }
+
+  LocalQuestionAudioPlay copyWith(
+          {String? id,
+          String? sessionId,
+          String? questionId,
+          int? playsUsed,
+          Value<DateTime?> lastPlayedAt = const Value.absent()}) =>
+      LocalQuestionAudioPlay(
+        id: id ?? this.id,
+        sessionId: sessionId ?? this.sessionId,
+        questionId: questionId ?? this.questionId,
+        playsUsed: playsUsed ?? this.playsUsed,
+        lastPlayedAt:
+            lastPlayedAt.present ? lastPlayedAt.value : this.lastPlayedAt,
+      );
+  LocalQuestionAudioPlay copyWithCompanion(
+      LocalQuestionAudioPlaysCompanion data) {
+    return LocalQuestionAudioPlay(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      questionId:
+          data.questionId.present ? data.questionId.value : this.questionId,
+      playsUsed: data.playsUsed.present ? data.playsUsed.value : this.playsUsed,
+      lastPlayedAt: data.lastPlayedAt.present
+          ? data.lastPlayedAt.value
+          : this.lastPlayedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalQuestionAudioPlay(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('questionId: $questionId, ')
+          ..write('playsUsed: $playsUsed, ')
+          ..write('lastPlayedAt: $lastPlayedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, sessionId, questionId, playsUsed, lastPlayedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalQuestionAudioPlay &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.questionId == this.questionId &&
+          other.playsUsed == this.playsUsed &&
+          other.lastPlayedAt == this.lastPlayedAt);
+}
+
+class LocalQuestionAudioPlaysCompanion
+    extends UpdateCompanion<LocalQuestionAudioPlay> {
+  final Value<String> id;
+  final Value<String> sessionId;
+  final Value<String> questionId;
+  final Value<int> playsUsed;
+  final Value<DateTime?> lastPlayedAt;
+  final Value<int> rowid;
+  const LocalQuestionAudioPlaysCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.questionId = const Value.absent(),
+    this.playsUsed = const Value.absent(),
+    this.lastPlayedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalQuestionAudioPlaysCompanion.insert({
+    required String id,
+    required String sessionId,
+    required String questionId,
+    this.playsUsed = const Value.absent(),
+    this.lastPlayedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        sessionId = Value(sessionId),
+        questionId = Value(questionId);
+  static Insertable<LocalQuestionAudioPlay> custom({
+    Expression<String>? id,
+    Expression<String>? sessionId,
+    Expression<String>? questionId,
+    Expression<int>? playsUsed,
+    Expression<DateTime>? lastPlayedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (questionId != null) 'question_id': questionId,
+      if (playsUsed != null) 'plays_used': playsUsed,
+      if (lastPlayedAt != null) 'last_played_at': lastPlayedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalQuestionAudioPlaysCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? sessionId,
+      Value<String>? questionId,
+      Value<int>? playsUsed,
+      Value<DateTime?>? lastPlayedAt,
+      Value<int>? rowid}) {
+    return LocalQuestionAudioPlaysCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      questionId: questionId ?? this.questionId,
+      playsUsed: playsUsed ?? this.playsUsed,
+      lastPlayedAt: lastPlayedAt ?? this.lastPlayedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (questionId.present) {
+      map['question_id'] = Variable<String>(questionId.value);
+    }
+    if (playsUsed.present) {
+      map['plays_used'] = Variable<int>(playsUsed.value);
+    }
+    if (lastPlayedAt.present) {
+      map['last_played_at'] = Variable<DateTime>(lastPlayedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalQuestionAudioPlaysCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('questionId: $questionId, ')
+          ..write('playsUsed: $playsUsed, ')
+          ..write('lastPlayedAt: $lastPlayedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LocalDatabase extends GeneratedDatabase {
   _$LocalDatabase(QueryExecutor e) : super(e);
   $LocalDatabaseManager get managers => $LocalDatabaseManager(this);
   late final $LocalAnswersTable localAnswers = $LocalAnswersTable(this);
   late final $LocalExamsTable localExams = $LocalExamsTable(this);
+  late final $LocalQuestionAudioPlaysTable localQuestionAudioPlays =
+      $LocalQuestionAudioPlaysTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [localAnswers, localExams];
+      [localAnswers, localExams, localQuestionAudioPlays];
 }
 
 typedef $$LocalAnswersTableCreateCompanionBuilder = LocalAnswersCompanion
@@ -1096,6 +1420,187 @@ typedef $$LocalExamsTableProcessedTableManager = ProcessedTableManager<
     (LocalExam, BaseReferences<_$LocalDatabase, $LocalExamsTable, LocalExam>),
     LocalExam,
     PrefetchHooks Function()>;
+typedef $$LocalQuestionAudioPlaysTableCreateCompanionBuilder
+    = LocalQuestionAudioPlaysCompanion Function({
+  required String id,
+  required String sessionId,
+  required String questionId,
+  Value<int> playsUsed,
+  Value<DateTime?> lastPlayedAt,
+  Value<int> rowid,
+});
+typedef $$LocalQuestionAudioPlaysTableUpdateCompanionBuilder
+    = LocalQuestionAudioPlaysCompanion Function({
+  Value<String> id,
+  Value<String> sessionId,
+  Value<String> questionId,
+  Value<int> playsUsed,
+  Value<DateTime?> lastPlayedAt,
+  Value<int> rowid,
+});
+
+class $$LocalQuestionAudioPlaysTableFilterComposer
+    extends Composer<_$LocalDatabase, $LocalQuestionAudioPlaysTable> {
+  $$LocalQuestionAudioPlaysTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get playsUsed => $composableBuilder(
+      column: $table.playsUsed, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get lastPlayedAt => $composableBuilder(
+      column: $table.lastPlayedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$LocalQuestionAudioPlaysTableOrderingComposer
+    extends Composer<_$LocalDatabase, $LocalQuestionAudioPlaysTable> {
+  $$LocalQuestionAudioPlaysTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+      column: $table.sessionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get playsUsed => $composableBuilder(
+      column: $table.playsUsed, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get lastPlayedAt => $composableBuilder(
+      column: $table.lastPlayedAt,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$LocalQuestionAudioPlaysTableAnnotationComposer
+    extends Composer<_$LocalDatabase, $LocalQuestionAudioPlaysTable> {
+  $$LocalQuestionAudioPlaysTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get questionId => $composableBuilder(
+      column: $table.questionId, builder: (column) => column);
+
+  GeneratedColumn<int> get playsUsed =>
+      $composableBuilder(column: $table.playsUsed, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastPlayedAt => $composableBuilder(
+      column: $table.lastPlayedAt, builder: (column) => column);
+}
+
+class $$LocalQuestionAudioPlaysTableTableManager extends RootTableManager<
+    _$LocalDatabase,
+    $LocalQuestionAudioPlaysTable,
+    LocalQuestionAudioPlay,
+    $$LocalQuestionAudioPlaysTableFilterComposer,
+    $$LocalQuestionAudioPlaysTableOrderingComposer,
+    $$LocalQuestionAudioPlaysTableAnnotationComposer,
+    $$LocalQuestionAudioPlaysTableCreateCompanionBuilder,
+    $$LocalQuestionAudioPlaysTableUpdateCompanionBuilder,
+    (
+      LocalQuestionAudioPlay,
+      BaseReferences<_$LocalDatabase, $LocalQuestionAudioPlaysTable,
+          LocalQuestionAudioPlay>
+    ),
+    LocalQuestionAudioPlay,
+    PrefetchHooks Function()> {
+  $$LocalQuestionAudioPlaysTableTableManager(
+      _$LocalDatabase db, $LocalQuestionAudioPlaysTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalQuestionAudioPlaysTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalQuestionAudioPlaysTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalQuestionAudioPlaysTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> sessionId = const Value.absent(),
+            Value<String> questionId = const Value.absent(),
+            Value<int> playsUsed = const Value.absent(),
+            Value<DateTime?> lastPlayedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalQuestionAudioPlaysCompanion(
+            id: id,
+            sessionId: sessionId,
+            questionId: questionId,
+            playsUsed: playsUsed,
+            lastPlayedAt: lastPlayedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String sessionId,
+            required String questionId,
+            Value<int> playsUsed = const Value.absent(),
+            Value<DateTime?> lastPlayedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalQuestionAudioPlaysCompanion.insert(
+            id: id,
+            sessionId: sessionId,
+            questionId: questionId,
+            playsUsed: playsUsed,
+            lastPlayedAt: lastPlayedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$LocalQuestionAudioPlaysTableProcessedTableManager
+    = ProcessedTableManager<
+        _$LocalDatabase,
+        $LocalQuestionAudioPlaysTable,
+        LocalQuestionAudioPlay,
+        $$LocalQuestionAudioPlaysTableFilterComposer,
+        $$LocalQuestionAudioPlaysTableOrderingComposer,
+        $$LocalQuestionAudioPlaysTableAnnotationComposer,
+        $$LocalQuestionAudioPlaysTableCreateCompanionBuilder,
+        $$LocalQuestionAudioPlaysTableUpdateCompanionBuilder,
+        (
+          LocalQuestionAudioPlay,
+          BaseReferences<_$LocalDatabase, $LocalQuestionAudioPlaysTable,
+              LocalQuestionAudioPlay>
+        ),
+        LocalQuestionAudioPlay,
+        PrefetchHooks Function()>;
 
 class $LocalDatabaseManager {
   final _$LocalDatabase _db;
@@ -1104,4 +1609,7 @@ class $LocalDatabaseManager {
       $$LocalAnswersTableTableManager(_db, _db.localAnswers);
   $$LocalExamsTableTableManager get localExams =>
       $$LocalExamsTableTableManager(_db, _db.localExams);
+  $$LocalQuestionAudioPlaysTableTableManager get localQuestionAudioPlays =>
+      $$LocalQuestionAudioPlaysTableTableManager(
+          _db, _db.localQuestionAudioPlays);
 }

@@ -30,14 +30,38 @@ class LocalExams extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-// ── Database ──────────────────────────────────────────────────
-
-@DriftDatabase(tables: [LocalAnswers, LocalExams])
-class LocalDatabase extends _$LocalDatabase {
-  LocalDatabase() : super(_openConnection());
+class LocalQuestionAudioPlays extends Table {
+  TextColumn get id => text()();
+  TextColumn get sessionId => text()();
+  TextColumn get questionId => text()();
+  IntColumn get playsUsed => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastPlayedAt => dateTime().nullable()();
 
   @override
-  int get schemaVersion => 1;
+  Set<Column> get primaryKey => {id};
+}
+
+// ── Database ──────────────────────────────────────────────────
+
+@DriftDatabase(tables: [LocalAnswers, LocalExams, LocalQuestionAudioPlays])
+class LocalDatabase extends _$LocalDatabase {
+  LocalDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
+  LocalDatabase.forTesting(super.executor);
+
+  @override
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) async {
+      await m.createAll();
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(localQuestionAudioPlays);
+      }
+    },
+  );
 
   // ── Answers ─────────────────────────────────────────────────
   Future<void> saveAnswer({
@@ -90,6 +114,36 @@ class LocalDatabase extends _$LocalDatabase {
 
   Future<LocalExam?> getCachedExam(String id) {
     return (select(localExams)..where((t) => t.id.equals(id))).getSingleOrNull();
+  }
+
+  // ── Question Audio Plays ────────────────────────────────────
+  Future<int> getAudioPlaysUsed(String sessionId, String questionId) async {
+    final entry = await (select(localQuestionAudioPlays)
+          ..where((t) => t.sessionId.equals(sessionId) & t.questionId.equals(questionId)))
+        .getSingleOrNull();
+    return entry?.playsUsed ?? 0;
+  }
+
+  Future<int> incrementAudioPlay(String sessionId, String questionId) async {
+    final id = '${sessionId}_$questionId';
+    final current = await (select(localQuestionAudioPlays)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+
+    final nextCount = (current?.playsUsed ?? 0) + 1;
+    final now = DateTime.now();
+
+    await into(localQuestionAudioPlays).insertOnConflictUpdate(
+      LocalQuestionAudioPlaysCompanion.insert(
+        id: id,
+        sessionId: sessionId,
+        questionId: questionId,
+        playsUsed: Value(nextCount),
+        lastPlayedAt: Value(now),
+      ),
+    );
+
+    return nextCount;
   }
 }
 
