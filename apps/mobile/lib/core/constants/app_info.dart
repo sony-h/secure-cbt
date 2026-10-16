@@ -1,9 +1,9 @@
 class AppInfo {
   static const String appName = 'Assessia';
   static const String fullName = 'Assessia by Orivastra';
-  static const String version = '1.7.0';
-  static const int buildNumber = 14;
-  static const String versionString = '1.7.0+14';
+  static const String version = '1.7.1';
+  static const int buildNumber = 15;
+  static const String versionString = '1.7.1+15';
   static const String brand = 'Orivastra';
   static const String tagline = 'Measure Learning. Empower Progress.';
   static const String parentTagline = 'From Origin to the Stars.';

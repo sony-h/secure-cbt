@@ -503,9 +503,34 @@ class _ExamReviewScreenState extends ConsumerState<ExamReviewScreen> {
     String? studentAnswer,
     String type,
   ) {
-    final selectedIds = type == 'MULTI_SELECT'
-        ? (studentAnswer?.split(',').where((s) => s.isNotEmpty).toSet() ?? {})
-        : {if (studentAnswer != null) studentAnswer};
+    final rawTokens = (studentAnswer ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    final selectedIds = <String>{};
+    for (final raw in rawTokens) {
+      if (options.any((o) => o['id']?.toString() == raw)) {
+        selectedIds.add(raw);
+        continue;
+      }
+      final byContent = options.firstWhere(
+        (o) => (o['content']?.toString() ?? '').trim().toLowerCase() == raw.toLowerCase(),
+        orElse: () => {},
+      );
+      if (byContent.isNotEmpty && byContent['id'] != null) {
+        selectedIds.add(byContent['id'].toString());
+        continue;
+      }
+      final letterIdx = ['A', 'B', 'C', 'D', 'E', 'F'].indexOf(raw.toUpperCase());
+      if (letterIdx >= 0 && letterIdx < options.length) {
+        final optAtLetter = options[letterIdx];
+        if (optAtLetter['id'] != null) {
+          selectedIds.add(optAtLetter['id'].toString());
+        }
+      }
+    }
 
     return Column(
       children: List.generate(options.length, (idx) {
@@ -617,6 +642,15 @@ class _ExamReviewScreenState extends ConsumerState<ExamReviewScreen> {
     final options = (q['options'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
     final keys = options.map((o) => o['content']?.toString() ?? '').where((s) => s.isNotEmpty).toList();
 
+    String displayAnswer = studentAnswer?.trim() ?? '';
+    final matchedOpt = options.firstWhere(
+      (o) => o['id']?.toString() == displayAnswer,
+      orElse: () => {},
+    );
+    if (matchedOpt.isNotEmpty && matchedOpt['content'] != null) {
+      displayAnswer = matchedOpt['content'].toString();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -641,7 +675,7 @@ class _ExamReviewScreenState extends ConsumerState<ExamReviewScreen> {
               ),
               const SizedBox(height: 2),
               Text(
-                (studentAnswer != null && studentAnswer.isNotEmpty) ? studentAnswer : '(Tidak dijawab)',
+                displayAnswer.isNotEmpty ? displayAnswer : '(Tidak dijawab)',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
@@ -727,7 +761,15 @@ class _ExamReviewScreenState extends ConsumerState<ExamReviewScreen> {
           studentMatchedRight = parsedStudent['right']?.toString() ?? '';
         } catch (_) {}
 
-        final isPairCorrect = studentChoiceId == id;
+        if (studentMatchedRight.isEmpty && studentChoiceId != null && studentChoiceId.isNotEmpty) {
+          final isUuid = RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(studentChoiceId);
+          if (!isUuid) {
+            studentMatchedRight = studentChoiceId;
+          }
+        }
+
+        final isPairCorrect = studentChoiceId == id ||
+            (studentMatchedRight.isNotEmpty && studentMatchedRight.trim().toLowerCase() == rightKey.trim().toLowerCase());
 
         return Container(
           margin: const EdgeInsets.only(bottom: 8),

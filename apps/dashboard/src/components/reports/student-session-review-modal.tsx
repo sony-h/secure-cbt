@@ -17,6 +17,8 @@ import {
   BookOpen,
   Calendar,
   User,
+  ArrowRight,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -262,10 +264,16 @@ export function StudentSessionReviewModal({
                       <div className="space-y-2">
                         {q.options.map((opt, optIndex) => {
                           const optionLetter = String.fromCharCode(65 + optIndex);
+                          const studentTokens =
+                            q.student_answer
+                              ?.split(',')
+                              .map((s) => s.trim())
+                              .filter(Boolean) ?? [];
+
                           const isStudentPick =
-                            q.student_answer?.split(',').map((s) => s.trim()).includes(opt.id) ||
-                            q.student_answer?.toLowerCase() === opt.content.trim().toLowerCase() ||
-                            q.student_answer?.toUpperCase() === optionLetter;
+                            studentTokens.includes(opt.id) ||
+                            studentTokens.some((tok) => tok.toLowerCase() === opt.content.trim().toLowerCase()) ||
+                            studentTokens.some((tok) => tok.toUpperCase() === optionLetter);
                           const isKey = opt.is_correct;
 
                           return (
@@ -319,24 +327,156 @@ export function StudentSessionReviewModal({
                             </div>
                           );
                         })}
+
+                        {(() => {
+                          const studentTokens =
+                            q.student_answer
+                              ?.split(',')
+                              .map((s) => s.trim())
+                              .filter(Boolean) ?? [];
+                          const hasAnyMatch = q.options.some((opt, optIndex) => {
+                            const optionLetter = String.fromCharCode(65 + optIndex);
+                            return (
+                              studentTokens.includes(opt.id) ||
+                              studentTokens.some((tok) => tok.toLowerCase() === opt.content.trim().toLowerCase()) ||
+                              studentTokens.some((tok) => tok.toUpperCase() === optionLetter)
+                            );
+                          });
+
+                          if (q.student_answer && !hasAnyMatch) {
+                            return (
+                              <div className="mt-2 p-2.5 rounded-lg border border-amber-300 bg-amber-50/60 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs">
+                                <span className="font-semibold">Catatan Jawaban Siswa Terpilih: </span>
+                                <span>{q.student_answer}</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
-                    ) : q.type === 'SHORT_ANSWER' ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                        <div className="p-3 rounded-lg border bg-card">
-                          <p className="text-xs font-semibold text-muted-foreground mb-1">Jawaban Siswa:</p>
-                          <p className="font-medium">{q.student_answer || <span className="italic text-muted-foreground">Tidak dijawab</span>}</p>
-                        </div>
-                        <div className="p-3 rounded-lg border border-emerald-300 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200">
-                          <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 mb-1">Kunci Jawaban yang Diterima:</p>
-                          <div className="space-y-1">
-                            {q.options.map((o) => (
-                              <p key={o.id} className="font-medium">• {o.content}</p>
-                            ))}
+                    ) : q.type === 'MATCHING' ? (
+                      (() => {
+                        const parsedPairs = q.options.map((opt, optIndex) => {
+                          let left = opt.content;
+                          let rightKey = '';
+                          try {
+                            const p = JSON.parse(opt.content);
+                            left = p.left || opt.content;
+                            rightKey = p.right || '';
+                          } catch {
+                            left = opt.content;
+                          }
+                          return { id: opt.id, left, rightKey, index: optIndex + 1 };
+                        });
+
+                        let studentMatches: Record<string, string> = {};
+                        try {
+                          if (q.student_answer) {
+                            studentMatches = JSON.parse(q.student_answer);
+                          }
+                        } catch {
+                          studentMatches = {};
+                        }
+
+                        return (
+                          <div className="space-y-2">
+                            {parsedPairs.map((pair) => {
+                              const studentTargetId = studentMatches[pair.id];
+                              const matchedOption = parsedPairs.find((o) => o.id === studentTargetId);
+                              let studentChoiceText = matchedOption ? matchedOption.rightKey : studentTargetId;
+                              if (studentChoiceText && /^[0-9a-fA-F-]{36}$/.test(studentChoiceText)) {
+                                const fallbackOpt = q.options.find((o) => o.id === studentChoiceText);
+                                if (fallbackOpt) {
+                                  try {
+                                    studentChoiceText = JSON.parse(fallbackOpt.content).right || fallbackOpt.content;
+                                  } catch {
+                                    studentChoiceText = fallbackOpt.content;
+                                  }
+                                }
+                              }
+
+                              const isPairCorrect =
+                                studentTargetId === pair.id ||
+                                (!!studentChoiceText &&
+                                  studentChoiceText.trim().toLowerCase() === pair.rightKey.trim().toLowerCase());
+
+                              return (
+                                <div
+                                  key={pair.id}
+                                  className={cn(
+                                    'p-3 rounded-lg border text-sm space-y-2 transition-colors',
+                                    isPairCorrect
+                                      ? 'border-emerald-500/80 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-950 dark:text-emerald-100'
+                                      : 'border-rose-400 bg-rose-50/50 dark:bg-rose-950/20 text-rose-950 dark:text-rose-100',
+                                  )}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 bg-primary/10 text-primary">
+                                      {pair.index}
+                                    </span>
+                                    <div className="font-semibold text-foreground flex-1">
+                                      <RichMarkdownRenderer content={pair.left} />
+                                    </div>
+                                    <Badge variant={isPairCorrect ? 'success' : 'destructive'} className="text-[10px] px-2 py-0.5 shrink-0">
+                                      {isPairCorrect ? 'Cocok ✓' : 'Salah ✗'}
+                                    </Badge>
+                                  </div>
+                                  <div className="pl-7 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                    <div className="p-2 rounded bg-background/80 border border-border/60">
+                                      <p className="font-semibold text-muted-foreground mb-0.5">Pilihan Pasangan Siswa:</p>
+                                      <p
+                                        className={cn(
+                                          'font-medium',
+                                          isPairCorrect
+                                            ? 'text-emerald-700 dark:text-emerald-300'
+                                            : 'text-rose-700 dark:text-rose-300',
+                                        )}
+                                      >
+                                        {studentChoiceText || <span className="italic text-muted-foreground">Belum dipasangkan</span>}
+                                      </p>
+                                    </div>
+                                    {!isPairCorrect && (
+                                      <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/30">
+                                        <p className="font-semibold text-emerald-800 dark:text-emerald-300 mb-0.5">Kunci Pasangan Seharusnya:</p>
+                                        <p className="font-medium text-emerald-900 dark:text-emerald-200">
+                                          {pair.rightKey}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()
+                    ) : q.type === 'SHORT_ANSWER' ? (
+                      (() => {
+                        let displayAnswer = q.student_answer;
+                        if (displayAnswer && /^[0-9a-fA-F-]{36}$/.test(displayAnswer.trim())) {
+                          const matchedOpt = q.options.find((o) => o.id === displayAnswer?.trim());
+                          if (matchedOpt) displayAnswer = matchedOpt.content;
+                        }
+
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            <div className="p-3 rounded-lg border bg-card">
+                              <p className="text-xs font-semibold text-muted-foreground mb-1">Jawaban Siswa:</p>
+                              <p className="font-medium">{displayAnswer || <span className="italic text-muted-foreground">Tidak dijawab</span>}</p>
+                            </div>
+                            <div className="p-3 rounded-lg border border-emerald-300 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200">
+                              <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 mb-1">Kunci Jawaban yang Diterima:</p>
+                              <div className="space-y-1">
+                                {q.options.map((o) => (
+                                  <p key={o.id} className="font-medium">• {o.content}</p>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()
                     ) : (
-                      /* Essay / Matching */
+                      /* Essay */
                       <div className="space-y-3 text-sm">
                         <div className="p-3 rounded-lg border bg-card">
                           <p className="text-xs font-semibold text-muted-foreground mb-1">Jawaban Siswa:</p>

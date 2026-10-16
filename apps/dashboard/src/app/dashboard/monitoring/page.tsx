@@ -165,6 +165,10 @@ function MonitoringPageContent() {
       autoConnect: true,
       reconnection: true,
       reconnectionDelay: 1000,
+      query: {
+        role: 'teacher',
+        examId: selectedExamId,
+      },
     });
 
     socket.on('connect', () => {
@@ -854,7 +858,9 @@ function MonitoringPageContent() {
                         />
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-foreground">{log.description || log.event}</span>
+                            <span className="font-semibold text-foreground">
+                              {(log.description || log.event).replace(/\([0-9a-fA-F-]{36}\)/g, '(Pengawas)')}
+                            </span>
                             {isAction && (
                               <Badge variant="outline" className="text-[9px] px-1 py-0 border-indigo-400 text-indigo-600 dark:text-indigo-400">
                                 Proctor Action
