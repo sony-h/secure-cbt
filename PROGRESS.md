@@ -3,12 +3,12 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.7.2` (Mobile Android Build: `1.7.2+16`)  
+**Current Version:** `v1.7.3` (Mobile Android Build: `1.7.3+17`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 32 - Mission Control Targeted Broadcasts & Telemetry Refinement (Release v1.7.2+16)  
+**Current Phase:** Phase 33 - Session State Persistence, Paused Timer Retention & Exit Deterrence (Release v1.7.3+17)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
-**Last Updated:** 2026-10-16
+**Last Updated:** 2026-10-17
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -1377,6 +1377,28 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 
 ### 2. Monitoring UI Cleanliness
 - **Telemetry Badge Removal:** Removed the static "Live Telemetry" badge next to the title on `apps/dashboard/src/app/dashboard/monitoring/page.tsx` for a clean, professional header aesthetic.
+
+---
+
+## Phase 33 Completion Summary (v1.7.3+17)
+
+**Version:** `v1.7.3` (Mobile Android Build: `1.7.3+17`)  
+**Date:** 2026-10-17  
+
+### 1. Robust Answer & Session State Persistence
+- **Full Answer Recovery on Resume:** Backend `POST /sessions/resume` returns all existing answers as a map (`{ [questionId]: answerText }`), preventing student answers from blanking when resuming an exam session.
+- **Local SQLite Offline-First Answer Cache:** Extended Drift `LocalDatabase` with `getAllAnswers(sessionId)` to load both synced and unsynced local answers, merged over server-side answers on screen load so no work in progress is ever lost.
+- **Answer Real-time Countdown Attachment:** Added `remaining_time_seconds` to `saveAnswerSchema` and `AnswerService.save` so every answer submission automatically snapshots and updates session remaining time in the database.
+
+### 2. Paused Timer Retention on Minimize and Exit
+- **Server-Side Paused Time Accounting:** Replaced automatic wall-clock subtraction during off-screen duration with persisted paused time: when students return, timer countdown resumes exactly from the recorded remaining seconds (capped by absolute `exam.end_at`).
+- **Real-Time Time Synchronization:** Implemented `POST /sessions/sync-time` endpoint (`syncTimeSchema`) and mobile `notifier.syncRemainingTime()`, invoked immediately when the app enters `paused` / `hidden` lifecycle states and periodically via autosave.
+
+### 3. App Exit Deterrence & Immediate Warning Penalties
+- **Exit Detection on Re-entry:** Added `resumed_from_exit` parameter to `resumeSessionSchema` and mobile `_loadSessionData()`.
+- **Automatic Warning Increment & Proctors Alert:** When an exam session is resumed after app exit/closure, the backend automatically increments `warning_count` by +1, records `WARNING_TRIGGERED:APP_EXITED` in `session_logs`, and emits a real-time `WARNING_TRIGGERED` alert to proctors in the monitoring room.
+- **Limit Exceeded Auto-Submit Transition:** If the exit penalty causes warnings to reach or exceed `exam.warning_limit` (with `auto_submit_enabled`), `auto_submit_required: true` is returned and triggers immediate, clean exam auto-submission.
+- **Student Violation Warning & Alarm Burst:** Re-entering the app triggers the `WarningViolationOverlay` with specialized `APP_EXITED` messaging ("Anda terdeteksi keluar atau menutup aplikasi selama ujian berlangsung") and fires the punitive vibration and alarm burst deterrence.
 
 ---
 
