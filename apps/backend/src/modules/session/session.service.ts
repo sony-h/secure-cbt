@@ -3,7 +3,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GradingService } from '../grading/grading.service';
 import {
-  StartSessionInput, SubmitSessionInput, startSessionSchema, submitSessionSchema,
+  StartSessionInput, ResumeSessionInput, SyncTimeInput, SubmitSessionInput,
+  startSessionSchema, resumeSessionSchema, syncTimeSchema, submitSessionSchema,
   SessionStatus, ExamStatus, SocketEvent, shuffle,
 } from '@secure-cbt/shared';
 import { resolveStudentId } from '../../common/helpers/user-resolver.helper';
@@ -167,15 +168,18 @@ export class SessionService {
     return { ...session, exam: examData, questions };
   }
 
-  async resume(dto: { session_id: string }, userId: string) {
+  async resume(dto: ResumeSessionInput, userId: string) {
+    const { session_id, resumed_from_exit } = resumeSessionSchema.parse(dto);
     // Resolve student from user ID
     const studentId = await resolveStudentId(this.prisma, userId);
 
     const session = await this.prisma.examSession.findUnique({
-      where: { id: dto.session_id },
+      where: { id: session_id },
       include: {
         exam: { include: { exam_questions: { include: { question: { include: { options: true } } } } } },
         package: true,
+        answers: { select: { question_id: true, answer_text: true } },
+        student: { select: { full_name: true } },
       },
     });
 
@@ -185,11 +189,49 @@ export class SessionService {
       throw new BadRequestException('Session is already completed');
     }
 
-    // Update session to active
-    await this.prisma.examSession.update({
-      where: { id: session.id },
-      data: { status: SessionStatus.ACTIVE },
-    });
+    let warningCount = session.warning_count ?? 0;
+    let autoSubmitRequired = false;
+
+    if (resumed_from_exit) {
+      warningCount += 1;
+      const warningLimit = session.exam?.warning_limit ?? 5;
+      if (warningCount >= warningLimit && session.exam?.auto_submit_enabled) {
+        autoSubmitRequired = true;
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.examSession.update({
+          where: { id: session.id },
+          data: { status: SessionStatus.ACTIVE, warning_count: warningCount },
+        });
+
+        await tx.sessionLog.create({
+          data: {
+            exam_session_id: session.id,
+            event: 'WARNING_TRIGGERED:APP_EXITED',
+            details: {
+              reason: 'APP_EXITED',
+              warning_count: warningCount,
+              limit: warningLimit,
+            },
+          },
+        });
+      });
+
+      this.eventEmitter.emit(SocketEvent.WARNING_TRIGGERED, {
+        sessionId: session.id,
+        examId: session.exam_id,
+        studentName: session.student?.full_name ?? '',
+        count: warningCount,
+        event: 'APP_EXITED',
+      });
+    } else {
+      // Update session to active
+      await this.prisma.examSession.update({
+        where: { id: session.id },
+        data: { status: SessionStatus.ACTIVE },
+      });
+    }
 
     this.eventEmitter.emit(SocketEvent.SESSION_RECOVERED, { sessionId: session.id });
 
@@ -238,7 +280,56 @@ export class SessionService {
       violation_alarm_sound: session.exam?.violation_alarm_sound ?? 'sharp_beep',
     };
 
-    return { ...session, exam: examData, questions };
+    const answersMap: Record<string, string> = {};
+    if (session.answers && Array.isArray(session.answers)) {
+      for (const ans of session.answers) {
+        if (ans.question_id) {
+          answersMap[ans.question_id] = ans.answer_text ?? '';
+        }
+      }
+    }
+
+    let remainingTimeSeconds = session.remaining_time_seconds;
+    if (session.exam?.end_at) {
+      const secondsUntilEnd = Math.max(0, Math.floor((new Date(session.exam.end_at).getTime() - Date.now()) / 1000));
+      const durationSeconds = (session.exam.duration_minutes ?? 60) * 60;
+      const currentRemaining = typeof session.remaining_time_seconds === 'number'
+        ? session.remaining_time_seconds
+        : durationSeconds;
+      remainingTimeSeconds = Math.min(currentRemaining, secondsUntilEnd);
+    }
+
+    return {
+      ...session,
+      exam: examData,
+      questions,
+      answers: answersMap,
+      warning_count: warningCount,
+      remaining_time_seconds: remainingTimeSeconds,
+      auto_submit_required: autoSubmitRequired,
+    };
+  }
+
+  async syncTime(dto: SyncTimeInput, userId: string) {
+    const { session_id, remaining_time_seconds } = syncTimeSchema.parse(dto);
+    const studentId = await resolveStudentId(this.prisma, userId);
+
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: session_id },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+    if (session.student_id !== studentId) throw new ForbiddenException('Not your session');
+    if (session.status !== SessionStatus.ACTIVE) throw new BadRequestException('Session is not active');
+
+    const updated = await this.prisma.examSession.update({
+      where: { id: session_id },
+      data: { remaining_time_seconds },
+    });
+
+    return {
+      session_id: updated.id,
+      remaining_time_seconds: updated.remaining_time_seconds,
+    };
   }
 
   async submit(dto: SubmitSessionInput, userId: string) {

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { SessionService } from './session.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../../common/guards/roles.guard';
-import { UserRole, startSessionSchema, submitSessionSchema } from '@secure-cbt/shared';
+import { UserRole, startSessionSchema, submitSessionSchema, ResumeSessionInput, SyncTimeInput } from '@secure-cbt/shared';
 import type { AuthenticatedRequest } from '../../common/types';
 
 type StartSessionDto = z.infer<typeof startSessionSchema>;
@@ -28,9 +28,17 @@ export class SessionController {
   @Post('resume')
   @Roles(UserRole.STUDENT)
   @ApiOperation({ summary: 'Resume an exam session' })
-  async resume(@Req() req: AuthenticatedRequest, @Body() body: { session_id: string }) {
+  async resume(@Req() req: AuthenticatedRequest, @Body() body: ResumeSessionInput) {
     const data = await this.sessionService.resume(body, req.user.sub);
     return { success: true, message: 'Session resumed', data };
+  }
+
+  @Post('sync-time')
+  @Roles(UserRole.STUDENT)
+  @ApiOperation({ summary: 'Sync session remaining time' })
+  async syncTime(@Req() req: AuthenticatedRequest, @Body() body: SyncTimeInput) {
+    const data = await this.sessionService.syncTime(body, req.user.sub);
+    return { success: true, message: 'Time synced', data };
   }
 
   @Post('submit')

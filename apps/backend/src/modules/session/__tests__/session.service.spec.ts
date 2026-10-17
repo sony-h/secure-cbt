@@ -325,6 +325,92 @@ describe('SessionService', () => {
       expect((result.exam as any).violation_alarm_sound).toBe('digital_pulse');
     });
 
+    it('should return saved answers map on resume', async () => {
+      const studentId = UUID();
+      const questionId = UUID();
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId });
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: UUID(),
+        student_id: studentId,
+        status: SessionStatus.ACTIVE,
+        package_id: null,
+        remaining_time_seconds: 2400,
+        warning_count: 1,
+        question_order: ['eq-1'],
+        answers: [{ question_id: questionId, answer_text: 'Jawaban tersimpan' }],
+        student: { full_name: 'Budi Student' },
+        exam: {
+          end_at: new Date(Date.now() + 3600 * 1000),
+          duration_minutes: 60,
+          randomize_questions: false,
+          randomize_answers: false,
+          warning_limit: 5,
+          auto_submit_enabled: true,
+          exam_questions: [
+            {
+              id: 'eq-1',
+              position: 1,
+              package_id: null,
+              question: { id: questionId, type: 'SHORT_ANSWER', content: 'Q?', options: [] },
+            },
+          ],
+        },
+      });
+      mockPrisma.examSession.update.mockResolvedValue({});
+
+      const result = await service.resume({ session_id: UUID() }, 'user-1');
+
+      expect(result.answers).toEqual({ [questionId]: 'Jawaban tersimpan' });
+      expect(result.remaining_time_seconds).toBe(2400);
+      expect(result.warning_count).toBe(1);
+      expect(result.auto_submit_required).toBe(false);
+    });
+
+    it('should increment warning_count, emit alert, and mark auto_submit_required when resumed_from_exit hits limit', async () => {
+      const studentId = UUID();
+      const sessionId = UUID();
+      const examId = UUID();
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId });
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        exam_id: examId,
+        student_id: studentId,
+        status: SessionStatus.ACTIVE,
+        package_id: null,
+        remaining_time_seconds: 1800,
+        warning_count: 4,
+        question_order: [],
+        answers: [],
+        student: { full_name: 'Ahmad Siswa' },
+        exam: {
+          id: examId,
+          end_at: new Date(Date.now() + 3600 * 1000),
+          duration_minutes: 60,
+          randomize_questions: false,
+          randomize_answers: false,
+          warning_limit: 5,
+          auto_submit_enabled: true,
+          exam_questions: [],
+        },
+      });
+      mockPrisma.examSession.update.mockResolvedValue({});
+
+      const result = await service.resume({ session_id: sessionId, resumed_from_exit: true }, 'user-1');
+
+      expect(mockPrisma.examSession.update).toHaveBeenCalledWith({
+        where: { id: sessionId },
+        data: { status: SessionStatus.ACTIVE, warning_count: 5 },
+      });
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(SocketEvent.WARNING_TRIGGERED, expect.objectContaining({
+        sessionId,
+        studentName: 'Ahmad Siswa',
+        count: 5,
+        event: 'APP_EXITED',
+      }));
+      expect(result.warning_count).toBe(5);
+      expect(result.auto_submit_required).toBe(true);
+    });
+
     it('should throw for completed sessions', async () => {
       const studentId = UUID();
       mockPrisma.student.findUnique.mockResolvedValue({ id: studentId });
@@ -790,6 +876,27 @@ describe('SessionService', () => {
         examId,
         studentUserId,
       }));
+    });
+  });
+
+  describe('syncTime()', () => {
+    it('should update remaining_time_seconds for active session', async () => {
+      const studentId = UUID();
+      const sessionId = UUID();
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId });
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        student_id: studentId,
+        status: SessionStatus.ACTIVE,
+      });
+      mockPrisma.examSession.update.mockResolvedValue({ id: sessionId, remaining_time_seconds: 1500 });
+
+      const result = await service.syncTime({ session_id: sessionId, remaining_time_seconds: 1500 }, 'user-1');
+      expect(mockPrisma.examSession.update).toHaveBeenCalledWith({
+        where: { id: sessionId },
+        data: { remaining_time_seconds: 1500 },
+      });
+      expect(result.remaining_time_seconds).toBe(1500);
     });
   });
 });
