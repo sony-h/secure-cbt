@@ -11,6 +11,7 @@ export const saveAnswerSchema = z.object({
   question_id: z.string().uuid({ message: 'ID soal tidak valid' }),
   answer_text: z.string().max(10000, { message: 'Jawaban maksimal 10000 karakter' }),
   timestamp: z.string().datetime({ message: 'Format tanggal tidak valid' }).optional(),
+  remaining_time_seconds: z.number().int({ message: 'Sisa waktu harus bilangan bulat' }).min(0, { message: 'Sisa waktu tidak boleh negatif' }).optional(),
 });
 
 export const batchSyncAnswerSchema = z.object({

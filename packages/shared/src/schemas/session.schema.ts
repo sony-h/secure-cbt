@@ -8,6 +8,12 @@ export const startSessionSchema = z.object({
 
 export const resumeSessionSchema = z.object({
   session_id: z.string().uuid({ message: 'ID sesi tidak valid' }),
+  resumed_from_exit: z.boolean().optional(),
+});
+
+export const syncTimeSchema = z.object({
+  session_id: z.string().uuid({ message: 'ID sesi tidak valid' }),
+  remaining_time_seconds: z.number().int({ message: 'Sisa waktu harus bilangan bulat' }).min(0, { message: 'Sisa waktu tidak boleh negatif' }),
 });
 
 export const submitSessionSchema = z.object({
@@ -16,4 +22,5 @@ export const submitSessionSchema = z.object({
 
 export type StartSessionInput = z.infer<typeof startSessionSchema>;
 export type ResumeSessionInput = z.infer<typeof resumeSessionSchema>;
+export type SyncTimeInput = z.infer<typeof syncTimeSchema>;
 export type SubmitSessionInput = z.infer<typeof submitSessionSchema>;
