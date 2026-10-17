@@ -388,3 +388,45 @@ export async function ensureSeedDiagrams(outputDir: string): Promise<void> {
     }
   }
 }
+
+/**
+ * Ensures a sample MP3 audio file is available in the audio storage directory
+ * for listening comprehension question demonstrations.
+ */
+export async function ensureSeedAudio(audioDir: string): Promise<void> {
+  if (!fs.existsSync(audioDir)) {
+    fs.mkdirSync(audioDir, { recursive: true });
+  }
+
+  const sampleAudioDest = path.join(audioDir, 'listening-comprehension-sample.mp3');
+  if (fs.existsSync(sampleAudioDest)) {
+    return;
+  }
+
+  // Attempt to copy from mobile assets if available
+  const mobileSoundCandidates = [
+    path.join(__dirname, '..', '..', 'mobile', 'assets', 'sounds', 'digital_pulse.mp3'),
+    path.join(__dirname, '..', '..', '..', 'apps', 'mobile', 'assets', 'sounds', 'digital_pulse.mp3'),
+    path.join(process.cwd(), '..', 'mobile', 'assets', 'sounds', 'digital_pulse.mp3'),
+  ];
+
+  for (const src of mobileSoundCandidates) {
+    if (fs.existsSync(src)) {
+      try {
+        fs.copyFileSync(src, sampleAudioDest);
+        return;
+      } catch {
+        // continue to next candidate
+      }
+    }
+  }
+
+  // Fallback: minimal valid silent MP3 frame (MPEG 1 Layer 3, 128kbps, 44.1kHz)
+  const silentMp3Header = Buffer.from([
+    0xff, 0xfb, 0x90, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x58, 0x69, 0x6e, 0x67,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0xa0,
+  ]);
+  fs.writeFileSync(sampleAudioDest, silentMp3Header);
+}

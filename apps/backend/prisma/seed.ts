@@ -7,7 +7,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { randomBytes } from 'crypto';
 import * as path from 'path';
-import { ensureSeedDiagrams } from './seed-diagrams';
+import { ensureSeedDiagrams, ensureSeedAudio } from './seed-diagrams';
 
 /**
  * Comprehensive seed script for Secure CBT development.
@@ -209,10 +209,14 @@ async function seed() {
     logger.log(`  60 students created (10 per class)`);
 
     // ── 10. Question Banks (4) ──────────────────────────────
-    logger.log('Generating seed diagram images...');
+    logger.log('Generating seed diagram images & audio stimulus...');
     const uploadsDir = path.join(process.cwd(), 'storage', 'uploads', 'questions');
     await ensureSeedDiagrams(uploadsDir);
     logger.log('  11 diagram images generated in storage/uploads/questions/');
+
+    const audioDir = path.join(process.cwd(), 'storage', 'uploads', 'audio');
+    await ensureSeedAudio(audioDir);
+    logger.log('  Sample audio stimulus prepared in storage/uploads/audio/');
 
     logger.log('Creating question banks & questions...');
     const mathMinat = subjects.find(s => s.code === 'MTK-P');
@@ -229,12 +233,14 @@ async function seed() {
       prisma.questionBank.create({ data: { title: 'Bank Soal Ekonomi & Pengetahuan Umum', subject_id: eko!.id, teacher_id: teachers[3].id } }),
     ]);
 
-    // ── 11. Questions (32 total across all 6 question types) ──
+    // ── 11. Questions (33 total across all 6 question types) ──
     const questionTemplates: {
       bank: number;
       type: string;
       content: string;
       image_url?: string | null;
+      audio_url?: string | null;
+      audio_play_limit?: number | null;
       options: { text: string; correct: boolean; image_url?: string | null }[];
       difficulty: string;
       explanation?: string | null;
@@ -587,6 +593,22 @@ async function seed() {
         explanation: 'Langkah Penyetaraan:\n1. Reduksi: $\\text{MnO}_4^- + 8\\text{H}^+ + 5e^- \\rightarrow \\text{Mn}^{2+} + 4\\text{H}_2\\text{O}$.\n2. Oksidasi: $\\text{Fe}^{2+} \\rightarrow \\text{Fe}^{3+} + e^-$ (dikalikan 5).\n3. Reaksi Bersih: $\\text{MnO}_4^- + 5\\text{Fe}^{2+} + 8\\text{H}^+ \\rightarrow \\text{Mn}^{2+} + 5\\text{Fe}^{3+} + 4\\text{H}_2\\text{O}$.',
         tags: ['redoks', 'reaksi_kimia', 'esai'],
       },
+      {
+        bank: 2,
+        type: 'MULTIPLE_CHOICE',
+        difficulty: 'MEDIUM',
+        audio_url: '/uploads/audio/listening-comprehension-sample.mp3',
+        audio_play_limit: 2,
+        content: 'Dengarkan rekaman audio stimulus terlampir dengan seksama. Berdasarkan informasi dalam rekaman tersebut, topik utama apa yang sedang dipersiapkan oleh pihak sekolah?',
+        options: [
+          { text: 'Gladi bersih simulasi ujian CBT dan pengecekan headset audio listening', correct: true },
+          { text: 'Rencana studi tour dan karya wisata akhir semester', correct: false },
+          { text: 'Pendaftaran peserta turnamen olahraga antar sekolah', correct: false },
+          { text: 'Renovasi gedung aula utama dan perpustakaan', correct: false },
+        ],
+        explanation: 'Rekaman audio memuat arahan pengawas mengenai gladi simulasi CBT dan pengecekan perangkat audio listening.',
+        tags: ['listening', 'audio_stimulus', 'bahasa'],
+      },
 
       // ════════════════════════════════════════════════════════
       // ── Bank 3: Ekonomi & Pengetahuan Umum (7 questions) ────
@@ -695,6 +717,8 @@ async function seed() {
           type: t.type as any,
           content: t.content,
           image_url: t.image_url || null,
+          audio_url: t.audio_url || null,
+          audio_play_limit: t.audio_play_limit !== undefined ? t.audio_play_limit : (t.audio_url ? 2 : null),
           difficulty: t.difficulty as any,
           explanation: t.explanation || null,
         },
@@ -718,7 +742,7 @@ async function seed() {
         });
       }
     }
-    logger.log(`  32 questions created across 4 banks covering all 6 question types`);
+    logger.log(`  ${allQuestions.length} questions created across 4 banks covering all 6 question types`);
 
     // ── 12. Sample Exams ────────────────────────────────────
     logger.log('Creating sample exams...');
@@ -744,6 +768,13 @@ async function seed() {
         auto_submit_enabled: true,
         fullscreen_required: true,
         package_count: 2,
+        points_easy: 1,
+        points_medium: 2,
+        points_hard: 3,
+        violation_vibration_enabled: true,
+        violation_alarm_enabled: true,
+        violation_alarm_duration_seconds: 3,
+        violation_alarm_sound: 'sharp_beep',
       },
     });
 
@@ -792,6 +823,13 @@ async function seed() {
         auto_submit_enabled: true,
         fullscreen_required: true,
         package_count: 1,
+        points_easy: 1,
+        points_medium: 2,
+        points_hard: 3,
+        violation_vibration_enabled: true,
+        violation_alarm_enabled: true,
+        violation_alarm_duration_seconds: 3,
+        violation_alarm_sound: 'sharp_beep',
       },
     });
     await prisma.examClass.createMany({
@@ -804,7 +842,7 @@ async function seed() {
     logger.log('  Ulangan Harian Fisika (PUBLISHED — upcoming, IPA)');
 
     // ── Exam 3: UTS Ekonomi — PASSED (IPS) ────────────────────
-    const ekonomiQuestions = allQuestions.slice(25, 32);
+    const ekonomiQuestions = allQuestions.slice(26, 33);
     const token3 = randomBytes(4).toString('hex').toUpperCase().slice(0, 8);
     const exam3 = await prisma.exam.create({
       data: {
@@ -822,6 +860,13 @@ async function seed() {
         auto_submit_enabled: true,
         fullscreen_required: true,
         package_count: 1,
+        points_easy: 1,
+        points_medium: 2,
+        points_hard: 3,
+        violation_vibration_enabled: true,
+        violation_alarm_enabled: true,
+        violation_alarm_duration_seconds: 3,
+        violation_alarm_sound: 'sharp_beep',
       },
     });
     await prisma.examClass.createMany({
@@ -853,12 +898,26 @@ async function seed() {
         data: { exam_session_id: session3.id, event: 'SESSION_STARTED', description: `Siswa ${s.full_name} memulai ujian Ekonomi` },
       });
       const correctCount3 = 3 + (si % 3); // 3, 4, or 5 correct
+      let rawPointsPossible3 = 0;
+      let rawPointsEarned3 = 0;
+      for (let qi = 0; qi < ekonomiQuestions.length; qi++) {
+        const q = ekonomiQuestions[qi]!;
+        const pts = q.difficulty === 'HARD' ? 3 : q.difficulty === 'MEDIUM' ? 2 : 1;
+        rawPointsPossible3 += pts;
+        if (qi < correctCount3) {
+          rawPointsEarned3 += pts;
+        }
+      }
+      const totalScore3 = Math.round((rawPointsEarned3 / Math.max(rawPointsPossible3, 1)) * 100);
+
       await prisma.score.create({
         data: {
           exam_session_id: session3.id,
-          total_score: Math.round((correctCount3 / ekonomiQuestions.length) * 100),
+          total_score: totalScore3,
           correct_count: correctCount3,
           wrong_count: ekonomiQuestions.length - correctCount3,
+          raw_points_earned: rawPointsEarned3,
+          raw_points_possible: rawPointsPossible3,
           graded_by: null,
           graded_at: new Date(),
         },
@@ -950,6 +1009,13 @@ async function seed() {
         auto_submit_enabled: true,
         fullscreen_required: true,
         package_count: 1,
+        points_easy: 1,
+        points_medium: 2,
+        points_hard: 3,
+        violation_vibration_enabled: true,
+        violation_alarm_enabled: true,
+        violation_alarm_duration_seconds: 3,
+        violation_alarm_sound: 'sharp_beep',
       },
     });
     await prisma.examClass.createMany({
@@ -1000,6 +1066,13 @@ async function seed() {
         auto_submit_enabled: true,
         fullscreen_required: true,
         package_count: 1,
+        points_easy: 1,
+        points_medium: 2,
+        points_hard: 3,
+        violation_vibration_enabled: true,
+        violation_alarm_enabled: true,
+        violation_alarm_duration_seconds: 3,
+        violation_alarm_sound: 'sharp_beep',
       },
     });
     await prisma.examClass.createMany({
@@ -1010,6 +1083,51 @@ async function seed() {
       await prisma.examQuestion.create({ data: { exam_id: exam5.id, question_id: pknQuestions[i].id, position: i + 1, package_id: pkg5.id } });
     }
     logger.log('  Tryout PKN (PUBLISHED — upcoming, all classes)');
+
+    // ── Exam 6: Simulasi Sains & Audio Listening (Random Pool) ──
+    const scienceQuestions = allQuestions.slice(18, 26); // Bank 2 questions (includes listening question)
+    const token6 = randomBytes(4).toString('hex').toUpperCase().slice(0, 8);
+    const exam6 = await prisma.exam.create({
+      data: {
+        title: 'Simulasi Sains Terpadu & Audio Listening (Pool Acak)',
+        description: 'Simulasi CBT fitur lengkap: Pool Soal Acak Seimbang (5 dari 8 soal), Audio Listening Stimulus, dan Proteksi Kecurangan.',
+        subject_id: kimia!.id,
+        teacher_id: teachers[1].id,
+        duration_minutes: 45,
+        status: 'PUBLISHED',
+        start_at: new Date(now.getTime() - 2 * 3600 * 1000),
+        end_at: new Date(now.getTime() + 14 * 24 * 3600 * 1000),
+        randomize_questions: true,
+        randomize_answers: true,
+        warning_limit: 3,
+        auto_submit_enabled: true,
+        fullscreen_required: true,
+        package_count: 1,
+        is_random_pool: true,
+        pool_question_count: 5,
+        pool_mode: 'BALANCED',
+        points_easy: 1,
+        points_medium: 2,
+        points_hard: 3,
+        violation_vibration_enabled: true,
+        violation_alarm_enabled: true,
+        violation_alarm_duration_seconds: 3,
+        violation_alarm_sound: 'sharp_beep',
+      },
+    });
+    await prisma.examClass.createMany({
+      data: classes.map(c => ({ exam_id: exam6.id, class_id: c.id })),
+    });
+    const pkg6 = await prisma.examPackage.create({ data: { exam_id: exam6.id, name: 'A' } });
+    for (let i = 0; i < scienceQuestions.length; i++) {
+      await prisma.examQuestion.create({
+        data: { exam_id: exam6.id, question_id: scienceQuestions[i].id, position: i + 1, package_id: pkg6.id },
+      });
+    }
+    await prisma.examToken.create({
+      data: { exam_id: exam6.id, token: token6, expires_at: new Date(now.getTime() + 14 * 24 * 3600 * 1000) },
+    });
+    logger.log(`  Simulasi Sains & Audio (PUBLISHED — Pool Acak) — Token: ${token6}`);
 
     // ── 13. Exam Sessions & Answers (for monitoring/reports demo) ──
     logger.log('Creating demo exam sessions & answers...');
@@ -1116,12 +1234,28 @@ async function seed() {
         // Create score
         const totalQuestions = pkgQs.filter(q => allQuestions.some(aq => aq.id === q.question_id)).length;
         const correctCount = Math.floor(totalQuestions * (si === 0 ? 0.9 : si === 1 ? 0.7 : 0.5));
+
+        let rawPointsPossible1 = 0;
+        let rawPointsEarned1 = 0;
+        for (let qi = 0; qi < pkgQs.length; qi++) {
+          const eq = pkgQs[qi]!;
+          const q = allQuestions.find(aq => aq.id === eq.question_id);
+          const pts = q?.difficulty === 'HARD' ? 3 : q?.difficulty === 'MEDIUM' ? 2 : 1;
+          rawPointsPossible1 += pts;
+          if (qi < correctCount) {
+            rawPointsEarned1 += pts;
+          }
+        }
+        const totalScore1 = Math.round((rawPointsEarned1 / Math.max(rawPointsPossible1, 1)) * 100);
+
         await prisma.score.create({
           data: {
             exam_session_id: session.id,
-            total_score: Math.round((correctCount / Math.max(totalQuestions, 1)) * 100),
+            total_score: totalScore1,
             correct_count: correctCount,
             wrong_count: totalQuestions - correctCount,
+            raw_points_earned: rawPointsEarned1,
+            raw_points_possible: rawPointsPossible1,
             graded_by: null,
             graded_at: status === 'SUBMITTED' ? new Date() : null,
           },
@@ -1145,13 +1279,14 @@ async function seed() {
     logger.log('     • 198807202012011003 / teacher123 (Hendra G. — Biologi, BIN)');
     logger.log('     • 199107152018012004 / teacher123 (Siti R. — Ekonomi, Geografi, Sosiologi)');
     logger.log('  🔑 Students: NIS-based login (e.g., 202501001 / 202501001)');
-    logger.log('  📝 Questions: 32 across 4 banks (Math, Physics, Science, Economics) covering all 6 question types');
+    logger.log('  📝 Questions: 33 across 4 banks (Math, Physics, Science, Economics) covering all 6 question types');
     logger.log('  📋 Exams:');
     logger.log('     • UTS Matematika (PUBLISHED — IPA) — Token: ' + token1);
     logger.log('     • Ulangan Fisika (PUBLISHED — upcoming, IPA)');
     logger.log('     • UTS Ekonomi (FINISHED — IPS, ' + ipsStudents.length + ' sessions completed) — Token: ' + token3);
     logger.log('     • Latihan Bahasa Jepang (ONGOING — BAH) — Token: ' + token4);
     logger.log('     • Tryout PKN (PUBLISHED — upcoming, ALL classes)');
+    logger.log('     • Simulasi Sains & Audio (PUBLISHED — Pool Acak) — Token: ' + token6);
     logger.log('  📊 Demo Data: 5 IPA sessions (Exam 1) + ' + ipsStudents.length + ' IPS sessions (Exam 3) + 2 BAH sessions (Exam 4)');
     logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
