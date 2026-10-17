@@ -28,8 +28,11 @@ class ExamNotifier extends StateNotifier<ExamState> {
     String sessionId,
     List<Map<String, dynamic>> questions,
     int remainingSeconds,
-    Dio dio,
-  ) async {
+    Dio dio, {
+    Map<String, String>? initialAnswers,
+    int? warningCount,
+    bool autoSubmitImmediately = false,
+  }) async {
     _timer?.cancel();
     _autosaveTimer?.cancel();
     _focusGraceTimer?.cancel();
@@ -43,9 +46,9 @@ class ExamNotifier extends StateNotifier<ExamState> {
       questions: questions,
       remainingSeconds: remainingSeconds,
       currentIndex: 0,
-      warningCount: 0,
+      warningCount: warningCount ?? 0,
       violations: [],
-      answers: {},
+      answers: initialAnswers != null ? Map<String, String>.from(initialAnswers) : {},
       flagged: {},
       showSaveIndicator: false,
       isSubmitted: false,
@@ -69,6 +72,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
             'question_id': ans.questionId,
             'answer_text': ans.answerText ?? '',
             'timestamp': ans.answeredAt.toUtc().toIso8601String(),
+            'remaining_time_seconds': remainingSeconds,
           });
           await _db.markSynced(ans.id);
         } catch (e) {
@@ -79,8 +83,29 @@ class ExamNotifier extends StateNotifier<ExamState> {
       AppLogger.error('Failed to get pending answers', e);
     }
 
+    if (autoSubmitImmediately) {
+      AppLogger.warn('Immediate auto-submit requested upon session load (limit exceeded)');
+      _onForceSubmit?.call();
+      return;
+    }
+
     _startTimer();
     _startAutosave();
+  }
+
+  Future<void> syncRemainingTime() async {
+    final sid = state.sessionId;
+    final dio = _dio;
+    if (sid == null || dio == null || state.isSubmitted) return;
+    try {
+      await dio.post('/sessions/sync-time', data: {
+        'session_id': sid,
+        'remaining_time_seconds': state.remainingSeconds,
+      });
+      AppLogger.info('Remaining time synced to server: ${state.remainingSeconds}s');
+    } catch (e) {
+      AppLogger.warn('Failed to sync remaining time to server', e);
+    }
   }
 
   void pauseTimer() {
@@ -246,6 +271,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
         'question_id': questionId,
         'answer_text': answer,
         'timestamp': DateTime.now().toUtc().toIso8601String(),
+        'remaining_time_seconds': state.remainingSeconds,
       });
       await _db.markSynced('${state.sessionId}_$questionId');
       state = state.copyWith(showSaveIndicator: true, lastSavedAt: DateTime.now());
@@ -341,7 +367,8 @@ class ExamNotifier extends StateNotifier<ExamState> {
     _autosaveTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       final sid = state.sessionId;
       final dio = _dio;
-      if (sid == null || dio == null) return;
+      if (sid == null || dio == null || state.isSubmitted) return;
+      syncRemainingTime();
       _db.getPendingAnswers(sid).then((pending) async {
         if (pending.isEmpty) return;
         AppLogger.info('Autosave: syncing ${pending.length} pending answers');
@@ -352,6 +379,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
               'question_id': ans.questionId,
               'answer_text': ans.answerText ?? '',
               'timestamp': ans.answeredAt.toUtc().toIso8601String(),
+              'remaining_time_seconds': state.remainingSeconds,
             });
             await _db.markSynced(ans.id);
           } catch (e) {
