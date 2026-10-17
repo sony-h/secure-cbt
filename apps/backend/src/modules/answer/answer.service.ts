@@ -8,7 +8,7 @@ export class AnswerService {
   constructor(private readonly prisma: PrismaService) {}
 
   async save(dto: SaveAnswerInput, userId: string) {
-    const { session_id, question_id, answer_text, timestamp } = saveAnswerSchema.parse(dto);
+    const { session_id, question_id, answer_text, timestamp, remaining_time_seconds } = saveAnswerSchema.parse(dto);
 
     const studentId = await resolveStudentId(this.prisma, userId);
 
@@ -42,6 +42,13 @@ export class AnswerService {
         synced_at: new Date(),
       },
     });
+
+    if (typeof remaining_time_seconds === 'number' && remaining_time_seconds >= 0) {
+      await this.prisma.examSession.update({
+        where: { id: session_id },
+        data: { remaining_time_seconds },
+      });
+    }
 
     return answer;
   }
