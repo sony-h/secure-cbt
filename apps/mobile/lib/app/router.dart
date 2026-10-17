@@ -104,6 +104,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ExamScreen(
             sessionId: extra['sessionId'] as String? ?? '',
             examTitle: extra['examTitle'] as String? ?? 'Ujian',
+            isNewSession: extra['isNewSession'] as bool? ?? false,
           );
         },
       ),

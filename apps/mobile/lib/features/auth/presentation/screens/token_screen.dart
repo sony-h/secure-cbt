@@ -99,6 +99,7 @@ class _TokenScreenState extends ConsumerState<TokenScreen> with SingleTickerProv
         context.goNamed(RouteNames.exam, extra: {
           'sessionId': session['id'],
           'examTitle': examTitle,
+          'isNewSession': true,
         });
       }
     } on DioException catch (e) {

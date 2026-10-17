@@ -21,6 +21,7 @@ import 'package:secure_cbt_mobile/features/exam/presentation/widgets/question_pa
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submit_dialog.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_submit_handler.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_violation_handler.dart';
+import 'package:secure_cbt_mobile/core/database/database_provider.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/security/screen_security.dart';
 import 'package:secure_cbt_mobile/core/security/violation_alarm_service.dart';
@@ -29,12 +30,14 @@ class ExamScreen extends ConsumerStatefulWidget {
   final String sessionId;
   final String examTitle;
   final int warningLimit;
+  final bool isNewSession;
 
   const ExamScreen({
     super.key,
     required this.sessionId,
     required this.examTitle,
     this.warningLimit = 3,
+    this.isNewSession = false,
   });
 
   @override
@@ -86,8 +89,10 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
 
   Future<void> _loadSessionData() async {
     try {
+      final resumedFromExit = !widget.isNewSession;
       final response = await _dio.post('/sessions/resume', data: {
         'session_id': widget.sessionId,
+        'resumed_from_exit': resumedFromExit,
       });
       final resData = response.data;
       if (resData is! Map || resData['data'] is! Map) {
@@ -100,6 +105,8 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       final remainingSeconds = session['remaining_time_seconds'] as int? ?? 0;
       final examData = session['exam'] as Map<String, dynamic>?;
       final warningLimit = examData?['warning_limit'] as int? ?? (session['warning_limit'] as int? ?? 3);
+      final warningCount = session['warning_count'] as int? ?? 0;
+      final autoSubmitRequired = session['auto_submit_required'] as bool? ?? false;
       _vibrationEnabled = (examData?['violation_vibration_enabled'] ?? session['violation_vibration_enabled']) as bool? ?? true;
       _alarmEnabled = (examData?['violation_alarm_enabled'] ?? session['violation_alarm_enabled']) as bool? ?? true;
       _alarmDuration = (examData?['violation_alarm_duration_seconds'] ?? session['violation_alarm_duration_seconds']) as int? ?? 3;
@@ -116,6 +123,17 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
 
       if (!mounted) return;
 
+      // Load local answers from Drift SQLite and merge with remote answers
+      final localAnswers = await ref.read(localDatabaseProvider).getAllAnswers(widget.sessionId);
+      final remoteAnswersRaw = session['answers'];
+      final Map<String, String> mergedAnswers = {};
+      if (remoteAnswersRaw is Map) {
+        for (final entry in remoteAnswersRaw.entries) {
+          mergedAnswers[entry.key.toString()] = entry.value?.toString() ?? '';
+        }
+      }
+      mergedAnswers.addAll(localAnswers);
+
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
       SystemChrome.setPreferredOrientations([
         DeviceOrientation.portraitUp,
@@ -126,8 +144,26 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       final notifier = ref.read(examProvider.notifier);
       _submitHandler = ExamSubmitHandler(dio: _dio, sessionId: widget.sessionId, ref: ref, context: context);
       notifier.setOnForceSubmit(() => _submitHandler!.forceSubmit());
-      notifier.loadSession(widget.sessionId, questions, remainingSeconds, _dio);
+      notifier.loadSession(
+        widget.sessionId,
+        questions,
+        remainingSeconds,
+        _dio,
+        initialAnswers: mergedAnswers,
+        warningCount: warningCount,
+        autoSubmitImmediately: autoSubmitRequired,
+      );
       notifier.setWarningLimit(warningLimit);
+
+      if (resumedFromExit && !autoSubmitRequired) {
+        notifier.triggerWarningOverlay('APP_EXITED');
+        ref.read(violationAlarmServiceProvider).triggerAlarm(
+              vibrationEnabled: _vibrationEnabled,
+              alarmEnabled: _alarmEnabled,
+              durationSeconds: _alarmDuration,
+              soundName: _alarmSound,
+            );
+      }
 
       final authState = ref.read(authProvider);
       final examId = session['exam_id'] ?? session['exam']?['id'] ?? '';
@@ -741,13 +777,19 @@ class _WarningDangerOverlayState extends State<_WarningDangerOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final isMinimized = widget.examState.currentViolationEvent == 'APP_MINIMIZED';
-    final reasonTitle = isMinimized
-        ? 'Aplikasi Diminimalkan / Pindah Aplikasi'
-        : 'Bilah Status / Panel Notifikasi Dibuka';
-    final reasonDesc = isMinimized
-        ? 'Anda terdeteksi meminimalkan aplikasi Secure CBT atau beralih ke aplikasi lain selama ujian berlangsung.'
-        : 'Anda terdeteksi menarik bilah status atau membuka panel notifikasi di atas layar ujian.';
+    final event = widget.examState.currentViolationEvent;
+    final isExited = event == 'APP_EXITED';
+    final isMinimized = event == 'APP_MINIMIZED';
+    final reasonTitle = isExited
+        ? 'Aplikasi Ditutup / Keluar Dari Ujian'
+        : (isMinimized
+            ? 'Aplikasi Diminimalkan / Pindah Aplikasi'
+            : 'Bilah Status / Panel Notifikasi Dibuka');
+    final reasonDesc = isExited
+        ? 'Anda terdeteksi keluar atau menutup aplikasi selama ujian berlangsung. Pelanggaran telah dicatat oleh sistem.'
+        : (isMinimized
+            ? 'Anda terdeteksi meminimalkan aplikasi Secure CBT atau beralih ke aplikasi lain selama ujian berlangsung.'
+            : 'Anda terdeteksi menarik bilah status atau membuka panel notifikasi di atas layar ujian.');
 
     return Container(
       width: double.infinity,

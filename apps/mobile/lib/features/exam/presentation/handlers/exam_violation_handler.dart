@@ -23,6 +23,7 @@ class ExamViolationHandler {
       case AppLifecycleState.hidden:
         notifier.setAppPaused(true);
         notifier.pauseTimer();
+        notifier.syncRemainingTime();
         if (!_violationPending) {
           _violationPending = true;
           notifier.logViolation('APP_MINIMIZED');
