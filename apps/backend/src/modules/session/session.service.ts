@@ -209,11 +209,7 @@ export class SessionService {
           data: {
             exam_session_id: session.id,
             event: 'WARNING_TRIGGERED:APP_EXITED',
-            details: {
-              reason: 'APP_EXITED',
-              warning_count: warningCount,
-              limit: warningLimit,
-            },
+            description: `Siswa keluar dari aplikasi (Peringatan ${warningCount}/${warningLimit})`,
           },
         });
       });
