@@ -94,6 +94,13 @@ class LocalDatabase extends _$LocalDatabase {
         .write(const LocalAnswersCompanion(synced: Value(true)));
   }
 
+  Future<Map<String, String>> getAllAnswers(String sessionId) async {
+    final rows = await (select(localAnswers)
+          ..where((t) => t.sessionId.equals(sessionId)))
+        .get();
+    return {for (final r in rows) r.questionId: r.answerText ?? ''};
+  }
+
   // ── Exams (Offline Cache) ───────────────────────────────────
   Future<void> cacheExam({
     required String id,
