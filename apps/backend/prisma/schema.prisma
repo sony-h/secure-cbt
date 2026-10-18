@@ -87,15 +87,16 @@ model User {
 // ── students ─────────────────────────────────────────────────────
 
 model Student {
-  id         String        @id @default(uuid()) @db.Uuid
-  user_id    String        @unique @db.Uuid
-  nis        String        @unique
-  full_name  String
-  class_id   String        @db.Uuid
-  status     StudentStatus @default(ACTIVE)
-  created_at DateTime      @default(now())
-  updated_at DateTime      @updatedAt
-  deleted_at DateTime?
+  id             String        @id @default(uuid()) @db.Uuid
+  user_id        String        @unique @db.Uuid
+  nis            String        @unique
+  full_name      String
+  class_id       String        @db.Uuid
+  plain_password String?
+  status         StudentStatus @default(ACTIVE)
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+  deleted_at     DateTime?
 
   user           User            @relation(fields: [user_id], references: [id], onDelete: Restrict)
   class          Class           @relation(fields: [class_id], references: [id], onDelete: Restrict)
@@ -112,7 +113,7 @@ model Student {
 model Teacher {
   id         String    @id @default(uuid()) @db.Uuid
   user_id    String    @unique @db.Uuid
-  nip        String    @unique
+  nip        String?   @unique
   full_name  String
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt

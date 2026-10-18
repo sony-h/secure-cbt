@@ -80,8 +80,13 @@ function TeacherDialog({
     }>
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>NIP</Label>
-          <Input value={form.nip} onChange={(e) => setForm({ ...form, nip: e.target.value })} placeholder="Nomor Induk Pegawai" disabled={isEditing} />
+          <Label>NIP / NIY <span className="text-muted-foreground font-normal text-xs">(Opsional)</span></Label>
+          <Input
+            value={form.nip}
+            onChange={(e) => setForm({ ...form, nip: e.target.value })}
+            placeholder="Nomor Induk Pegawai / Yayasan (opsional)"
+            disabled={isEditing}
+          />
         </div>
         <div className="space-y-2">
           <Label>Nama Lengkap</Label>
@@ -158,21 +163,20 @@ function TeachersPageContent() {
   });
 
   const handleSave = () => {
-    if (!form.nip.trim()) { toast.error('NIP harus diisi'); return; }
     if (!form.full_name.trim()) { toast.error('Nama harus diisi'); return; }
-    saveMutation.mutate({ nip: form.nip, full_name: form.full_name, subject_ids: form.subject_ids });
+    saveMutation.mutate({ nip: form.nip.trim() || null, full_name: form.full_name, subject_ids: form.subject_ids });
   };
 
   const handleEdit = (t: Teacher) => {
     setEditingId(t.id);
-    setForm({ nip: t.nip, full_name: t.full_name, subject_ids: t.teacher_subjects?.map((ts) => ts.subject.id) || [] });
+    setForm({ nip: t.nip || '', full_name: t.full_name, subject_ids: t.teacher_subjects?.map((ts) => ts.subject.id) || [] });
     setModalOpen(true);
   };
 
   const handleAdd = () => { setEditingId(null); setForm(emptyForm); setModalOpen(true); };
 
   const teacherColumns: ColumnDef<any>[] = [
-    { accessorKey: 'nip', header: 'NIP', enableSorting: true, cell: ({ row }) => <span className="font-medium">{row.original.nip}</span> },
+    { accessorKey: 'nip', header: 'NIP / NIY', enableSorting: true, cell: ({ row }) => <span className="font-medium">{row.original.nip || '-'}</span> },
     { accessorKey: 'full_name', header: 'Nama Lengkap', enableSorting: true },
     { accessorKey: 'teacher_subjects', header: 'Mata Pelajaran', cell: ({ row }) => (
       <div className="flex flex-wrap gap-1">

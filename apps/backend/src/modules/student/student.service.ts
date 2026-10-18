@@ -1,6 +1,14 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateStudentInput, UpdateStudentInput, ImportStudentRowInput, createStudentSchema, updateStudentSchema, PaginationQuery } from '@secure-cbt/shared';
+import {
+  CreateStudentInput,
+  UpdateStudentInput,
+  ImportStudentRowInput,
+  createStudentSchema,
+  updateStudentSchema,
+  PaginationQuery,
+  generateClassPassword,
+} from '@secure-cbt/shared';
 import * as argon2 from 'argon2';
 import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
 
@@ -52,9 +60,9 @@ export class StudentService {
     const classRecord = await this.prisma.class.findUnique({ where: { id: data.class_id } });
     if (!classRecord) throw new BadRequestException('Class not found');
 
-    // Generate username from NIS, default password
+    // Generate username from NIS, password from dto or fallback to NIS
     const username = data.nis;
-    const password = data.nis;
+    const password = data.password && data.password.trim() ? data.password.trim() : data.nis;
     const password_hash = await argon2.hash(password);
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -62,7 +70,13 @@ export class StudentService {
         data: { username, email: `${data.nis}@student.securecbt.id`, password_hash, role: 'STUDENT' },
       });
       const student = await tx.student.create({
-        data: { user_id: user.id, nis: data.nis, full_name: data.full_name, class_id: data.class_id },
+        data: {
+          user_id: user.id,
+          nis: data.nis,
+          full_name: data.full_name,
+          class_id: data.class_id,
+          plain_password: password,
+        },
         include: { class: { include: { major: true } } },
       });
       return student;
@@ -73,11 +87,31 @@ export class StudentService {
 
   async update(id: string, dto: UpdateStudentInput) {
     const data = updateStudentSchema.parse(dto);
-    await this.findById(id);
-    return this.prisma.student.update({
-      where: { id },
-      data,
-      include: { class: { include: { major: true } } },
+    const existing = await this.findById(id);
+
+    return this.prisma.$transaction(async (tx) => {
+      const updateData: any = {
+        nis: data.nis,
+        full_name: data.full_name,
+        class_id: data.class_id,
+        status: data.status,
+      };
+
+      if (data.password && data.password.trim()) {
+        const plain = data.password.trim();
+        updateData.plain_password = plain;
+        const password_hash = await argon2.hash(plain);
+        await tx.user.update({
+          where: { id: existing.user_id },
+          data: { password_hash },
+        });
+      }
+
+      return tx.student.update({
+        where: { id },
+        data: updateData,
+        include: { class: { include: { major: true } } },
+      });
     });
   }
 
@@ -113,7 +147,13 @@ export class StudentService {
             data: { username, email: `${row.nis}@student.securecbt.id`, password_hash, role: 'STUDENT' },
           });
           await tx.student.create({
-            data: { user_id: user.id, nis: row.nis, full_name: row.full_name, class_id: cls.id },
+            data: {
+              user_id: user.id,
+              nis: row.nis,
+              full_name: row.full_name,
+              class_id: cls.id,
+              plain_password: password,
+            },
           });
         });
 
@@ -125,5 +165,53 @@ export class StudentService {
     }
 
     return results;
+  }
+
+  async batchGeneratePasswords(dto: { class_id?: string; student_ids?: string[] }) {
+    const where: any = { deleted_at: null };
+    if (dto.class_id) where.class_id = dto.class_id;
+    if (dto.student_ids && dto.student_ids.length > 0) where.id = { in: dto.student_ids };
+
+    const students = await this.prisma.student.findMany({
+      where,
+      include: { class: true },
+    });
+
+    const updatedStudents: Array<{
+      id: string;
+      nis: string;
+      full_name: string;
+      class_name: string;
+      plain_password: string;
+    }> = [];
+
+    for (const student of students) {
+      const newPassword = generateClassPassword(student.class?.name || 'CBT');
+      const password_hash = await argon2.hash(newPassword);
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.student.update({
+          where: { id: student.id },
+          data: { plain_password: newPassword },
+        });
+        await tx.user.update({
+          where: { id: student.user_id },
+          data: { password_hash },
+        });
+      });
+
+      updatedStudents.push({
+        id: student.id,
+        nis: student.nis,
+        full_name: student.full_name,
+        class_name: student.class?.name || '-',
+        plain_password: newPassword,
+      });
+    }
+
+    return {
+      count: updatedStudents.length,
+      students: updatedStudents,
+    };
   }
 }

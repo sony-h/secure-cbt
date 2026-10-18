@@ -43,19 +43,30 @@ export class TeacherService {
 
   async create(dto: CreateTeacherInput) {
     const data = createTeacherSchema.parse(dto);
-    const existingNip = await this.prisma.teacher.findFirst({ where: { nip: data.nip } });
-    if (existingNip) throw new BadRequestException('NIP already exists');
+    const nip = data.nip ? data.nip.trim() : null;
+    if (nip) {
+      const existingNip = await this.prisma.teacher.findFirst({ where: { nip } });
+      if (existingNip) throw new BadRequestException('NIP already exists');
+    }
 
-    const username = data.nip;
-    const password = data.nip;
+    const cleanName = data.full_name
+      .toLowerCase()
+      .replace(/^(drs|dra|ir|prof|h|hj)\.?\s*/i, '')
+      .replace(/[^a-z0-9]/g, '')
+      .slice(0, 10);
+    const randSuffix = Math.random().toString(36).slice(2, 6);
+
+    const username = nip ? nip : `guru_${cleanName || 'cbt'}_${randSuffix}`;
+    const email = `${username}@teacher.securecbt.id`;
+    const password = nip ? nip : 'guru123';
     const password_hash = await argon2.hash(password);
 
     const result = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
-        data: { username, email: `${data.nip}@teacher.securecbt.id`, password_hash, role: 'TEACHER' },
+        data: { username, email, password_hash, role: 'TEACHER' },
       });
       const teacher = await tx.teacher.create({
-        data: { user_id: user.id, nip: data.nip, full_name: data.full_name },
+        data: { user_id: user.id, nip, full_name: data.full_name },
       });
       if (data.subject_ids?.length) {
         await tx.teacherSubject.createMany({
@@ -72,10 +83,19 @@ export class TeacherService {
 
   async update(id: string, dto: UpdateTeacherInput) {
     const data = updateTeacherSchema.parse(dto);
-    await this.findById(id);
+    const existing = await this.findById(id);
+
+    const nip = data.nip !== undefined ? (data.nip ? data.nip.trim() : null) : undefined;
+    if (nip && nip !== existing.nip) {
+      const existingNip = await this.prisma.teacher.findFirst({ where: { nip } });
+      if (existingNip) throw new BadRequestException('NIP already exists');
+    }
 
     return this.prisma.$transaction(async (tx) => {
-      const teacher = await tx.teacher.update({ where: { id }, data: { nip: data.nip, full_name: data.full_name } });
+      const updateData: any = { full_name: data.full_name };
+      if (nip !== undefined) updateData.nip = nip;
+
+      const teacher = await tx.teacher.update({ where: { id }, data: updateData });
       if (data.subject_ids !== undefined) {
         await tx.teacherSubject.deleteMany({ where: { teacher_id: id } });
         if (data.subject_ids.length > 0) {

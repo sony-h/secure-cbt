@@ -47,6 +47,14 @@ export class StudentController {
     return { success: true, message: 'Import completed', data };
   }
 
+  @Post('batch-generate-passwords')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Batch generate class-prefixed passwords for students' })
+  async batchGeneratePasswords(@Body() body: { class_id?: string; student_ids?: string[] }) {
+    const data = await this.studentService.batchGeneratePasswords(body);
+    return { success: true, message: 'Passwords generated successfully', data };
+  }
+
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
   async update(@Param('id') id: string, @Body() body: UpdateStudentDto) {

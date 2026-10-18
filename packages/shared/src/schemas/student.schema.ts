@@ -5,6 +5,7 @@ export const createStudentSchema = z.object({
   nis: z.string().min(1, { message: 'NIS wajib diisi' }).max(30, { message: 'NIS maksimal 30 karakter' }),
   full_name: z.string().min(1, { message: 'Nama wajib diisi' }).max(200, { message: 'Nama maksimal 200 karakter' }),
   class_id: z.string().uuid({ message: 'ID kelas tidak valid' }),
+  password: z.string().optional(),
 });
 
 export const updateStudentSchema = z.object({
@@ -12,6 +13,12 @@ export const updateStudentSchema = z.object({
   full_name: z.string().min(1, { message: 'Nama wajib diisi' }).max(200, { message: 'Nama maksimal 200 karakter' }).optional(),
   class_id: z.string().uuid({ message: 'ID kelas tidak valid' }).optional(),
   status: z.nativeEnum(StudentStatus, { errorMap: () => ({ message: 'Status tidak valid' }) }).optional(),
+  password: z.string().optional(),
+});
+
+export const batchGeneratePasswordsSchema = z.object({
+  class_id: z.string().uuid({ message: 'ID kelas tidak valid' }).optional(),
+  student_ids: z.array(z.string().uuid({ message: 'ID siswa tidak valid' })).optional(),
 });
 
 export const importStudentRowSchema = z.object({
