@@ -318,6 +318,7 @@ model Exam {
   points_easy                      Int        @default(1)
   points_medium                    Int        @default(2)
   points_hard                      Int        @default(3)
+  show_results                     Boolean    @default(true)
   violation_vibration_enabled      Boolean    @default(true)
   violation_alarm_enabled          Boolean    @default(true)
   violation_alarm_duration_seconds Int        @default(3)

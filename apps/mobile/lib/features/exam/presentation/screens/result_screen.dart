@@ -108,6 +108,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   : Builder(
                       builder: (context) {
                         final totalScore = ((resultAsync.value?['total_score'] ?? 0.0) as num).toDouble();
+                        final showResults = resultAsync.value?['show_results'] as bool? ?? true;
                         final passed = totalScore >= 60.0;
                         final normalized = (totalScore / 100.0).clamp(0.0, 1.0);
 
@@ -182,8 +183,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
                                 const SizedBox(height: 28),
 
-                                // Radial Score Ring Card with Soft Glow
-                                AppCard(
+                                if (showResults) ...[
+                                  // Radial Score Ring Card with Soft Glow
+                                  AppCard(
                                   padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
                                   child: Column(
                                     children: [
@@ -338,11 +340,76 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                      isFullWidth: true,
                                    ),
                                  ],
+                                ] else ...[
+                                  // Hidden Result Info Card
+                                  AppCard(
+                                    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: 68,
+                                          height: 68,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary.withValues(alpha: 0.1),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.verified_rounded,
+                                            color: AppColors.primary,
+                                            size: 38,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 18),
+                                        const Text(
+                                          'Jawaban Berhasil Disimpan',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        const Text(
+                                          'Seluruh jawaban ujian Anda telah tersimpan dengan aman di server. Hasil penilaian dan pengumuman skor akan dirilis oleh guru pengampu.',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: AppColors.textSecondary,
+                                            height: 1.45,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
 
                                  const SizedBox(height: 28),
 
                                  // Exam Review Button (if finished) or Lock Warning
                                  (() {
+                                   if (!showResults) {
+                                     return Container(
+                                       padding: const EdgeInsets.all(14),
+                                       decoration: BoxDecoration(
+                                         color: AppColors.surface,
+                                         borderRadius: BorderRadius.circular(14),
+                                         border: Border.all(color: AppColors.border),
+                                       ),
+                                       child: const Row(
+                                         children: [
+                                           Icon(Icons.lock_rounded, size: 18, color: AppColors.textMuted),
+                                           SizedBox(width: 10),
+                                           Expanded(
+                                             child: Text(
+                                               'Pembahasan dan rincian nilai belum dirilis oleh guru pengampu.',
+                                               style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, fontWeight: FontWeight.w500),
+                                             ),
+                                           ),
+                                         ],
+                                       ),
+                                     );
+                                   }
                                    final isFinished = resultAsync.value?['is_exam_finished'] == true;
                                    final endAt = resultAsync.value?['end_at'] as String?;
                                    final endAtFormatted = endAt != null

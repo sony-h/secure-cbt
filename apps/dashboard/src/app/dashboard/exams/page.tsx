@@ -152,7 +152,13 @@ function ExamsPageContent() {
     if (form.question_ids.length === 0) { toast.error('Pilih minimal satu soal'); return; }
 
     const wibToUTC = (wib: string) => new Date(wib + '+07:00').toISOString();
-    const dto = { ...form, start_at: wibToUTC(form.start_at), end_at: wibToUTC(form.end_at) };
+    const dto = {
+      ...form,
+      pool_question_count: form.is_random_pool ? form.pool_question_count : null,
+      show_results: form.show_results ?? true,
+      start_at: wibToUTC(form.start_at),
+      end_at: wibToUTC(form.end_at),
+    };
     saveMutation.mutate(dto);
   };
 
@@ -183,6 +189,7 @@ function ExamsPageContent() {
         points_easy: full.points_easy ?? 1,
         points_medium: full.points_medium ?? 2,
         points_hard: full.points_hard ?? 3,
+        show_results: full.show_results ?? true,
         violation_vibration_enabled: full.violation_vibration_enabled ?? true,
         violation_alarm_enabled: full.violation_alarm_enabled ?? true,
         violation_alarm_duration_seconds: full.violation_alarm_duration_seconds ?? 3,

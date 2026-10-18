@@ -575,6 +575,35 @@ describe('SessionService', () => {
       expect(firstQ.is_correct).toBe(true);
     });
 
+    it('should throw ForbiddenException if show_results is disabled by teacher', async () => {
+      const studentId = UUID();
+      const sessionId = UUID();
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId });
+
+      const pastEnd = new Date(Date.now() - 3600000);
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        student_id: studentId,
+        status: SessionStatus.SUBMITTED,
+        exam: {
+          id: UUID(),
+          title: 'Finished Exam Without Results',
+          status: ExamStatus.FINISHED,
+          end_at: pastEnd,
+          show_results: false,
+          subject: { name: 'Matematika' },
+          exam_questions: [],
+        },
+        answers: [],
+        score: { total_score: 100 },
+        student: { full_name: 'Test Student' },
+      });
+
+      await expect(service.getReview(sessionId, 'user-1')).rejects.toThrow(
+        'Pembahasan dan nilai ujian dinonaktifkan oleh guru pengampu.',
+      );
+    });
+
     it('should throw ForbiddenException if exam is not finished yet', async () => {
       const studentId = UUID();
       const sessionId = UUID();

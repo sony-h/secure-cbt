@@ -147,6 +147,33 @@ describe('ExamService', () => {
       expect(capturedData.points_medium).toBe(3);
       expect(capturedData.points_hard).toBe(5);
     });
+
+    it('should persist show_results setting defaulting to true and allowing false', async () => {
+      mockPrisma.teacher.findUnique.mockResolvedValue(null);
+      let capturedData: any;
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.exam = {
+          create: vi.fn().mockImplementation((args: any) => {
+            capturedData = args.data;
+            return Promise.resolve({ id: UUID(), title: 'Hidden Results Exam' });
+          }),
+        };
+        tx.examClass = { createMany: vi.fn() };
+        tx.examPackage = { create: vi.fn().mockResolvedValue({ id: UUID() }) };
+        tx.examQuestion = { createMany: vi.fn() };
+        tx.exam.findUnique = vi.fn().mockResolvedValue({ id: UUID() });
+        return fn(tx);
+      });
+
+      await service.create({
+        ...makeCreateInput(),
+        title: 'Hidden Results Exam',
+        show_results: false,
+      }, UUID());
+
+      expect(capturedData.show_results).toBe(false);
+    });
   });
 
   describe('getExamsForStudent()', () => {

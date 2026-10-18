@@ -13,6 +13,7 @@ interface Props {
 }
 
 const settings = [
+  { key: 'show_results', label: 'Tampilkan Nilai ke Siswa', desc: 'Siswa dapat melihat nilai dan pembahasan setelah ujian selesai' },
   { key: 'randomize_questions', label: 'Acak urutan soal', desc: 'Soal ditampilkan berbeda untuk setiap siswa' },
   { key: 'randomize_answers', label: 'Acak pilihan jawaban', desc: 'Urutan A/B/C/D diacak per siswa' },
   { key: 'auto_submit_enabled', label: 'Auto-submit saat waktu habis', desc: 'Jawaban otomatis dikumpulkan' },

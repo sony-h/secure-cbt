@@ -26,6 +26,7 @@ describe('RandomPoolCard', () => {
     points_easy: 1,
     points_medium: 2,
     points_hard: 3,
+    show_results: true,
     violation_vibration_enabled: true,
     violation_alarm_enabled: true,
     violation_alarm_duration_seconds: 3,

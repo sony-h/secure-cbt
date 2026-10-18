@@ -80,6 +80,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                             : '-';
 
                         final isExamFinished = h['is_exam_finished'] == true;
+                        final showResults = h['show_results'] as bool? ?? true;
                         final sessionId = h['id']?.toString() ?? '';
                         final endAtStr = h['end_at'] as String?;
                         final endAtFormatted = endAtStr != null
@@ -96,6 +97,29 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           padding: const EdgeInsets.only(bottom: 12),
                           child: AppCard(
                             onTap: () {
+                              if (!showResults) {
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Row(
+                                      children: [
+                                        Icon(Icons.lock_rounded, size: 16, color: Colors.white),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Nilai dan pembahasan belum dirilis oleh guru pengampu.',
+                                            style: TextStyle(fontSize: 12.5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: AppColors.textPrimary,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                );
+                                return;
+                              }
                               if (isExamFinished) {
                                 context.pushNamed(RouteNames.examReview, extra: {'sessionId': sessionId});
                               } else {
@@ -168,33 +192,43 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.check_rounded, size: 13, color: AppColors.success),
-                                          const SizedBox(width: 3),
-                                          Text(
-                                            '${h['correct_count'] ?? 0} Benar',
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.success,
-                                              fontFeatures: [FontFeature.tabularFigures()],
+                                      if (showResults)
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.check_rounded, size: 13, color: AppColors.success),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              '${h['correct_count'] ?? 0} Benar',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.success,
+                                                fontFeatures: [FontFeature.tabularFigures()],
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          const Icon(Icons.close_rounded, size: 13, color: AppColors.error),
-                                          const SizedBox(width: 3),
-                                          Text(
-                                            '${h['wrong_count'] ?? 0} Salah',
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.error,
-                                              fontFeatures: [FontFeature.tabularFigures()],
+                                            const SizedBox(width: 10),
+                                            const Icon(Icons.close_rounded, size: 13, color: AppColors.error),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              '${h['wrong_count'] ?? 0} Salah',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.error,
+                                                fontFeatures: [FontFeature.tabularFigures()],
+                                              ),
                                             ),
+                                          ],
+                                        )
+                                      else
+                                        const Text(
+                                          'Menunggu Pengumuman Guru',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.primary,
                                           ),
-                                        ],
-                                      ),
+                                        ),
                                     ],
                                   ),
                                 ),
@@ -205,16 +239,34 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(
-                                      totalScore.toStringAsFixed(0),
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 22,
-                                        letterSpacing: -0.5,
-                                        fontFeatures: const [FontFeature.tabularFigures()],
-                                        color: passed ? AppColors.success : AppColors.warning,
+                                    if (showResults)
+                                      Text(
+                                        totalScore.toStringAsFixed(0),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 22,
+                                          letterSpacing: -0.5,
+                                          fontFeatures: const [FontFeature.tabularFigures()],
+                                          color: passed ? AppColors.success : AppColors.warning,
+                                        ),
+                                      )
+                                    else
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surfaceSubtle,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: AppColors.border),
+                                        ),
+                                        child: const Text(
+                                          'Terkumpul',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
                                       ),
-                                    ),
                                     const SizedBox(height: 4),
                                     Row(
                                       mainAxisSize: MainAxisSize.min,

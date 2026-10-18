@@ -402,6 +402,7 @@ export class SessionService {
         submitted_at: s.submitted_at?.toISOString(),
         end_at: s.exam.end_at.toISOString(),
         is_exam_finished: isFinished,
+        show_results: s.exam.show_results ?? true,
       };
     });
   }
@@ -451,6 +452,12 @@ export class SessionService {
     if (!isExamFinished) {
       throw new ForbiddenException(
         'Pembahasan ujian hanya dapat diakses setelah seluruh jadwal ujian selesai.',
+      );
+    }
+
+    if (session.exam.show_results === false) {
+      throw new ForbiddenException(
+        'Pembahasan dan nilai ujian dinonaktifkan oleh guru pengampu.',
       );
     }
 
