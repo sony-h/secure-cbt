@@ -479,7 +479,7 @@ function GradingPageContent() {
 
                                     <div className="md:col-span-2 flex items-end">
                                       <Button
-                                        className="w-full"
+                                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-md shadow-indigo-500/20 active:scale-95 transition-all font-semibold text-xs"
                                         onClick={() => {
                                           const score = scores[essay.question_id];
                                           if (score === undefined || score === null || isNaN(score)) {

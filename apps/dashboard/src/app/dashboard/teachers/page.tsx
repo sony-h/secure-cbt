@@ -505,11 +505,11 @@ function TeachersPageContent() {
           <p className="text-muted-foreground">Kelola data guru, mata pelajaran, dan aktivasi akun pengajar</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setInviteModalOpen(true)}>
-            <Mail className="mr-2 h-4 w-4" />
+          <Button variant="outline" className="rounded-xl border-border/80 shadow-2xs hover:bg-muted/80 text-xs font-semibold" onClick={() => setInviteModalOpen(true)}>
+            <Mail className="mr-2 h-4 w-4 text-cyan-600 dark:text-cyan-400" />
             Undang Guru
           </Button>
-          <Button onClick={handleAdd}>
+          <Button className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-500/20 active:scale-95 transition-all" onClick={handleAdd}>
             <Plus className="mr-2 h-4 w-4" />
             Tambah Guru
           </Button>

@@ -310,6 +310,7 @@ export function QuestionStudio({
         <div className="flex items-center gap-2.5">
           <Button
             variant="outline"
+            className="rounded-xl border-border/80 shadow-2xs hover:bg-muted/80"
             onClick={handleNavigateBack}
             disabled={saveMutation.isPending}
           >
@@ -318,7 +319,7 @@ export function QuestionStudio({
           <Button
             onClick={handleSave}
             disabled={saveMutation.isPending}
-            className="gap-2 shadow-sm font-semibold"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 font-semibold shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
           >
             <Save className="h-4 w-4" />
             {saveMutation.isPending ? 'Menyimpan...' : isEditing ? 'Perbarui Soal' : 'Simpan Soal'}
@@ -359,7 +360,7 @@ export function QuestionStudio({
         {/* LEFT COLUMN: Editor Form */}
         <div className={`space-y-6 lg:col-span-7 ${activeMobileTab === 'preview' ? 'hidden lg:block' : ''}`}>
           {/* Card 1: Metadata Soal */}
-          <Card>
+          <Card className="futuristic-border rounded-2xl shadow-xs">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold">1. Pengaturan & Bank Soal</CardTitle>
             </CardHeader>
@@ -503,7 +504,7 @@ export function QuestionStudio({
           </Card>
 
           {/* Card 2: Konten Pertanyaan & Gambar Stimulus */}
-          <Card>
+          <Card className="futuristic-border rounded-2xl shadow-xs">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base font-semibold">2. Teks Pertanyaan & Stimulus</CardTitle>
@@ -555,7 +556,7 @@ export function QuestionStudio({
 
           {/* Card 3: Isian Singkat */}
           {form.type === 'SHORT_ANSWER' && (
-            <Card>
+            <Card className="futuristic-border rounded-2xl shadow-xs">
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-semibold">3. Kunci Jawaban yang Diterima</CardTitle>
@@ -627,7 +628,7 @@ export function QuestionStudio({
 
           {/* Card 3: Menjodohkan */}
           {form.type === 'MATCHING' && (
-            <Card>
+            <Card className="futuristic-border rounded-2xl shadow-xs">
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-semibold">3. Pasangan Menjodohkan (Premis & Target)</CardTitle>
@@ -757,7 +758,7 @@ export function QuestionStudio({
 
           {/* Card 3: Pilihan Jawaban (Multiple Choice, Multi Select, True/False) */}
           {form.type !== 'ESSAY' && form.type !== 'SHORT_ANSWER' && form.type !== 'MATCHING' && (
-            <Card>
+            <Card className="futuristic-border rounded-2xl shadow-xs">
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-semibold">3. Pilihan Jawaban</CardTitle>
@@ -897,7 +898,7 @@ export function QuestionStudio({
           )}
 
           {/* Card 4: Pembahasan Jawaban (Opsional) */}
-          <Card>
+          <Card className="futuristic-border rounded-2xl shadow-xs">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base font-semibold">4. Pembahasan Jawaban (Opsional)</CardTitle>

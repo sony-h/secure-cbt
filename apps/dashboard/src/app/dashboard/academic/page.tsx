@@ -259,11 +259,11 @@ function AcademicPageContent() {
       <div><h1 className="text-3xl font-bold tracking-tight">Data Akademik</h1><p className="text-muted-foreground">Kelola tahun ajaran, jurusan, kelas, dan mata pelajaran</p></div>
 
       <Tabs value={activeTab} onValueChange={(val) => { setActiveTab(val); updateUrlParams({ tab: val }); }} className="w-full">
-        <TabsList>
-          <TabsTrigger value="years"><School className="mr-2 h-4 w-4" />Tahun Ajaran</TabsTrigger>
-          <TabsTrigger value="majors"><School className="mr-2 h-4 w-4" />Jurusan</TabsTrigger>
-          <TabsTrigger value="classes"><Users className="mr-2 h-4 w-4" />Kelas</TabsTrigger>
-          <TabsTrigger value="subjects"><BookOpen className="mr-2 h-4 w-4" />Mata Pelajaran</TabsTrigger>
+        <TabsList className="bg-muted/60 p-1 rounded-2xl border border-border/80">
+          <TabsTrigger value="years" className="rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-2xs"><School className="mr-2 h-4 w-4" />Tahun Ajaran</TabsTrigger>
+          <TabsTrigger value="majors" className="rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-2xs"><School className="mr-2 h-4 w-4" />Jurusan</TabsTrigger>
+          <TabsTrigger value="classes" className="rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-2xs"><Users className="mr-2 h-4 w-4" />Kelas</TabsTrigger>
+          <TabsTrigger value="subjects" className="rounded-xl data-[state=active]:bg-card data-[state=active]:shadow-2xs"><BookOpen className="mr-2 h-4 w-4" />Mata Pelajaran</TabsTrigger>
         </TabsList>
 
         <TabsContent value="years" className="mt-4">

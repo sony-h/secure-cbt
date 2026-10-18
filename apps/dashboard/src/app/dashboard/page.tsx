@@ -86,13 +86,13 @@ function ExecutiveMetricCard({
   trendBadge?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-card p-5 shadow-xs hover:shadow-md hover:border-primary/30 transition-all duration-200 active:scale-[0.99] group">
+    <div className="futuristic-border relative overflow-hidden rounded-2xl bg-card p-5 shadow-xs hover:shadow-md hover:border-primary/40 transition-all duration-200 active:scale-[0.99] group">
       <div
-        className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full blur-xl opacity-15 transition-opacity group-hover:opacity-30"
+        className="pointer-events-none absolute -right-6 -bottom-6 h-24 w-24 rounded-full blur-2xl opacity-15 transition-opacity group-hover:opacity-30"
         style={{ backgroundColor: accentColor }}
       />
       <div className="flex items-center justify-between relative z-10">
-        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+        <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
           {title}
         </span>
         <div
@@ -104,11 +104,11 @@ function ExecutiveMetricCard({
       </div>
 
       <div className="mt-3 flex items-baseline gap-2 relative z-10">
-        <p className="text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
+        <p className="text-3xl font-extrabold tracking-tight text-foreground tabular-nums font-mono">
           {value}
         </p>
         {trendBadge && (
-          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+          <span className="text-[11px] font-bold text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md">
             {trendBadge}
           </span>
         )}
@@ -299,7 +299,7 @@ function DashboardHomeContent() {
           title="Total Siswa"
           value={studentCount}
           subtitle="Peserta didik terdaftar"
-          accentColor="#2563EB"
+          accentColor="#6366F1"
           trendBadge="Aktif"
         />
         <ExecutiveMetricCard
@@ -315,14 +315,14 @@ function DashboardHomeContent() {
           title={isTeacher ? 'Total Kurikulum' : 'Mata Pelajaran'}
           value={totalCurriculumSubjects}
           subtitle="Tersedia di kurikulum"
-          accentColor="#7C3AED"
+          accentColor="#8B5CF6"
         />
         <ExecutiveMetricCard
           icon={FileText}
           title={isTeacher ? 'Ujian Mapel Anda' : 'Ujian Terjadwal'}
           value={totalExams}
           subtitle={`${activeCount} ujian aktif saat ini`}
-          accentColor="#EC4899"
+          accentColor="#10B981"
           trendBadge={activeCount > 0 ? `${activeCount} Live` : undefined}
         />
       </div>

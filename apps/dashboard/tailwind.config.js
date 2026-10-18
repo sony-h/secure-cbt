@@ -54,6 +54,15 @@ module.exports = {
           purple: '#7C3AED',
           magenta: '#EC4899',
         },
+        telemetry: {
+          cyan: '#06B6D4',
+          'cyan-dark': '#0891B2',
+          indigo: '#6366F1',
+          'indigo-dark': '#4F46E5',
+          obsidian: '#07090E',
+          surface: '#0D121F',
+          'surface-elevated': '#131B2E',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

@@ -433,19 +433,19 @@ function MonitoringPageContent() {
           </>
         ) : (
           <>
-            <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs relative overflow-hidden group">
-              <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-blue-500/10 blur-xl" />
+            <div className="futuristic-border rounded-2xl bg-card p-5 shadow-xs relative overflow-hidden group">
+              <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-indigo-500/10 blur-xl" />
               <div className="flex items-center justify-between relative z-10">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Peserta</span>
-                <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <Users className="h-4.5 w-4.5" />
                 </div>
               </div>
-              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mt-2 tabular-nums relative z-10">{totalStudents}</p>
+              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mt-2 tabular-nums font-mono relative z-10">{totalStudents}</p>
               <p className="text-xs text-muted-foreground mt-1 relative z-10">Siswa terdaftar di ujian</p>
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs relative overflow-hidden group">
+            <div className="futuristic-border glow-cyan rounded-2xl bg-card p-5 shadow-xs relative overflow-hidden group border-cyan-500/30">
               <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-cyan-500/15 blur-xl" />
               <div className="flex items-center justify-between relative z-10">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aktif Terhubung</span>
@@ -454,36 +454,36 @@ function MonitoringPageContent() {
                   <Wifi className="h-4.5 w-4.5 relative z-10" />
                 </div>
               </div>
-              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-cyan-600 dark:text-cyan-400 mt-2 tabular-nums relative z-10">{activeCount}</p>
+              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-cyan-600 dark:text-cyan-400 mt-2 tabular-nums font-mono relative z-10">{activeCount}</p>
               <p className="text-xs text-muted-foreground mt-1 relative z-10">Sedang mengerjakan soal</p>
             </div>
 
-            <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs relative overflow-hidden group">
-              <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-purple-500/10 blur-xl" />
+            <div className="futuristic-border rounded-2xl bg-card p-5 shadow-xs relative overflow-hidden group">
+              <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-indigo-500/10 blur-xl" />
               <div className="flex items-center justify-between relative z-10">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Telah Selesai</span>
-                <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <CheckCircle className="h-4.5 w-4.5" />
                 </div>
               </div>
-              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mt-2 tabular-nums relative z-10">{submittedCount}</p>
+              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mt-2 tabular-nums font-mono relative z-10">{submittedCount}</p>
               <p className="text-xs text-muted-foreground mt-1 relative z-10">Lembar jawaban terkumpul</p>
             </div>
 
-            <div className={`rounded-2xl border p-5 shadow-xs transition-colors relative overflow-hidden group ${warnings > 0 ? 'border-pink-500/40 bg-pink-500/5' : 'border-border/70 bg-card'}`}>
+            <div className={`futuristic-border rounded-2xl p-5 shadow-xs transition-colors relative overflow-hidden group ${warnings > 0 ? 'border-rose-500/40 bg-rose-500/5' : 'bg-card'}`}>
               {warnings > 0 && (
-                <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-pink-500/15 blur-xl" />
+                <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-rose-500/15 blur-xl" />
               )}
               <div className="flex items-center justify-between relative z-10">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pelanggaran</span>
-                <div className={`relative h-9 w-9 rounded-xl flex items-center justify-center ${warnings > 0 ? 'bg-pink-500/20 text-pink-600 dark:text-pink-400' : 'bg-muted text-muted-foreground'}`}>
+                <div className={`relative h-9 w-9 rounded-xl flex items-center justify-center ${warnings > 0 ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-muted text-muted-foreground'}`}>
                   {warnings > 0 && (
-                    <span className="absolute inset-0 rounded-xl bg-pink-500/30 animate-ping pointer-events-none" />
+                    <span className="absolute inset-0 rounded-xl bg-rose-500/30 animate-ping pointer-events-none" />
                   )}
                   <AlertTriangle className="h-4.5 w-4.5 relative z-10" />
                 </div>
               </div>
-              <p className={`text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 tabular-nums relative z-10 ${warnings > 0 ? 'text-pink-600 dark:text-pink-400' : 'text-foreground'}`}>
+              <p className={`text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 tabular-nums font-mono relative z-10 ${warnings > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-foreground'}`}>
                 {warnings}
               </p>
               <p className="text-xs text-muted-foreground mt-1 relative z-10">Siswa dengan poin strike</p>

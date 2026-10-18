@@ -288,11 +288,11 @@ function QuestionsPageContent() {
           <p className="text-muted-foreground">Kelola bank soal dan pertanyaan ujian</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
-            <FileUp className="mr-2 h-4 w-4" />
+          <Button variant="outline" className="border-border/80 shadow-2xs hover:bg-muted/80 rounded-xl" onClick={() => setIsImportModalOpen(true)}>
+            <FileUp className="mr-2 h-4 w-4 text-cyan-600 dark:text-cyan-400" />
             Import Soal
           </Button>
-          <Button onClick={handleAdd}>
+          <Button className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-md shadow-indigo-500/20 active:scale-95 transition-all" onClick={handleAdd}>
             <Plus className="mr-2 h-4 w-4" />
             Tambah Soal
           </Button>

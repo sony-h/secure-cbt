@@ -176,8 +176,8 @@ function SettingsPageContent() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle>Keamanan Ujian</CardTitle><CardDescription>Konfigurasi batas peringatan, fullscreen, dan auto-submit</CardDescription></CardHeader>
+      <Card className="futuristic-border rounded-2xl shadow-xs">
+        <CardHeader><CardTitle className="text-lg font-bold">Keamanan Ujian</CardTitle><CardDescription>Konfigurasi batas peringatan, fullscreen, dan auto-submit</CardDescription></CardHeader>
         <CardContent className="space-y-4">
           <SettingRow label="Batas Peringatan" description="Jumlah maksimal pelanggaran sebelum ujian otomatis dikumpulkan" value={settings.warning_limit} type="number" min={1} max={10} onSave={(val) => updateMutation.mutate({ warning_limit: Number(val) })} disabled={updateMutation.isPending} />
           <SettingRow label="Interval Auto-Save (detik)" description="Seberapa sering jawaban siswa disimpan otomatis" value={settings.autosave_interval} type="number" min={1} max={60} onSave={(val) => updateMutation.mutate({ autosave_interval: Number(val) })} disabled={updateMutation.isPending} />
@@ -191,9 +191,9 @@ function SettingsPageContent() {
       </Card>
 
       {/* Master Template Manager Card */}
-      <Card>
+      <Card className="futuristic-border rounded-2xl shadow-xs">
         <CardHeader>
-          <CardTitle>Master Template Soal (Word & Excel)</CardTitle>
+          <CardTitle className="text-lg font-bold">Master Template Soal (Word & Excel)</CardTitle>
           <CardDescription>
             Atur master template resmi sekolah dengan lebar kolom dan format baku agar seluruh guru mengunduh template yang seragam saat mengimpor soal.
           </CardDescription>

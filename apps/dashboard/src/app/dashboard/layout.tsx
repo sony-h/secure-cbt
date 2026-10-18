@@ -46,6 +46,8 @@ import {
   Bell,
   Search,
   Sparkles,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 
 const roleLabels: Record<string, string> = {
@@ -80,12 +82,49 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isRailCollapsed, setIsRailCollapsed] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [hasUnreadChangelog, setHasUnreadChangelog] = useState(false);
 
   // Global monitoring socket listener for notifications
   useNotificationSocket();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const saved = localStorage.getItem('assessia:sidebar-collapsed');
+      if (saved !== null) {
+        setIsRailCollapsed(saved === 'true');
+      }
+    } catch {}
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setIsRailCollapsed((prev) => {
+          const next = !prev;
+          try {
+            localStorage.setItem('assessia:sidebar-collapsed', String(next));
+          } catch {}
+          return next;
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const toggleRail = () => {
+    setIsRailCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('assessia:sidebar-collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined' && isAuthenticated) {
@@ -153,24 +192,53 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Sidebar */}
       <aside
+        data-testid="sidebar-rail"
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-slate-950 text-slate-100 border-slate-900 transition-transform overflow-y-auto lg:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          'fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-slate-950 text-slate-100 border-slate-900 transition-all duration-300 ease-in-out overflow-y-auto lg:translate-x-0',
+          sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full',
+          isRailCollapsed ? 'w-[68px]' : 'w-64',
         )}
       >
         {/* Logo */}
-        <div className="flex h-14 items-center gap-2.5 border-b border-slate-900 px-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 p-0.5 ring-1 ring-white/10 shrink-0">
+        <div
+          className={cn(
+            'flex h-14 items-center border-b border-slate-900 transition-all',
+            isRailCollapsed ? 'justify-center px-2' : 'gap-2.5 px-5',
+          )}
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-indigo-600 to-cyan-500 p-0.5 shadow-md shadow-indigo-500/20 shrink-0">
             <img
               src="/logo-only-light.png"
               alt="Assessia"
               className="h-6 w-6 object-contain"
             />
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-extrabold text-white tracking-tight leading-tight">Assessia</span>
-            <span className="text-[10px] text-slate-400 font-medium">by Orivastra</span>
-          </div>
+          {!isRailCollapsed && (
+            <div className="flex flex-col min-w-0 transition-opacity duration-200">
+              <span className="text-sm font-extrabold text-white tracking-tight leading-tight">Assessia</span>
+              <span className="text-[10px] text-slate-400 font-medium">by Orivastra</span>
+            </div>
+          )}
+
+          {/* Desktop Rail Collapse Toggle */}
+          <button
+            type="button"
+            data-testid="rail-collapse-toggle"
+            onClick={toggleRail}
+            className={cn(
+              'hidden lg:flex items-center justify-center h-7 w-7 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 transition-colors cursor-pointer',
+              isRailCollapsed ? 'mt-0.5' : 'ml-auto',
+            )}
+            title={isRailCollapsed ? 'Perlebar Sidebar (Ctrl+B)' : 'Ciutkan ke Icon Rail (Ctrl+B)'}
+            aria-label={isRailCollapsed ? 'Perlebar Sidebar' : 'Ciutkan Sidebar'}
+          >
+            {isRailCollapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </button>
+
           <Button
             variant="ghost"
             size="icon"
@@ -182,83 +250,126 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
+        <nav className={cn('flex-1 space-y-1 overflow-y-auto', isRailCollapsed ? 'p-2' : 'p-4')}>
           <>
-            <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Utama</p>
+            {!isRailCollapsed && (
+              <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Utama</p>
+            )}
             {visibleItems.slice(0, 2).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
+                title={item.title}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                  'flex items-center rounded-lg text-sm font-medium transition-all duration-200',
+                  isRailCollapsed ? 'justify-center p-2.5 my-1' : 'gap-3 px-3 py-2',
                   isActive(item.href)
-                    ? 'border-l-2 border-indigo-400 bg-indigo-600/10 text-indigo-200'
+                    ? 'border-l-2 border-indigo-400 bg-indigo-600/15 text-indigo-200 font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
                     : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100 hover:translate-x-0.5',
                 )}
               >
-                <item.icon className="h-4 w-4" />
-                {item.title}
+                <item.icon className="h-4 w-4 shrink-0" />
+                {!isRailCollapsed && <span>{item.title}</span>}
               </Link>
             ))}
-            <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 mt-4">Manajemen</p>
+            {!isRailCollapsed && (
+              <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 mt-4">Manajemen</p>
+            )}
             {visibleItems.slice(2).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
+                title={item.title}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                  'flex items-center rounded-lg text-sm font-medium transition-all duration-200',
+                  isRailCollapsed ? 'justify-center p-2.5 my-1' : 'gap-3 px-3 py-2',
                   isActive(item.href)
-                    ? 'border-l-2 border-indigo-400 bg-indigo-600/10 text-indigo-200'
+                    ? 'border-l-2 border-indigo-400 bg-indigo-600/15 text-indigo-200 font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
                     : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100 hover:translate-x-0.5',
                 )}
               >
-                <item.icon className="h-4 w-4" />
-                {item.title}
+                <item.icon className="h-4 w-4 shrink-0" />
+                {!isRailCollapsed && <span>{item.title}</span>}
               </Link>
             ))}
           </>
         </nav>
 
         {/* User info & logout */}
-        <div className="border-t border-slate-900 p-4">
-          <div className="mb-3 text-sm">
-            <p className="font-medium text-slate-200">{displayName}</p>
-            <p className="text-xs text-slate-500">{roleLabel}</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full text-slate-300 border-slate-800 bg-slate-900 hover:bg-slate-800 hover:text-white"
-            onClick={() => { logout(); router.push('/login'); }}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Keluar
-          </Button>
+        <div className={cn('border-t border-slate-900', isRailCollapsed ? 'p-2 flex flex-col items-center gap-2' : 'p-4')}>
+          {!isRailCollapsed ? (
+            <>
+              <div className="mb-3 text-sm">
+                <p className="font-medium text-slate-200 truncate">{displayName}</p>
+                <p className="text-xs text-slate-500">{roleLabel}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-slate-300 border-slate-800 bg-slate-900 hover:bg-slate-800 hover:text-white"
+                onClick={() => { logout(); router.push('/login'); }}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Keluar
+              </Button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setChangelogOpen(true);
-              setHasUnreadChangelog(false);
-            }}
-            className="mt-3 pt-3 border-t border-slate-900/80 w-full flex items-center justify-between text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer group text-left"
-          >
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="h-3 w-3 text-indigo-400 group-hover:rotate-12 transition-transform" />
-              <span>Assessia v{APP_INFO.version}</span>
-              {hasUnreadChangelog && (
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              )}
-            </span>
-            <span className="font-semibold text-slate-500 group-hover:text-slate-400">Rilis & Pembaruan</span>
-          </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setChangelogOpen(true);
+                  setHasUnreadChangelog(false);
+                }}
+                className="mt-3 pt-3 border-t border-slate-900/80 w-full flex items-center justify-between text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer group text-left"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3 text-indigo-400 group-hover:rotate-12 transition-transform" />
+                  <span>Assessia v{APP_INFO.version}</span>
+                  {hasUnreadChangelog && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  )}
+                </span>
+                <span className="font-semibold text-slate-500 group-hover:text-slate-400">Rilis & Pembaruan</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <div
+                className="h-8 w-8 rounded-full bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 flex items-center justify-center text-xs font-bold"
+                title={`${displayName} (${roleLabel})`}
+              >
+                {initials}
+              </div>
+              <button
+                type="button"
+                onClick={() => { logout(); router.push('/login'); }}
+                title="Keluar"
+                className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-slate-900 transition-colors cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setChangelogOpen(true);
+                  setHasUnreadChangelog(false);
+                }}
+                title={`Assessia v${APP_INFO.version}`}
+                className="h-8 w-8 rounded-lg flex items-center justify-center text-indigo-400 hover:text-indigo-200 hover:bg-slate-900 transition-colors cursor-pointer relative"
+              >
+                <Sparkles className="h-4 w-4" />
+                {hasUnreadChangelog && (
+                  <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                )}
+              </button>
+            </>
+          )}
         </div>
       </aside>
 
       {/* Main area */}
-      <div className="flex flex-1 flex-col lg:ml-64">
+      <div className={cn('flex flex-1 flex-col transition-all duration-300 ease-in-out', isRailCollapsed ? 'lg:ml-[68px]' : 'lg:ml-64')}>
         {/* Top Header Bar */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 backdrop-blur-md px-4 lg:px-6 shadow-xs">
           {/* Mobile hamburger */}
@@ -360,17 +471,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </footer>
 
-        {/* Mobile/Tablet Quick Frosted Bottom Bar */}
+        {/* Mobile/Tablet Quick Frosted Thumb Bar */}
         <nav
           data-testid="mobile-bottom-bar"
-          className="lg:hidden fixed bottom-3 inset-x-3 z-40 bg-background/90 backdrop-blur-xl border border-border/70 rounded-2xl shadow-xl shadow-black/10 px-2 py-1.5 flex items-center justify-around"
+          className="lg:hidden fixed bottom-3 inset-x-3 z-40 bg-background/85 backdrop-blur-2xl border border-border/80 rounded-2xl shadow-2xl shadow-black/25 px-2 py-1.5 flex items-center justify-around"
         >
           <Link
             href="/dashboard"
             className={cn(
-              'flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all active:scale-95',
+              'flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl text-[10px] font-semibold transition-all active:scale-95',
               pathname === '/dashboard'
-                ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10'
+                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -380,43 +491,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Link
             href="/dashboard/questions"
             className={cn(
-              'flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all active:scale-95',
+              'flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl text-[10px] font-semibold transition-all active:scale-95',
               isActive('/dashboard/questions')
-                ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10'
+                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <FileQuestion className="h-4 w-4" />
             <span>Soal</span>
           </Link>
+
+          {/* Elevated Center Telemetry Pulse Button */}
+          <Link
+            href="/dashboard/monitoring"
+            data-testid="mobile-pulse-telemetry"
+            aria-label="Pusat Monitoring Ujian Live"
+            className={cn(
+              'relative -top-2 flex flex-col items-center justify-center h-12 w-12 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/30 active:scale-90 transition-transform radar-pulse-ring cursor-pointer',
+              isActive('/dashboard/monitoring') ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-background' : '',
+            )}
+          >
+            <MonitorPlay className="h-5 w-5" />
+            <span className="text-[8px] font-bold tracking-tight">Pantau</span>
+          </Link>
+
           <Link
             href="/dashboard/exams"
             className={cn(
-              'flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all active:scale-95',
+              'flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl text-[10px] font-semibold transition-all active:scale-95',
               isActive('/dashboard/exams')
-                ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10'
+                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <ClipboardList className="h-4 w-4" />
             <span>Ujian</span>
           </Link>
-          <Link
-            href="/dashboard/monitoring"
-            className={cn(
-              'flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all active:scale-95',
-              isActive('/dashboard/monitoring')
-                ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <MonitorPlay className="h-4 w-4" />
-            <span>Pantau</span>
-          </Link>
+
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-all active:scale-95 cursor-pointer"
+            className="flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-all active:scale-95 cursor-pointer"
           >
             <Menu className="h-4 w-4" />
             <span>Menu</span>

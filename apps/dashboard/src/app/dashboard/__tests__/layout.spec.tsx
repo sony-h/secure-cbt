@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import DashboardLayout from '../layout';
 import { UserRole } from '@secure-cbt/shared';
@@ -40,6 +40,7 @@ vi.mock('@/components/ui/breadcrumbs', () => ({
 describe('DashboardLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     mockPathname = '/dashboard/exams';
     mockAuthState = {
       user: null,
@@ -135,5 +136,94 @@ describe('DashboardLayout', () => {
     const mobileNav = screen.getByTestId('mobile-bottom-bar');
     expect(mobileNav).toBeTruthy();
     expect(screen.getByText('Pantau')).toBeTruthy();
+  });
+
+  it('renders auto-docking sidebar rail with toggle button and allows collapsing', () => {
+    mockAuthState = {
+      user: {
+        id: 'u1',
+        username: 'admin',
+        role: UserRole.ADMIN,
+        full_name: 'Admin User',
+      },
+      isAuthenticated: true,
+      isLoading: false,
+      logout: vi.fn(),
+    };
+
+    render(
+      <DashboardLayout>
+        <div data-testid="child-page">Secret Exam Page</div>
+      </DashboardLayout>,
+    );
+
+    const sidebar = screen.getByTestId('sidebar-rail');
+    expect(sidebar).toBeTruthy();
+
+    const collapseToggle = screen.getByTestId('rail-collapse-toggle');
+    expect(collapseToggle).toBeTruthy();
+
+    // Initial state: expanded (has w-64 class)
+    expect(sidebar.className).toContain('w-64');
+
+    // Click collapse toggle
+    fireEvent.click(collapseToggle);
+
+    // After collapse: has w-[68px]
+    expect(sidebar.className).toContain('w-[68px]');
+  });
+
+  it('renders center pulse telemetry proctor button on mobile bottom bar', () => {
+    mockAuthState = {
+      user: {
+        id: 'u1',
+        username: 'admin',
+        role: UserRole.ADMIN,
+        full_name: 'Admin User',
+      },
+      isAuthenticated: true,
+      isLoading: false,
+      logout: vi.fn(),
+    };
+
+    render(
+      <DashboardLayout>
+        <div data-testid="child-page">Secret Exam Page</div>
+      </DashboardLayout>,
+    );
+
+    const centerPulseBtn = screen.getByTestId('mobile-pulse-telemetry');
+    expect(centerPulseBtn).toBeTruthy();
+  });
+
+  it('toggles sidebar rail collapse when pressing Ctrl+B shortcut', () => {
+    mockAuthState = {
+      user: {
+        id: 'u1',
+        username: 'admin',
+        role: UserRole.ADMIN,
+        full_name: 'Admin User',
+      },
+      isAuthenticated: true,
+      isLoading: false,
+      logout: vi.fn(),
+    };
+
+    render(
+      <DashboardLayout>
+        <div data-testid="child-page">Secret Exam Page</div>
+      </DashboardLayout>,
+    );
+
+    const sidebar = screen.getByTestId('sidebar-rail');
+    expect(sidebar.className).toContain('w-64');
+
+    // Press Ctrl+B
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
+    expect(sidebar.className).toContain('w-[68px]');
+
+    // Press Ctrl+B again to expand
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
+    expect(sidebar.className).toContain('w-64');
   });
 });

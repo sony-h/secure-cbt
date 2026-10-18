@@ -339,7 +339,7 @@ function ExamsPageContent() {
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">Jadwal &amp; Sesi Ujian</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Buat, kelola paket soal, dan pantau token sesi ujian</p>
         </div>
-        <Button onClick={() => { setEditingId(null); setForm(emptyExamForm); setModalOpen(true); }} className="rounded-xl gap-2 font-semibold shadow-xs">
+        <Button onClick={() => { setEditingId(null); setForm(emptyExamForm); setModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 font-semibold shadow-md shadow-indigo-500/20 active:scale-95 transition-all">
           <Plus className="h-4 w-4" />
           Buat Ujian Baru
         </Button>
@@ -347,21 +347,21 @@ function ExamsPageContent() {
 
       {/* Quick Status Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
+        <div className="futuristic-border rounded-2xl bg-card p-4 shadow-xs">
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Jadwal</span>
-          <p className="text-2xl font-extrabold tracking-tight text-foreground mt-1 tabular-nums">{totalExams}</p>
+          <p className="text-2xl font-extrabold tracking-tight text-foreground mt-1 tabular-nums font-mono">{totalExams}</p>
         </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Sedang Aktif</span>
-          <p className="text-2xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">{ongoingCount}</p>
+        <div className="futuristic-border glow-cyan rounded-2xl bg-card p-4 shadow-xs border-cyan-500/30">
+          <span className="text-xs font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">Sedang Aktif</span>
+          <p className="text-2xl font-extrabold tracking-tight text-cyan-600 dark:text-cyan-400 mt-1 tabular-nums font-mono">{ongoingCount}</p>
         </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
-          <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Terbit / Siap</span>
-          <p className="text-2xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400 mt-1 tabular-nums">{publishedCount}</p>
+        <div className="futuristic-border rounded-2xl bg-card p-4 shadow-xs">
+          <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Terbit / Siap</span>
+          <p className="text-2xl font-extrabold tracking-tight text-indigo-600 dark:text-indigo-400 mt-1 tabular-nums font-mono">{publishedCount}</p>
         </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
+        <div className="futuristic-border rounded-2xl bg-card p-4 shadow-xs">
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Selesai</span>
-          <p className="text-2xl font-extrabold tracking-tight text-foreground mt-1 tabular-nums">{finishedCount}</p>
+          <p className="text-2xl font-extrabold tracking-tight text-foreground mt-1 tabular-nums font-mono">{finishedCount}</p>
         </div>
       </div>
 

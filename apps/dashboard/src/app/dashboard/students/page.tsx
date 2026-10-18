@@ -333,26 +333,31 @@ function StudentsPageContent() {
           <h1 className="text-3xl font-bold tracking-tight">Siswa</h1>
           <p className="text-muted-foreground">Kelola data siswa, kredensial akun, dan ekspor dokumen</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
+            className="rounded-xl border-border/80 shadow-2xs hover:bg-muted/80 text-xs font-semibold"
             onClick={() => setExportModalOpen(true)}
             disabled={isLoading || !students || students.length === 0}
           >
-            <FileDown className="mr-2 h-4 w-4" />
+            <FileDown className="mr-2 h-4 w-4 text-cyan-600 dark:text-cyan-400" />
             Ekspor Siswa (Excel / PDF)
           </Button>
           {canEdit && (
             <>
               <Button
                 variant="outline"
+                className="rounded-xl border-border/80 shadow-2xs hover:bg-muted/80 text-xs font-semibold"
                 onClick={() => setBatchModalOpen(true)}
                 disabled={isLoading || !classes || classes.length === 0}
               >
-                <KeyRound className="mr-2 h-4 w-4" />
+                <KeyRound className="mr-2 h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                 Generate Password Kelas
               </Button>
-              <Button onClick={handleAdd}>
+              <Button
+                onClick={handleAdd}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Tambah Siswa
               </Button>

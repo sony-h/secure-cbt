@@ -282,15 +282,45 @@ function ReportsPageContent() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 print:grid-cols-3 print:gap-2">
-        <Card className="print:border print:shadow-none">
-          <CardContent className="pt-6"><div className="flex items-center gap-3"><FileText className="h-5 w-5 text-muted-foreground print:hidden" /><div><p className="text-xs text-muted-foreground">Total Peserta</p><p className="text-2xl font-bold">{results?.length || 0}</p></div></div></CardContent>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:grid-cols-3 print:gap-2">
+        <Card className="futuristic-border print:border print:shadow-none rounded-2xl">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center print:hidden">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Peserta</p>
+                <p className="text-2xl font-extrabold text-foreground tabular-nums font-mono">{results?.length || 0}</p>
+              </div>
+            </div>
+          </CardContent>
         </Card>
-        <Card className="print:border print:shadow-none">
-          <CardContent className="pt-6"><div className="flex items-center gap-3"><BarChart3 className="h-5 w-5 text-primary print:hidden" /><div><p className="text-xs text-muted-foreground">Rata-rata Nilai</p><p className="text-2xl font-bold">{averageScore}</p></div></div></CardContent>
+        <Card className="futuristic-border print:border print:shadow-none rounded-2xl">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center print:hidden">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rata-rata Nilai</p>
+                <p className="text-2xl font-extrabold text-foreground tabular-nums font-mono">{averageScore}</p>
+              </div>
+            </div>
+          </CardContent>
         </Card>
-        <Card className="print:border print:shadow-none">
-          <CardContent className="pt-6"><div className="flex items-center gap-3"><Download className="h-5 w-5 text-green-600 print:hidden" /><div><p className="text-xs text-muted-foreground">Lulus (Kriteria &ge; {settings?.passing_grade ?? 70})</p><p className="text-2xl font-bold text-green-600 print:text-slate-900">{passedCount}</p></div></div></CardContent>
+        <Card className="futuristic-border print:border print:shadow-none rounded-2xl">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center print:hidden">
+                <Download className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Lulus (Kriteria &ge; {settings?.passing_grade ?? 70})</p>
+                <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums font-mono">{passedCount}</p>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       </div>
 
