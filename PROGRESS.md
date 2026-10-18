@@ -3,12 +3,12 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.7.3` (Mobile Android Build: `1.7.3+17`)  
+**Current Version:** `v1.7.4` (Mobile Android Build: `1.7.4+18`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 33 - Session State Persistence, Paused Timer Retention & Exit Deterrence (Release v1.7.3+17)  
+**Current Phase:** Phase 34 - Student Credentials Management & Exam Controls (Release v1.7.4+18)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
-**Last Updated:** 2026-10-17
+**Last Updated:** 2026-10-18
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -1399,6 +1399,42 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - **Automatic Warning Increment & Proctors Alert:** When an exam session is resumed after app exit/closure, the backend automatically increments `warning_count` by +1, records `WARNING_TRIGGERED:APP_EXITED` in `session_logs`, and emits a real-time `WARNING_TRIGGERED` alert to proctors in the monitoring room.
 - **Limit Exceeded Auto-Submit Transition:** If the exit penalty causes warnings to reach or exceed `exam.warning_limit` (with `auto_submit_enabled`), `auto_submit_required: true` is returned and triggers immediate, clean exam auto-submission.
 - **Student Violation Warning & Alarm Burst:** Re-entering the app triggers the `WarningViolationOverlay` with specialized `APP_EXITED` messaging ("Anda terdeteksi keluar atau menutup aplikasi selama ujian berlangsung") and fires the punitive vibration and alarm burst deterrence.
+
+---
+
+## Phase 34 Completion Summary (v1.7.4+18)
+
+**Version:** `v1.7.4` (Mobile Android Build: `1.7.4+18`)  
+**Date:** 2026-10-18  
+
+### 1. Anti-Cheat & Sub-sampling Pool Validation Fix
+- **Nullable Pool Count Validation:** Corrected `createExamSchema.pool_question_count` to allow `null` when random pool sub-sampling is disabled (`is_random_pool: false`), resolving HTTP 400 validation failures during exam creation and editing.
+- **Warning Limit Zero Guard:** Updated `warning_limit` minimum to `0` across shared schemas, backend session monitoring, and mobile client logic, allowing teachers to disable auto-submission on warning limits by setting limit to `0`.
+
+### 2. Mobile Submission Guard & Alarm Disarming
+- **Disarm Violation Detection on Submit:** Added `ExamViolationHandler.disable()` invoked immediately when submission is initiated, preventing false-positive violations (`APP_MINIMIZED`) or alarms during the 10-second completion countdown dialog.
+- **Alarm Sound & Vibration Cancellation:** Explicitly terminated active alarms via `violationAlarmServiceProvider.stopAlarm()` upon submit confirmation.
+
+### 3. Exam Score & Review Visibility Control (`show_results`)
+- **Exam Configuration:** Added `show_results Boolean @default(true)` to Prisma schema, shared schemas, and dashboard exam settings toggle ("*Tampilkan Nilai ke Siswa*").
+- **Mobile Result Masking:** When `show_results: false`, `result_screen.dart` suppresses numerical scores and hides review navigation, displaying an encouraging waiting message.
+- **Exam History Review Lock:** In `history_screen.dart`, hides scores under a "*Menunggu Guru*" badge and locks discussion review, supported by backend ForbiddenException guards.
+
+### 4. Exam Question Picker "Select All" Toggle
+- **Filtered Selection Toggle:** Implemented a reactive "Pilih Semua" checkbox in `QuestionsStep` that selects or deselects all questions matching the active bank filter without clearing questions previously selected from other banks.
+
+### 5. Student Plain Password Persistence & Class Password Generator
+- **Plain Password Storage:** Added `Student.plain_password String?` in database and backend services, retaining credentials alongside Argon2 hashes.
+- **Class-Prefixed Format:** Created `generateClassPassword(className)` producing clean, readable passwords (e.g. `AKL-xxxxxx` for X AKL, `TJKT-xxxxxx` for XII TJKT) with excluded ambiguous characters.
+- **Batch Generation Endpoint:** Added `POST /students/batch-generate-passwords` and modal in student dashboard to re-generate credentials per class in one click.
+
+### 6. Optional Teacher NIP/NIY for Private Schools
+- **Nullable NIP:** Made `Teacher.nip String? @unique` in database and schemas, labeled as "*NIP / NIY (Opsional)*" in dashboard forms and tables.
+- **Fallback Credentials:** Automatically generates structured usernames (`guru_<name>_<rand>`) and default credentials (`guru123`) when NIP/NIY is blank.
+
+### 7. Student Credentials Export Dialog & Dual-Template PDF
+- **Spreadsheet Export:** Generates clean Excel (`.xlsx`) files formatted with headers, borders, and student accounts via `ExcelJS`.
+- **Dual-Template PDF Print Portal:** Supports one-click switching between **Daftar Tabel (Tabular List)** with signature columns and **Kartu Peserta (Cut-out Login Cards)** with dashed cut-out borders, optimized for A4 printing via browser print stylesheet.
 
 ---
 

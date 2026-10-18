@@ -323,6 +323,6 @@ export class StudentService {
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
-    return buffer as Buffer;
+    return Buffer.from(buffer);
   }
 }
