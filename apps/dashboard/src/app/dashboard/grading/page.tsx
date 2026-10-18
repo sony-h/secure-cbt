@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/stores/auth.store';
 import { examApi, gradingApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -155,6 +156,14 @@ function EssayHistoryAuditTrail({
 function GradingPageContent() {
   useRoleGuard([UserRole.ADMIN, UserRole.TEACHER]);
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isTeacher = user?.role === UserRole.TEACHER;
+
+  const teacherSubjectIds = useMemo(() => {
+    return new Set(
+      user?.teacher?.teacher_subjects?.map((ts) => ts.subject_id || ts.subject?.id).filter(Boolean) || [],
+    );
+  }, [user]);
 
   const [selectedExam, setSelectedExam] = useState<string>('');
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
@@ -170,6 +179,12 @@ function GradingPageContent() {
       return (data.data as Exam[]).filter((e) => ['PUBLISHED', 'ONGOING', 'FINISHED'].includes(e.status));
     },
   });
+
+  const availableExams = useMemo(() => {
+    if (!exams) return [];
+    if (!isTeacher) return exams;
+    return exams.filter((e) => teacherSubjectIds.has((e as any).subject?.id || (e as any).subject_id));
+  }, [exams, isTeacher, teacherSubjectIds]);
 
   const { data: studentList, isLoading: listLoading } = useQuery({
     queryKey: ['pending-essays', selectedExam, activeTab],
@@ -275,7 +290,7 @@ function GradingPageContent() {
                   <SelectValue placeholder="Pilih Ujian" />
                 </SelectTrigger>
                 <SelectContent>
-                  {exams?.map((e) => (
+                  {availableExams?.map((e) => (
                     <SelectItem key={e.id} value={e.id}>
                       {e.title} ({e.subject?.name})
                     </SelectItem>

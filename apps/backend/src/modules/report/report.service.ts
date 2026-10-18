@@ -1,18 +1,35 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import ExcelJS from 'exceljs';
 import { PrismaService } from '../../prisma/prisma.service';
-import { SessionStatus } from '@secure-cbt/shared';
+import { SessionStatus, UserRole } from '@secure-cbt/shared';
+import { getTeacherScope, assertTeacherMonitorAccess } from '../../common/helpers/teacher-access.helper';
 
 @Injectable()
 export class ReportService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getExamReport(examId: string, classId?: string, sortBy?: string, sortOrder?: 'asc' | 'desc') {
+  async getExamReport(
+    examId: string,
+    classId?: string,
+    sortBy?: string,
+    sortOrder?: 'asc' | 'desc',
+    userId?: string,
+    userRole?: string,
+  ) {
     const exam = await this.prisma.exam.findFirst({
       where: { id: examId, deleted_at: null },
       include: { subject: true },
     });
     if (!exam) throw new NotFoundException('Exam not found');
+
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherMonitorAccess(
+        scope,
+        exam.subject_id,
+        'Anda tidak memiliki izin melihat laporan ujian ini',
+      );
+    }
 
     const where: any = { exam_id: examId, score: { isNot: null } };
     if (classId) where.student = { class_id: classId };
@@ -113,7 +130,7 @@ export class ReportService {
     };
   }
 
-  async getSessionReview(sessionId: string) {
+  async getSessionReview(sessionId: string, userId?: string, userRole?: string) {
     const session = await this.prisma.examSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -138,6 +155,15 @@ export class ReportService {
     });
 
     if (!session) throw new NotFoundException('Session not found');
+
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherMonitorAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak memiliki izin meninjau sesi ujian ini',
+      );
+    }
 
     const filteredQuestions = session.exam.exam_questions.filter(
       (eq) => !eq.package_id || eq.package_id === session.package_id,
@@ -199,7 +225,7 @@ export class ReportService {
     };
   }
 
-  async getItemAnalysis(examId: string) {
+  async getItemAnalysis(examId: string, userId?: string, userRole?: string) {
     const exam = await this.prisma.exam.findFirst({
       where: { id: examId, deleted_at: null },
       include: {
@@ -216,6 +242,15 @@ export class ReportService {
       },
     });
     if (!exam) throw new NotFoundException('Exam not found');
+
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherMonitorAccess(
+        scope,
+        exam.subject_id,
+        'Anda tidak memiliki izin melihat analisis butir soal ujian ini',
+      );
+    }
 
     const sessions = await this.prisma.examSession.findMany({
       where: {
@@ -288,12 +323,26 @@ export class ReportService {
     };
   }
 
-  async generateExcelReport(examId: string, classId?: string): Promise<Buffer> {
+  async generateExcelReport(
+    examId: string,
+    classId?: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<Buffer> {
     const exam = await this.prisma.exam.findFirst({
       where: { id: examId, deleted_at: null },
       include: { subject: true },
     });
     if (!exam) throw new NotFoundException('Exam not found');
+
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherMonitorAccess(
+        scope,
+        exam.subject_id,
+        'Anda tidak memiliki izin mengunduh laporan ujian ini',
+      );
+    }
 
     const targetClass = classId
       ? await this.prisma.class.findUnique({

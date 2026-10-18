@@ -20,6 +20,8 @@ describe('TeacherService with optional NIP/NIY', () => {
         update: vi.fn(),
       },
       user: {
+        findFirst: vi.fn(),
+        findUnique: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
       },
@@ -27,9 +29,16 @@ describe('TeacherService with optional NIP/NIY', () => {
         createMany: vi.fn(),
         deleteMany: vi.fn(),
       },
+      teacherInvite: {
+        deleteMany: vi.fn(),
+        create: vi.fn(),
+      },
       $transaction: vi.fn((fn: any) => fn(mockPrisma)),
     };
-    service = new TeacherService(mockPrisma as any);
+    const mockEmailService = {
+      sendTeacherInviteEmail: vi.fn().mockResolvedValue(true),
+    };
+    service = new TeacherService(mockPrisma as any, mockEmailService as any);
   });
 
   it('creates teacher with provided NIP/NIY', async () => {
@@ -93,5 +102,97 @@ describe('TeacherService with optional NIP/NIY', () => {
         full_name: 'Drs. Supriyanto',
       }),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('invites a teacher via email and creates teacherInvite record', async () => {
+    mockPrisma.user.findFirst.mockResolvedValue(null);
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'admin-id', username: 'admin' });
+    mockPrisma.teacherInvite.create.mockResolvedValue({
+      id: 'invite-id',
+      email: 'guru.baru@example.com',
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+
+    const res = await service.invite(
+      { email: 'guru.baru@example.com', subject_ids: [UUID()] },
+      'admin-id',
+    );
+
+    expect(res.email).toBe('guru.baru@example.com');
+    expect(mockPrisma.teacherInvite.create).toHaveBeenCalled();
+  });
+
+  it('toggles teacher active status', async () => {
+    const teacherId = UUID();
+    const userId = UUID();
+    mockPrisma.teacher.findFirst.mockResolvedValue({
+      id: teacherId,
+      user_id: userId,
+      teacher_subjects: [],
+      user: { id: userId, is_active: true },
+    });
+
+    const res = await service.toggleStatus(teacherId, { is_active: false });
+
+    expect(res.is_active).toBe(false);
+    expect(mockPrisma.user.update).toHaveBeenCalledWith({
+      where: { id: userId },
+      data: { is_active: false },
+    });
+  });
+
+  it('updates teacher can_monitor_all_subjects flag', async () => {
+    const teacherId = UUID();
+    mockPrisma.teacher.findFirst.mockResolvedValue({
+      id: teacherId,
+      nip: null,
+      full_name: 'Guru Proktor',
+      teacher_subjects: [],
+    });
+    mockPrisma.teacher.update.mockResolvedValue({
+      id: teacherId,
+      can_monitor_all_subjects: true,
+    });
+    mockPrisma.teacher.findUnique.mockResolvedValue({
+      id: teacherId,
+      can_monitor_all_subjects: true,
+      teacher_subjects: [],
+    });
+
+    await service.update(teacherId, {
+      can_monitor_all_subjects: true,
+    });
+
+    expect(mockPrisma.teacher.update).toHaveBeenCalledWith({
+      where: { id: teacherId },
+      data: expect.objectContaining({
+        can_monitor_all_subjects: true,
+      }),
+    });
+  });
+
+  it('invites teacher with can_monitor_all_subjects flag', async () => {
+    const inviterId = UUID();
+    mockPrisma.user.findFirst.mockResolvedValue(null);
+    mockPrisma.user.findUnique.mockResolvedValue({ username: 'admin' });
+    mockPrisma.teacherInvite.create.mockResolvedValue({
+      id: UUID(),
+      expires_at: new Date(),
+    });
+
+    await service.invite(
+      {
+        email: 'proktor@example.com',
+        can_monitor_all_subjects: true,
+      },
+      inviterId,
+    );
+
+    expect(mockPrisma.teacherInvite.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        email: 'proktor@example.com',
+        can_monitor_all_subjects: true,
+      }),
+    });
   });
 });

@@ -30,13 +30,15 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { formatDate } from '@/lib/utils';
 import { APP_INFO } from '@/lib/constants/app-info';
+import { UserRole } from '@secure-cbt/shared';
 
 const DonutChart = dynamic(() => import('@/components/charts/donut-chart'), { ssr: false });
 
 interface ExamItem {
   id: string;
   title: string;
-  subject?: { name: string; code?: string };
+  subject_id?: string;
+  subject?: { id?: string; name: string; code?: string };
   status: string;
   duration_minutes: number;
   start_at: string;
@@ -84,20 +86,24 @@ function ExecutiveMetricCard({
   trendBadge?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-card p-5 shadow-xs hover:shadow-md transition-all duration-200 group">
-      <div className="flex items-center justify-between">
+    <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-card p-5 shadow-xs hover:shadow-md hover:border-primary/30 transition-all duration-200 active:scale-[0.99] group">
+      <div
+        className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full blur-xl opacity-15 transition-opacity group-hover:opacity-30"
+        style={{ backgroundColor: accentColor }}
+      />
+      <div className="flex items-center justify-between relative z-10">
         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
           {title}
         </span>
         <div
-          className="flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105"
-          style={{ backgroundColor: `${accentColor}15`, color: accentColor }}
+          className="flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 group-hover:scale-105 shadow-2xs"
+          style={{ backgroundColor: `${accentColor}18`, color: accentColor }}
         >
           <Icon className="h-5 w-5" />
         </div>
       </div>
 
-      <div className="mt-3 flex items-baseline gap-2">
+      <div className="mt-3 flex items-baseline gap-2 relative z-10">
         <p className="text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
           {value}
         </p>
@@ -108,7 +114,7 @@ function ExecutiveMetricCard({
         )}
       </div>
 
-      <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+      <p className="mt-1 text-xs text-muted-foreground relative z-10">{subtitle}</p>
     </div>
   );
 }
@@ -174,10 +180,26 @@ function DashboardHomeContent() {
     );
   }
 
+  const isTeacher = user?.role === UserRole.TEACHER;
+  const isProctor = !!user?.teacher?.can_monitor_all_subjects;
+  const teacherSubjects = user?.teacher?.teacher_subjects || [];
+  const teacherSubjectIds = useMemo(() => {
+    return new Set(teacherSubjects.map((ts) => ts.subject_id || ts.subject?.id).filter(Boolean));
+  }, [teacherSubjects]);
+
   const studentCount = studentsData?.meta?.total ?? '—';
   const teacherCount = teachersData?.meta?.total ?? '—';
-  const subjectCount = Array.isArray(subjectsData?.data) ? subjectsData.data.length : '—';
-  const allExams: ExamItem[] = allExamsData?.data || [];
+  const totalCurriculumSubjects = Array.isArray(subjectsData?.data) ? subjectsData.data.length : '—';
+  const subjectCount = isTeacher ? teacherSubjects.length : totalCurriculumSubjects;
+
+  const rawExams: ExamItem[] = allExamsData?.data || [];
+  const allExams: ExamItem[] = useMemo(() => {
+    if (!isTeacher) return rawExams;
+    return rawExams.filter((e) =>
+      teacherSubjectIds.has(e.subject?.id || e.subject_id || ''),
+    );
+  }, [rawExams, isTeacher, teacherSubjectIds]);
+
   const activeExams = allExams.filter((e) => ['PUBLISHED', 'ONGOING'].includes(e.status));
   const activeCount = activeExams.length;
   const totalExams = allExams.length;
@@ -204,14 +226,15 @@ function DashboardHomeContent() {
   return (
     <div className="space-y-6">
       {/* ── 1. Top Hero Executive Bento Launchpad ──────────────────── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 shadow-xl border border-indigo-900/30">
-        {/* Decorative Watermark Circles */}
-        <div className="pointer-events-none absolute -right-12 -top-12 h-64 w-64 rounded-full border border-indigo-500/10" />
-        <div className="pointer-events-none absolute -bottom-16 right-32 h-56 w-56 rounded-full border border-indigo-400/10" />
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950/90 to-slate-900 text-white p-6 sm:p-8 shadow-xl border border-indigo-900/40">
+        {/* Aurora Atmosphere Glows */}
+        <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl animate-pulse" />
+        <div className="pointer-events-none absolute -bottom-16 right-24 h-64 w-64 rounded-full bg-purple-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute left-1/4 top-1/2 -translate-y-1/2 h-44 w-44 rounded-full bg-cyan-500/10 blur-2xl" />
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30">
                 <Sparkles className="h-3 w-3 text-indigo-400" />
                 {todayDateFormatted} • WIB
@@ -219,13 +242,21 @@ function DashboardHomeContent() {
               <span className="hidden sm:inline-flex px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold border border-emerald-500/30">
                 Assessia v{APP_INFO.version}
               </span>
+              {isTeacher && isProctor && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 text-[11px] font-bold border border-indigo-400/40">
+                  <ShieldCheck className="h-3.5 w-3.5 text-indigo-300" />
+                  Akses Pengawas: Aktif (Semua Mapel)
+                </span>
+              )}
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               Selamat Datang, {user?.full_name || user?.username || 'Administrator'} 👋
             </h1>
             <p className="text-sm text-indigo-200/80 leading-relaxed">
-              Pusat kendali platform asesmen modern Assessia by Orivastra siap beroperasi. Pantau integritas ujian siswa, kelola bank soal ANBK &amp; KaTeX, serta rilis jadwal secara real-time.
+              {isTeacher
+                ? `Pusat kendali pengajar Assessia. Anda mengampu ${teacherSubjects.length} mata pelajaran. Kelola bank soal, jadwalkan ujian, dan nilai jawaban esai siswa secara terpusat.`
+                : 'Pusat kendali platform asesmen modern Assessia by Orivastra siap beroperasi. Pantau integritas ujian siswa, kelola bank soal ANBK & KaTeX, serta rilis jadwal secara real-time.'}
             </p>
           </div>
 
@@ -235,7 +266,7 @@ function DashboardHomeContent() {
               <>
                 <Button
                   onClick={() => router.push('/dashboard/exams')}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-md font-semibold text-xs h-10 px-4 rounded-xl gap-1.5"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-md font-semibold text-xs h-10 px-4 rounded-xl gap-1.5 active:scale-95 transition-transform"
                 >
                   <Plus className="h-4 w-4" />
                   Jadwal Ujian
@@ -243,7 +274,7 @@ function DashboardHomeContent() {
                 <Button
                   onClick={() => router.push('/dashboard/questions/new')}
                   variant="outline"
-                  className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs h-10 px-4 rounded-xl gap-1.5 backdrop-blur-sm"
+                  className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-xs h-10 px-4 rounded-xl gap-1.5 backdrop-blur-sm active:scale-95 transition-transform"
                 >
                   <FileQuestion className="h-4 w-4" />
                   Studio Soal
@@ -252,7 +283,7 @@ function DashboardHomeContent() {
             )}
             <Button
               onClick={() => router.push('/dashboard/monitoring')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white shadow-md font-semibold text-xs h-10 px-4 rounded-xl gap-1.5"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white shadow-md font-semibold text-xs h-10 px-4 rounded-xl gap-1.5 active:scale-95 transition-transform"
             >
               <MonitorPlay className="h-4 w-4" />
               Monitoring
@@ -261,37 +292,37 @@ function DashboardHomeContent() {
         </div>
       </div>
 
-      {/* ── 2. Quartet Executive Metric Cards ──────────────────────── */}
+      {/* ── 2. Quartet Executive Metric Cards (Aurora Cosmos) ──────── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <ExecutiveMetricCard
           icon={Users}
           title="Total Siswa"
           value={studentCount}
           subtitle="Peserta didik terdaftar"
-          accentColor="#4F46E5"
+          accentColor="#2563EB"
           trendBadge="Aktif"
         />
         <ExecutiveMetricCard
-          icon={GraduationCap}
-          title="Tenaga Pengajar"
-          value={teacherCount}
-          subtitle="Guru pengampu ujian"
-          accentColor="#059669"
-          trendBadge={`${subjectCount} Mapel`}
+          icon={isTeacher ? BookOpen : GraduationCap}
+          title={isTeacher ? 'Mata Pelajaran Anda' : 'Tenaga Pengajar'}
+          value={isTeacher ? teacherSubjects.length : teacherCount}
+          subtitle={isTeacher ? 'Ditugaskan ke Anda' : 'Guru pengampu ujian'}
+          accentColor="#06B6D4"
+          trendBadge={isTeacher ? (isProctor ? 'Pengawas Aktif' : 'Pengampu') : `${totalCurriculumSubjects} Mapel`}
         />
         <ExecutiveMetricCard
-          icon={BookOpen}
-          title="Mata Pelajaran"
-          value={subjectCount}
+          icon={isTeacher ? GraduationCap : BookOpen}
+          title={isTeacher ? 'Total Kurikulum' : 'Mata Pelajaran'}
+          value={totalCurriculumSubjects}
           subtitle="Tersedia di kurikulum"
           accentColor="#7C3AED"
         />
         <ExecutiveMetricCard
           icon={FileText}
-          title="Ujian Terjadwal"
+          title={isTeacher ? 'Ujian Mapel Anda' : 'Ujian Terjadwal'}
           value={totalExams}
           subtitle={`${activeCount} ujian aktif saat ini`}
-          accentColor="#EA580C"
+          accentColor="#EC4899"
           trendBadge={activeCount > 0 ? `${activeCount} Live` : undefined}
         />
       </div>
@@ -349,7 +380,7 @@ function DashboardHomeContent() {
             </Link>
           </div>
 
-          <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+          <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 touch-scroll-smooth">
             {allExams.length === 0 ? (
               <EmptyState title="Belum Ada Ujian" description="Buat jadwal ujian baru untuk memulai asesmen." className="py-10" />
             ) : (

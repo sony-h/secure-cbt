@@ -409,26 +409,61 @@ export function FormalReportModal({
 
   // Load configuration with localStorage persistence and fallback defaults
   const [config, setConfig] = useState<FormalReportConfig>(() => {
+    const initial: FormalReportConfig = {
+      ...DEFAULT_FORMAL_REPORT_CONFIG,
+      ...(settings?.school_name ? { schoolName: settings.school_name } : {}),
+      ...(settings?.academic_year ? { academicYear: settings.academic_year } : {}),
+      ...(settings?.city ? { city: settings.city } : {}),
+      ...(settings?.province ? { province: settings.province } : {}),
+    };
+
     if (typeof window !== 'undefined') {
       try {
         const raw = localStorage.getItem(FORMAL_REPORT_STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
           return {
-            ...DEFAULT_FORMAL_REPORT_CONFIG,
+            ...initial,
             ...parsed,
+            schoolName: parsed.schoolName || initial.schoolName,
+            academicYear: parsed.academicYear || initial.academicYear,
             signers:
               Array.isArray(parsed.signers) && parsed.signers.length > 0
                 ? parsed.signers
-                : DEFAULT_FORMAL_REPORT_CONFIG.signers,
+                : initial.signers,
           };
         }
       } catch (e) {
         console.error('Failed to parse formal report config from localStorage', e);
       }
     }
-    return DEFAULT_FORMAL_REPORT_CONFIG;
+    return initial;
   });
+
+  useEffect(() => {
+    if (!settings) return;
+    setConfig((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      if (settings.school_name && (prev.schoolName === DEFAULT_FORMAL_REPORT_CONFIG.schoolName || !prev.schoolName)) {
+        next.schoolName = settings.school_name;
+        changed = true;
+      }
+      if (settings.academic_year && (prev.academicYear === DEFAULT_FORMAL_REPORT_CONFIG.academicYear || !prev.academicYear)) {
+        next.academicYear = settings.academic_year;
+        changed = true;
+      }
+      if (settings.city && (prev.city === DEFAULT_FORMAL_REPORT_CONFIG.city || !prev.city)) {
+        next.city = settings.city;
+        changed = true;
+      }
+      if (settings.province && (prev.province === DEFAULT_FORMAL_REPORT_CONFIG.province || !prev.province)) {
+        next.province = settings.province;
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [settings]);
 
   useEffect(() => {
     setMounted(true);

@@ -1,17 +1,21 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GradingService } from '../grading/grading.service';
 import {
   StartSessionInput, ResumeSessionInput, SyncTimeInput, SubmitSessionInput,
   startSessionSchema, resumeSessionSchema, syncTimeSchema, submitSessionSchema,
-  SessionStatus, ExamStatus, SocketEvent, shuffle,
+  SessionStatus, ExamStatus, SocketEvent, shuffle, UserRole,
 } from '@secure-cbt/shared';
 import { resolveStudentId } from '../../common/helpers/user-resolver.helper';
 import { sampleQuestionPool } from './session-sampler';
+import { getTeacherScope, assertTeacherMonitorAccess } from '../../common/helpers/teacher-access.helper';
 
 @Injectable()
 export class SessionService {
+  private readonly logger = new Logger(SessionService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
@@ -582,14 +586,24 @@ export class SessionService {
     return proctorUserId;
   }
 
-  async forceSubmit(sessionId: string, proctorUserId: string) {
+  async forceSubmit(sessionId: string, proctorUserId: string, userRole?: string) {
     const session = await this.prisma.examSession.findUnique({
       where: { id: sessionId },
       include: {
         student: { select: { full_name: true, user_id: true } },
+        exam: { select: { subject_id: true } },
       },
     });
     if (!session) throw new NotFoundException('Session not found');
+
+    if (userRole === UserRole.TEACHER && proctorUserId) {
+      const scope = await getTeacherScope(this.prisma, proctorUserId);
+      assertTeacherMonitorAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak memiliki izin memantau atau mengelola sesi ujian ini',
+      );
+    }
 
     if (
       session.status === SessionStatus.SUBMITTED ||
@@ -656,14 +670,24 @@ export class SessionService {
     return updated;
   }
 
-  async resetWarnings(sessionId: string, proctorUserId: string) {
+  async resetWarnings(sessionId: string, proctorUserId: string, userRole?: string) {
     const session = await this.prisma.examSession.findUnique({
       where: { id: sessionId },
       include: {
         student: { select: { full_name: true, user_id: true } },
+        exam: { select: { subject_id: true } },
       },
     });
     if (!session) throw new NotFoundException('Session not found');
+
+    if (userRole === UserRole.TEACHER && proctorUserId) {
+      const scope = await getTeacherScope(this.prisma, proctorUserId);
+      assertTeacherMonitorAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak memiliki izin memantau atau mengelola sesi ujian ini',
+      );
+    }
 
     const proctorName = await this.resolveProctorName(proctorUserId);
 
@@ -696,7 +720,12 @@ export class SessionService {
     return updated;
   }
 
-  async extendTime(sessionId: string, additionalMinutes: number, proctorUserId: string) {
+  async extendTime(
+    sessionId: string,
+    additionalMinutes: number,
+    proctorUserId: string,
+    userRole?: string,
+  ) {
     if (!additionalMinutes || additionalMinutes <= 0) {
       throw new BadRequestException('Menit tambahan harus lebih besar dari 0');
     }
@@ -705,9 +734,19 @@ export class SessionService {
       where: { id: sessionId },
       include: {
         student: { select: { full_name: true, user_id: true } },
+        exam: { select: { subject_id: true } },
       },
     });
     if (!session) throw new NotFoundException('Session not found');
+
+    if (userRole === UserRole.TEACHER && proctorUserId) {
+      const scope = await getTeacherScope(this.prisma, proctorUserId);
+      assertTeacherMonitorAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak memiliki izin memantau atau mengelola sesi ujian ini',
+      );
+    }
 
     if (
       session.status === SessionStatus.SUBMITTED ||
@@ -753,14 +792,24 @@ export class SessionService {
     return updated;
   }
 
-  async unlockSession(sessionId: string, proctorUserId: string) {
+  async unlockSession(sessionId: string, proctorUserId: string, userRole?: string) {
     const session = await this.prisma.examSession.findUnique({
       where: { id: sessionId },
       include: {
         student: { select: { full_name: true, user_id: true } },
+        exam: { select: { subject_id: true } },
       },
     });
     if (!session) throw new NotFoundException('Session not found');
+
+    if (userRole === UserRole.TEACHER && proctorUserId) {
+      const scope = await getTeacherScope(this.prisma, proctorUserId);
+      assertTeacherMonitorAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak memiliki izin memantau atau mengelola sesi ujian ini',
+      );
+    }
 
     if (
       session.status === SessionStatus.SUBMITTED ||
@@ -801,5 +850,128 @@ export class SessionService {
     });
 
     return updated;
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async handleAutoSubmitExpiredCron() {
+    await this.autoSubmitExpiredSessions();
+  }
+
+  async autoSubmitExpiredSessions(now: Date = new Date()) {
+    const activeSessions = await this.prisma.examSession.findMany({
+      where: {
+        status: SessionStatus.ACTIVE,
+      },
+      include: {
+        exam: {
+          select: {
+            id: true,
+            duration_minutes: true,
+            end_at: true,
+            status: true,
+          },
+        },
+        student: {
+          select: {
+            full_name: true,
+            user_id: true,
+          },
+        },
+      },
+    });
+
+    const expiredSessions = activeSessions.filter((session) => {
+      // 1. Exam status is explicitly finished
+      if (session.exam.status === ExamStatus.FINISHED) {
+        return true;
+      }
+
+      // 2. Scheduled exam window ended past 1 minute grace period
+      if (session.exam.end_at) {
+        const examEndMs = new Date(session.exam.end_at).getTime();
+        if (now.getTime() > examEndMs + 60 * 1000) {
+          return true;
+        }
+      }
+
+      // 3. Session remaining time reached zero past 1 minute grace period
+      if (session.remaining_time_seconds !== null && session.remaining_time_seconds !== undefined) {
+        const lastUpdateMs = session.updated_at
+          ? new Date(session.updated_at).getTime()
+          : new Date(session.started_at).getTime();
+        const elapsedSinceUpdateSec = Math.floor((now.getTime() - lastUpdateMs) / 1000);
+        const estimatedRemainingSec = session.remaining_time_seconds - elapsedSinceUpdateSec;
+        if (estimatedRemainingSec <= -60) {
+          return true;
+        }
+      }
+
+      // 4. Fallback check: Total elapsed time since session start exceeds (duration + 1 min grace)
+      const durationSec = session.exam.duration_minutes * 60;
+      const startedMs = new Date(session.started_at).getTime();
+      const totalElapsedSec = Math.floor((now.getTime() - startedMs) / 1000);
+      if (totalElapsedSec >= durationSec + 60) {
+        return true;
+      }
+
+      return false;
+    });
+
+    let submittedCount = 0;
+    for (const session of expiredSessions) {
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          await tx.examSession.update({
+            where: { id: session.id },
+            data: {
+              status: SessionStatus.AUTO_SUBMITTED,
+              submitted_at: now,
+              remaining_time_seconds: 0,
+            },
+          });
+
+          await tx.sessionLog.create({
+            data: {
+              exam_session_id: session.id,
+              event: 'SYSTEM',
+              description: 'AUTO_SUBMIT_SYSTEM_TIMEOUT: Sesi ujian otomatis di-submit oleh sistem karena waktu habis (TIMEOUT)',
+            },
+          });
+
+          const [scoreData, settings] = await Promise.all([
+            this.gradingService.calculateTotalScore(tx, session.id),
+            tx.setting.findFirst({ select: { passing_grade: true } }),
+          ]);
+
+          await tx.score.upsert({
+            where: { exam_session_id: session.id },
+            create: {
+              exam_session_id: session.id,
+              ...scoreData,
+              passing_grade_at_score: settings?.passing_grade ?? null,
+              graded_at: now,
+            },
+            update: {
+              ...scoreData,
+              passing_grade_at_score: settings?.passing_grade ?? null,
+              graded_at: now,
+            },
+          });
+        });
+
+        this.eventEmitter.emit(SocketEvent.SESSION_FINISHED, {
+          sessionId: session.id,
+          examId: session.exam_id,
+          studentId: session.student_id,
+          studentName: session.student.full_name,
+        });
+
+        submittedCount++;
+      } catch (err) {
+        this.logger.error(`Failed to auto-submit expired session ${session.id}: ${err}`);
+      }
+    }
+
+    return { submittedCount, totalExpired: expiredSessions.length };
   }
 }

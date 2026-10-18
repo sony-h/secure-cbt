@@ -41,11 +41,12 @@ async function refreshAccessToken(): Promise<string> {
   return refreshPromise;
 }
 
-function handleAuthFailure() {
+export function handleAuthFailure() {
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
   if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-    window.location.href = '/login';
+    const current = window.location.pathname + window.location.search;
+    window.location.href = current && current !== '/' ? `/login?redirect=${encodeURIComponent(current)}` : '/login';
   }
 }
 

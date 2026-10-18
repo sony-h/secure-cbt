@@ -21,8 +21,8 @@ export class MonitoringController {
   @Get('exams/:id')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get real-time exam monitoring data' })
-  async getExamMonitoring(@Param('id') id: string) {
-    const data = await this.monitoringService.getExamMonitoring(id);
+  async getExamMonitoring(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    const data = await this.monitoringService.getExamMonitoring(id, req.user?.sub, req.user?.role);
     const students = data.students.map((s) => ({
       ...s,
       is_connected: this.monitoringGateway.isStudentConnected(s.student_user_id),
@@ -38,8 +38,8 @@ export class MonitoringController {
   @Get('sessions/:id')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get session activity logs' })
-  async getSessionLogs(@Param('id') id: string) {
-    const data = await this.monitoringService.getSessionLogs(id);
+  async getSessionLogs(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    const data = await this.monitoringService.getSessionLogs(id, req.user?.sub, req.user?.role);
     return { success: true, message: 'Session logs retrieved', data };
   }
 

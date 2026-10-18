@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { APP_GUARD } from '@nestjs/core';
@@ -9,6 +10,7 @@ import { SecurityDefaults } from '@secure-cbt/shared';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './common/queue/queue.module';
 import { StorageModule } from './modules/storage/storage.module';
+import { EmailModule } from './modules/email/email.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
@@ -45,10 +47,14 @@ import { HealthModule } from './modules/health/health.module';
     // ── Event System ───────────────────────────────────────────
     EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
 
+    // ── Scheduled Tasks ─────────────────────────────────────────
+    ScheduleModule.forRoot(),
+
     // ── Infrastructure ─────────────────────────────────────────
     PrismaModule,
     QueueModule,
     StorageModule,
+    EmailModule,
 
     // ── Business Modules ───────────────────────────────────────
     HealthModule,

@@ -117,13 +117,33 @@ export class StudentService {
   }
 
   async remove(id: string) {
-    await this.findById(id);
-    const student = await this.prisma.student.update({
+    const student = await this.prisma.student.findUnique({
       where: { id },
-      data: { deleted_at: new Date() },
+      include: { user: true },
     });
-    // Also soft delete the user
-    await this.prisma.user.update({ where: { id: student.user_id }, data: { deleted_at: new Date() } });
+    if (!student || student.deleted_at) {
+      throw new NotFoundException('Student not found');
+    }
+    const suffix = `deleted_${Date.now()}`;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.student.update({
+        where: { id },
+        data: {
+          deleted_at: new Date(),
+          nis: `${student.nis}.${suffix}`,
+        },
+      });
+      if (student.user) {
+        await tx.user.update({
+          where: { id: student.user_id },
+          data: {
+            deleted_at: new Date(),
+            email: `${student.user.email}.${suffix}`,
+            username: `${student.user.username}.${suffix}`,
+          },
+        });
+      }
+    });
     return { deleted: true };
   }
 

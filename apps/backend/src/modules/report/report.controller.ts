@@ -1,10 +1,11 @@
-import { Controller, Get, Param, Query, UseGuards, Res } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, Res, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Response } from 'express';
 import { ReportService } from './report.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../../common/guards/roles.guard';
 import { ApiResponse, UserRole } from '@secure-cbt/shared';
+import type { AuthenticatedRequest } from '../../common/types';
 
 @ApiTags('reports')
 @ApiBearerAuth()
@@ -17,11 +18,12 @@ export class ReportController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Export exam score report as Excel (.xlsx)' })
   async exportExcel(
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Res() res: Response,
     @Query('class_id') classId?: string,
   ) {
-    const buffer = await this.reportService.generateExcelReport(id, classId);
+    const buffer = await this.reportService.generateExcelReport(id, classId, req.user?.sub, req.user?.role);
     const filename = `Laporan_Nilai_Ujian_${id.substring(0, 8)}.xlsx`;
     res.setHeader(
       'Content-Type',
@@ -35,12 +37,13 @@ export class ReportController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get exam report' })
   async getExamReport(
+    @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Query('class_id') classId?: string,
     @Query('sort_by') sortBy?: string,
     @Query('sort_order') sortOrder?: 'asc' | 'desc',
   ) {
-    const data = await this.reportService.getExamReport(id, classId, sortBy, sortOrder);
+    const data = await this.reportService.getExamReport(id, classId, sortBy, sortOrder, req.user?.sub, req.user?.role);
     return { success: true, message: 'Exam report retrieved', data };
   }
 
@@ -55,16 +58,16 @@ export class ReportController {
   @Get('session/:sessionId/review')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get full student session review for teachers and admins' })
-  async getSessionReview(@Param('sessionId') sessionId: string) {
-    const data = await this.reportService.getSessionReview(sessionId);
+  async getSessionReview(@Req() req: AuthenticatedRequest, @Param('sessionId') sessionId: string) {
+    const data = await this.reportService.getSessionReview(sessionId, req.user?.sub, req.user?.role);
     return { success: true, message: 'Session review retrieved', data };
   }
 
   @Get('exam/:id/item-analysis')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get exam item analysis and distractor distribution' })
-  async getItemAnalysis(@Param('id') id: string) {
-    const data = await this.reportService.getItemAnalysis(id);
+  async getItemAnalysis(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    const data = await this.reportService.getItemAnalysis(id, req.user?.sub, req.user?.role);
     return { success: true, message: 'Item analysis retrieved', data };
   }
 }

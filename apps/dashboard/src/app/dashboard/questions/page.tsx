@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/stores/auth.store';
 import { questionBankApi, academicApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -96,6 +97,9 @@ function QuestionsPageContent() {
     window.history.replaceState(null, '', url.toString());
   };
 
+  const { user } = useAuthStore();
+  const isTeacher = user?.role === UserRole.TEACHER;
+
   const { data: banks } = useQuery({
     queryKey: ['question-banks'],
     queryFn: async () => { const { data } = await questionBankApi.getBanks(); return data.data as QuestionBank[]; },
@@ -105,6 +109,15 @@ function QuestionsPageContent() {
     queryKey: ['subjects'],
     queryFn: async () => { const { data } = await academicApi.getSubjects(); return data.data as Subject[]; },
   });
+
+  const availableSubjects = useMemo(() => {
+    if (!subjectsData) return [];
+    if (!isTeacher) return subjectsData;
+    const assignedIds = new Set(
+      user?.teacher?.teacher_subjects?.map((ts) => ts.subject_id || ts.subject?.id).filter(Boolean) || [],
+    );
+    return subjectsData.filter((s) => assignedIds.has(s.id));
+  }, [subjectsData, isTeacher, user]);
 
   const { data: questions, isLoading } = useQuery({
     queryKey: ['questions'],
@@ -419,7 +432,7 @@ function QuestionsPageContent() {
                   <Select value={newBankSubject} onValueChange={(v) => setNewBankSubject(v)}>
                     <SelectTrigger><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
                     <SelectContent>
-                      {subjectsData?.map((s) => (
+                      {availableSubjects?.map((s) => (
                         <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                       ))}
                     </SelectContent>

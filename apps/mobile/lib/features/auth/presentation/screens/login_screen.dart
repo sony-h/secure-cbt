@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/constants/app_info.dart';
+import 'package:secure_cbt_mobile/core/network/server_config_provider.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
+import 'package:secure_cbt_mobile/features/auth/presentation/widgets/server_config_dialog.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -56,6 +58,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final serverConfig = ref.watch(serverConfigProvider);
+
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
@@ -68,6 +72,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Server Config Quick Access
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: IconButton(
+                      tooltip: 'Pengaturan Server',
+                      onPressed: () => showDialog(
+                        context: context,
+                        builder: (_) => const ServerConfigDialog(),
+                      ),
+                      icon: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(
+                            Icons.dns_outlined,
+                            color: AppColors.textSecondary,
+                            size: 22,
+                          ),
+                          if (serverConfig.isCustom)
+                            Positioned(
+                              right: -1,
+                              top: -1,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.warning,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
                   // App Brand Emblem
                   Center(
                     child: Container(

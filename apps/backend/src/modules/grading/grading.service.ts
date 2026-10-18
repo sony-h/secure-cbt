@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
-import { GradeEssayInput, gradeEssaySchema, QuestionType, SessionStatus, SocketEvent, ExamStatus } from '@secure-cbt/shared';
+import { GradeEssayInput, gradeEssaySchema, QuestionType, SessionStatus, SocketEvent, ExamStatus, UserRole } from '@secure-cbt/shared';
+import { getTeacherScope, assertTeacherSubjectAccess, assertTeacherMonitorAccess } from '../../common/helpers/teacher-access.helper';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -11,8 +12,23 @@ export class GradingService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async gradeEssay(dto: GradeEssayInput, graderId: string) {
+  async gradeEssay(dto: GradeEssayInput, graderId: string, userRole?: string) {
     const { session_id, question_id, score, feedback, revision_note } = gradeEssaySchema.parse(dto);
+
+    if (userRole === UserRole.TEACHER) {
+      const session = await this.prisma.examSession.findUnique({
+        where: { id: session_id },
+        include: { exam: { select: { subject_id: true } } },
+      });
+      if (!session) throw new NotFoundException('Session not found');
+
+      const scope = await getTeacherScope(this.prisma, graderId);
+      assertTeacherSubjectAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak berhak menilai esai untuk mata pelajaran ini',
+      );
+    }
 
     return await this.prisma.$transaction(async (tx) => {
       const answer = await tx.answer.findUnique({
@@ -297,7 +313,7 @@ export class GradingService {
     };
   }
 
-  async getResult(sessionId: string) {
+  async getResult(sessionId: string, userId?: string, userRole?: string) {
     const score = await this.prisma.score.findUnique({
       where: { exam_session_id: sessionId },
       include: {
@@ -310,6 +326,15 @@ export class GradingService {
       },
     });
     if (!score) throw new NotFoundException('Score not found');
+
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherMonitorAccess(
+        scope,
+        score.exam_session.exam.subject_id,
+        'Anda tidak memiliki izin melihat hasil ujian ini',
+      );
+    }
 
     const now = new Date();
     const isExamFinished = score.exam_session.exam.status === ExamStatus.FINISHED || now > new Date(score.exam_session.exam.end_at);
@@ -332,7 +357,22 @@ export class GradingService {
     };
   }
 
-  async getClassScore(classId: string, examId: string) {
+  async getClassScore(classId: string, examId: string, userId?: string, userRole?: string) {
+    if (userRole === UserRole.TEACHER && userId) {
+      const exam = await this.prisma.exam.findUnique({
+        where: { id: examId },
+        select: { id: true, subject_id: true },
+      });
+      if (!exam) throw new NotFoundException('Exam not found');
+
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherMonitorAccess(
+        scope,
+        exam.subject_id,
+        'Anda tidak memiliki izin melihat ringkasan nilai ujian ini',
+      );
+    }
+
     const cls = await this.prisma.class.findUnique({
       where: { id: classId },
       include: { students: true },
@@ -374,7 +414,24 @@ export class GradingService {
     examId: string,
     classId?: string,
     status: 'pending' | 'completed' | 'all' = 'pending',
+    userId?: string,
+    userRole?: string,
   ) {
+    if (userRole === UserRole.TEACHER && userId) {
+      const exam = await this.prisma.exam.findUnique({
+        where: { id: examId },
+        select: { id: true, subject_id: true },
+      });
+      if (!exam) throw new NotFoundException('Exam not found');
+
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherSubjectAccess(
+        scope,
+        exam.subject_id,
+        'Anda tidak memiliki hak akses untuk memeriksa esai ujian ini',
+      );
+    }
+
     const where: any = {
       exam_id: examId,
       status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED] },
@@ -426,7 +483,22 @@ export class GradingService {
     });
   }
 
-  async getEssayHistory(sessionId: string, questionId: string) {
+  async getEssayHistory(sessionId: string, questionId: string, userId?: string, userRole?: string) {
+    if (userRole === UserRole.TEACHER && userId) {
+      const session = await this.prisma.examSession.findUnique({
+        where: { id: sessionId },
+        include: { exam: { select: { subject_id: true } } },
+      });
+      if (!session) throw new NotFoundException('Session not found');
+
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherSubjectAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak memiliki hak akses untuk melihat riwayat penilaian ini',
+      );
+    }
+
     const logs = await this.prisma.sessionLog.findMany({
       where: {
         exam_session_id: sessionId,
@@ -495,7 +567,22 @@ export class GradingService {
     return matchingLogs;
   }
 
-  async getSessionEssays(sessionId: string) {
+  async getSessionEssays(sessionId: string, userId?: string, userRole?: string) {
+    if (userRole === UserRole.TEACHER && userId) {
+      const session = await this.prisma.examSession.findUnique({
+        where: { id: sessionId },
+        include: { exam: { select: { subject_id: true } } },
+      });
+      if (!session) throw new NotFoundException('Session not found');
+
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherSubjectAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak memiliki hak akses untuk melihat esai ujian ini',
+      );
+    }
+
     const session = await this.prisma.examSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -523,12 +610,27 @@ export class GradingService {
     };
   }
 
-  async regradeExam(examId: string, graderId?: string) {
-    const exam = await this.prisma.exam.findUnique({
-      where: { id: examId },
-      select: { id: true, title: true },
-    });
-    if (!exam) throw new NotFoundException('Exam not found');
+  async regradeExam(examId: string, graderId?: string, userRole?: string) {
+    if (userRole === UserRole.TEACHER && graderId) {
+      const exam = await this.prisma.exam.findUnique({
+        where: { id: examId },
+        select: { id: true, title: true, subject_id: true },
+      });
+      if (!exam) throw new NotFoundException('Exam not found');
+
+      const scope = await getTeacherScope(this.prisma, graderId);
+      assertTeacherSubjectAccess(
+        scope,
+        exam.subject_id,
+        'Anda tidak berhak menilai ulang ujian mata pelajaran ini',
+      );
+    } else {
+      const exam = await this.prisma.exam.findUnique({
+        where: { id: examId },
+        select: { id: true, title: true },
+      });
+      if (!exam) throw new NotFoundException('Exam not found');
+    }
 
     const sessions = await this.prisma.examSession.findMany({
       where: {
@@ -585,7 +687,26 @@ export class GradingService {
     });
   }
 
-  async regradeSession(sessionId: string, graderId?: string) {
+  async regradeSession(sessionId: string, graderId?: string, userRole?: string) {
+    if (userRole === UserRole.TEACHER && graderId) {
+      const session = await this.prisma.examSession.findUnique({
+        where: { id: sessionId },
+        include: {
+          exam: { select: { subject_id: true } },
+          student: { select: { full_name: true, nis: true } },
+          score: { select: { total_score: true } },
+        },
+      });
+      if (!session) throw new NotFoundException('Session not found');
+
+      const scope = await getTeacherScope(this.prisma, graderId);
+      assertTeacherSubjectAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak berhak menilai ulang sesi ujian mata pelajaran ini',
+      );
+    }
+
     const session = await this.prisma.examSession.findUnique({
       where: { id: sessionId },
       include: {

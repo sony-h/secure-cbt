@@ -21,16 +21,24 @@ import {
   AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Mail, UserCheck, UserX, Send, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import { Modal } from '@/components/ui/modal';
 
 interface Teacher {
   id: string;
-  nip: string;
+  nip: string | null;
   full_name: string;
-  teacher_subjects?: { subject: { id: string; name: string } }[];
+  can_monitor_all_subjects?: boolean;
+  teacher_subjects?: { id?: string; subject: { id: string; name: string } }[];
+  user?: {
+    id: string;
+    username: string;
+    email: string;
+    is_active: boolean;
+    email_verified_at: string | null;
+  };
   created_at: string;
 }
 
@@ -44,9 +52,10 @@ interface TeacherForm {
   nip: string;
   full_name: string;
   subject_ids: string[];
+  can_monitor_all_subjects: boolean;
 }
 
-const emptyForm: TeacherForm = { nip: '', full_name: '', subject_ids: [] };
+const emptyForm: TeacherForm = { nip: '', full_name: '', subject_ids: [], can_monitor_all_subjects: false };
 
 function TeacherDialog({
   open,
@@ -104,6 +113,136 @@ function TeacherDialog({
             {subjects.length === 0 && <p className="text-sm text-muted-foreground p-2">Belum ada mata pelajaran</p>}
           </div>
         </div>
+
+        {/* Proctor Access (Pengawas) Toggle */}
+        <div className="rounded-xl border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/20 p-3.5 space-y-1">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <Checkbox
+              checked={form.can_monitor_all_subjects}
+              onCheckedChange={(checked) => setForm({ ...form, can_monitor_all_subjects: !!checked })}
+              className="mt-0.5"
+            />
+            <div className="space-y-1">
+              <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                Akses Pengawas Semua Mapel (Proctor Access)
+              </span>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Jika diaktifkan, guru dapat memantau ujian live dan melihat laporan ujian seluruh mata pelajaran. Bank soal, buat ujian, dan penilaian esai tetap terbatas pada mapel yang diampu.
+              </p>
+            </div>
+          </label>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function InviteTeacherDialog({
+  open,
+  onClose,
+  subjects,
+  onInvite,
+  isInviting,
+}: {
+  open: boolean;
+  onClose: () => void;
+  subjects: SubjectOption[];
+  onInvite: (email: string, subjectIds: string[], canMonitorAllSubjects: boolean) => void;
+  isInviting: boolean;
+}) {
+  const [email, setEmail] = useState('');
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [canMonitorAllSubjects, setCanMonitorAllSubjects] = useState(false);
+
+  const toggleSubject = (id: string) => {
+    setSelectedSubjects((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
+  };
+
+  const handleSend = () => {
+    if (!email.trim() || !email.includes('@')) {
+      toast.error('Masukkan alamat email yang valid');
+      return;
+    }
+    onInvite(email.trim().toLowerCase(), selectedSubjects, canMonitorAllSubjects);
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Undang Guru Baru"
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose}>
+            Batal
+          </Button>
+          <Button onClick={handleSend} disabled={isInviting}>
+            {isInviting ? <Spinner className="mr-2" /> : <Send className="mr-2 h-4 w-4" />}
+            Kirim Undangan
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Sistem akan mengirimkan email undangan resmi berisi tautan aktivasi akun guru. Email yang diundang akan otomatis terverifikasi.
+        </p>
+        <div className="space-y-2">
+          <Label>Alamat Email Guru</Label>
+          <Input
+            type="email"
+            placeholder="guru@sekolah.sch.id"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoFocus
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Mata Pelajaran yang Diampu <span className="text-muted-foreground text-xs font-normal">(Opsional)</span></Label>
+          <div className="max-h-48 overflow-y-auto border rounded-md p-2 space-y-1">
+            {subjects.map((s) => (
+              <label
+                key={s.id}
+                className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted text-sm ${
+                  selectedSubjects.includes(s.id) ? 'bg-primary/5 border border-primary/30' : ''
+                }`}
+              >
+                <Checkbox
+                  checked={selectedSubjects.includes(s.id)}
+                  onCheckedChange={() => toggleSubject(s.id)}
+                />
+                <span>
+                  {s.name} <span className="text-muted-foreground text-xs">({s.code})</span>
+                </span>
+              </label>
+            ))}
+            {subjects.length === 0 && (
+              <p className="text-sm text-muted-foreground p-2">Belum ada mata pelajaran</p>
+            )}
+          </div>
+        </div>
+        {/* Proctor Access Toggle */}
+        <div className="rounded-xl border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/20 p-3.5 space-y-1">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <Checkbox
+              checked={canMonitorAllSubjects}
+              onCheckedChange={(checked) => setCanMonitorAllSubjects(!!checked)}
+              className="mt-0.5"
+            />
+            <div className="space-y-1">
+              <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                Akses Pengawas Semua Mapel (Proctor Access)
+              </span>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Guru yang diundang akan dapat memantau ujian live dan melihat laporan ujian seluruh mata pelajaran.
+              </p>
+            </div>
+          </label>
+        </div>
       </div>
     </Modal>
   );
@@ -133,6 +272,7 @@ function TeachersPageContent() {
   };
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<TeacherForm>(emptyForm);
 
@@ -162,14 +302,49 @@ function TeachersPageContent() {
     onError: () => toast.error('Gagal menghapus guru'),
   });
 
+  const inviteMutation = useMutation({
+    mutationFn: (dto: { email: string; subject_ids: string[]; can_monitor_all_subjects?: boolean }) =>
+      teacherApi.invite(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      toast.success('Undangan email berhasil dikirim ke guru');
+      setInviteModalOpen(false);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Gagal mengirim email undangan');
+    },
+  });
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
+      teacherApi.toggleStatus(id, { is_active }),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['teachers'] });
+      toast.success(vars.is_active ? 'Akun guru telah diaktifkan' : 'Akun guru telah ditangguhkan');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Gagal mengubah status akun');
+    },
+  });
+
   const handleSave = () => {
     if (!form.full_name.trim()) { toast.error('Nama harus diisi'); return; }
-    saveMutation.mutate({ nip: form.nip.trim() || null, full_name: form.full_name, subject_ids: form.subject_ids });
+    saveMutation.mutate({
+      nip: form.nip.trim() || null,
+      full_name: form.full_name,
+      subject_ids: form.subject_ids,
+      can_monitor_all_subjects: form.can_monitor_all_subjects,
+    });
   };
 
   const handleEdit = (t: Teacher) => {
     setEditingId(t.id);
-    setForm({ nip: t.nip || '', full_name: t.full_name, subject_ids: t.teacher_subjects?.map((ts) => ts.subject.id) || [] });
+    setForm({
+      nip: t.nip || '',
+      full_name: t.full_name,
+      subject_ids: t.teacher_subjects?.map((ts) => ts.subject.id) || [],
+      can_monitor_all_subjects: !!t.can_monitor_all_subjects,
+    });
     setModalOpen(true);
   };
 
@@ -178,39 +353,167 @@ function TeachersPageContent() {
   const teacherColumns: ColumnDef<any>[] = [
     { accessorKey: 'nip', header: 'NIP / NIY', enableSorting: true, cell: ({ row }) => <span className="font-medium">{row.original.nip || '-'}</span> },
     { accessorKey: 'full_name', header: 'Nama Lengkap', enableSorting: true },
+    {
+      accessorKey: 'user.email',
+      header: 'Email / Akun',
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">{row.original.user?.email || '-'}</span>
+      ),
+    },
     { accessorKey: 'teacher_subjects', header: 'Mata Pelajaran', cell: ({ row }) => (
       <div className="flex flex-wrap gap-1">
-        {row.original.teacher_subjects?.map((ts: any) => <Badge key={ts.id} variant="secondary">{ts.subject?.name}</Badge>)}
+        {row.original.teacher_subjects?.map((ts: any) => <Badge key={ts.id || ts.subject?.id} variant="secondary">{ts.subject?.name}</Badge>)}
       </div>
     )},
+    {
+      id: 'proctor_access',
+      header: 'Peran Khusus',
+      cell: ({ row }: any) => {
+        if (row.original.can_monitor_all_subjects) {
+          return (
+            <Badge
+              variant="outline"
+              className="border-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 flex items-center gap-1 w-fit"
+            >
+              <ShieldCheck className="h-3 w-3" />
+              Pengawas (Semua Mapel)
+            </Badge>
+          );
+        }
+        return <span className="text-xs text-muted-foreground">Standar</span>;
+      },
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status Akun',
+      cell: ({ row }: any) => {
+        const u = row.original.user;
+        if (!u) return <Badge variant="outline">-</Badge>;
+        if (!u.is_active) {
+          return (
+            <Badge variant="destructive" className="whitespace-nowrap">
+              Nonaktif
+            </Badge>
+          );
+        }
+        if (!u.email_verified_at) {
+          return (
+            <Badge
+              variant="outline"
+              className="text-amber-600 border-amber-300 dark:border-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 whitespace-nowrap"
+            >
+              Belum Verifikasi
+            </Badge>
+          );
+        }
+        return (
+          <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white whitespace-nowrap">
+            Aktif
+          </Badge>
+        );
+      },
+    },
     { accessorKey: 'created_at', header: 'Tanggal Daftar', enableSorting: true, cell: ({ row }) => formatDate(row.original.created_at) },
-    { id: 'actions', header: 'Aksi', cell: ({ row }: any) => (
-      <div className="flex gap-1">
-        <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}><Pencil className="h-4 w-4" /></Button>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Hapus Guru</AlertDialogTitle>
-              <AlertDialogDescription>Yakin ingin menghapus guru ini? Tindakan ini tidak dapat dibatalkan.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Batal</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deleteMutation.mutate(row.original.id)}>Hapus</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    )},
+    {
+      id: 'actions',
+      header: 'Aksi',
+      cell: ({ row }: any) => {
+        const u = row.original.user;
+        const isActive = u ? u.is_active : true;
+
+        return (
+          <div className="flex items-center gap-1">
+            {u && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title={isActive ? 'Tangguhkan / Nonaktifkan Akun' : 'Aktifkan Akun Guru'}
+                  >
+                    {isActive ? (
+                      <UserX className="h-4 w-4 text-amber-600" />
+                    ) : (
+                      <UserCheck className="h-4 w-4 text-emerald-600" />
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {isActive ? 'Tangguhkan Akun Guru' : 'Aktifkan Akun Guru'}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {isActive
+                        ? `Yakin ingin menangguhkan akun guru "${row.original.full_name}"? Guru ini tidak akan dapat login ke dashboard.`
+                        : `Aktifkan kembali akun guru "${row.original.full_name}" agar dapat login dan mengelola ujian?`}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() =>
+                        toggleStatusMutation.mutate({
+                          id: row.original.id,
+                          is_active: !isActive,
+                        })
+                      }
+                    >
+                      {isActive ? 'Tangguhkan' : 'Aktifkan'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
+            <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)} title="Edit Guru">
+              <Pencil className="h-4 w-4" />
+            </Button>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" title="Hapus Guru">
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Hapus Guru</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Yakin ingin menghapus guru ini? Tindakan ini tidak dapat dibatalkan.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteMutation.mutate(row.original.id)}>
+                    Hapus
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        );
+      },
+    },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-3xl font-bold tracking-tight">Guru</h1><p className="text-muted-foreground">Kelola data guru dan mata pelajaran yang diampu</p></div>
-        <Button onClick={handleAdd}><Plus className="mr-2 h-4 w-4" />Tambah Guru</Button>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Guru</h1>
+          <p className="text-muted-foreground">Kelola data guru, mata pelajaran, dan aktivasi akun pengajar</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setInviteModalOpen(true)}>
+            <Mail className="mr-2 h-4 w-4" />
+            Undang Guru
+          </Button>
+          <Button onClick={handleAdd}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Guru
+          </Button>
+        </div>
       </div>
       <Card>
         <CardContent className="pt-6">
@@ -234,7 +537,29 @@ function TeachersPageContent() {
           />
         </CardContent>
       </Card>
-      <TeacherDialog open={modalOpen} onClose={() => { setModalOpen(false); setEditingId(null); }} form={form} setForm={setForm} subjects={subjects || []} onSave={handleSave} isEditing={!!editingId} isSaving={saveMutation.isPending} />
+      <TeacherDialog
+        open={modalOpen}
+        onClose={() => { setModalOpen(false); setEditingId(null); }}
+        form={form}
+        setForm={setForm}
+        subjects={subjects || []}
+        onSave={handleSave}
+        isEditing={!!editingId}
+        isSaving={saveMutation.isPending}
+      />
+      <InviteTeacherDialog
+        open={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
+        subjects={subjects || []}
+        onInvite={(email, subjectIds, canMonitorAllSubjects) =>
+          inviteMutation.mutate({
+            email,
+            subject_ids: subjectIds,
+            can_monitor_all_subjects: canMonitorAllSubjects,
+          })
+        }
+        isInviting={inviteMutation.isPending}
+      />
     </div>
   );
 }

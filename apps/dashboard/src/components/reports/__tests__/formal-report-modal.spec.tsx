@@ -271,5 +271,24 @@ describe('FormalReportModal & Helpers', () => {
       expect(printSpy).toHaveBeenCalled();
       expect(document.body.classList.contains('printing-formal-report')).toBe(true);
     });
+
+    it('synchronizes default schoolName and academicYear when settings prop is provided', () => {
+      render(
+        <FormalReportModal
+          open={true}
+          onClose={vi.fn()}
+          exam={mockExam}
+          className="X AKL"
+          results={mockResults}
+          settings={{
+            school_name: 'SMA NEGERI 1 JAKARTA',
+            academic_year: '2026/2027',
+          }}
+        />,
+      );
+
+      expect(screen.getAllByText(/SMA NEGERI 1 JAKARTA/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Tahun Ajaran 2026\/2027/i).length).toBeGreaterThan(0);
+    });
   });
 });

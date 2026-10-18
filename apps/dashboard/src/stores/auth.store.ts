@@ -9,6 +9,14 @@ export interface User {
   username: string;
   role: UserRole;
   full_name: string;
+  teacher?: {
+    id: string;
+    nip: string | null;
+    full_name: string;
+    can_monitor_all_subjects?: boolean;
+    teacher_subjects?: { id?: string; subject_id?: string; subject?: { id: string; name: string; code: string } }[];
+  };
+  student?: any;
 }
 
 interface AuthState {
@@ -21,6 +29,7 @@ interface AuthState {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  setSession: (session: { access_token: string; refresh_token: string; user: User }) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -59,6 +68,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
+      isLoading: false,
+    });
+  },
+
+  setSession: (session: { access_token: string; refresh_token: string; user: User }) => {
+    localStorage.setItem('access_token', session.access_token);
+    localStorage.setItem('refresh_token', session.refresh_token);
+    set({
+      user: session.user,
+      accessToken: session.access_token,
+      refreshToken: session.refresh_token,
+      isAuthenticated: true,
       isLoading: false,
     });
   },

@@ -13,6 +13,13 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { APP_INFO } from '@/lib/constants/app-info';
 import { CommandMenu } from '@/components/ui/command-menu';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { NotificationBell } from '@/components/notifications/notification-bell';
+import { useNotificationSocket } from '@/components/notifications/use-notification-socket';
+import { ChangelogModal } from '@/components/changelog/changelog-modal';
+import {
+  CHANGELOG_ENTRIES,
+  CHANGELOG_STORAGE_KEY,
+} from '@/lib/constants/changelog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +45,7 @@ import {
   FileCheck,
   Bell,
   Search,
+  Sparkles,
 } from 'lucide-react';
 
 const roleLabels: Record<string, string> = {
@@ -70,9 +78,32 @@ const navItems: NavItem[] = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, isAuthenticated, isLoading, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
+  const [hasUnreadChangelog, setHasUnreadChangelog] = useState(false);
+
+  // Global monitoring socket listener for notifications
+  useNotificationSocket();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isAuthenticated) {
+      try {
+        const seen = localStorage.getItem(CHANGELOG_STORAGE_KEY);
+        if (seen !== CHANGELOG_ENTRIES[0]?.version) {
+          setHasUnreadChangelog(true);
+        }
+      } catch {}
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isLoading && (!isAuthenticated || !user)) {
+      const redirectUrl = pathname ? `/login?redirect=${encodeURIComponent(pathname)}` : '/login';
+      router.replace(redirectUrl);
+    }
+  }, [isLoading, isAuthenticated, user, pathname, router]);
 
   useEffect(() => {
     if (sidebarOpen) {
@@ -82,6 +113,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
     return () => { document.body.style.overflow = ''; };
   }, [sidebarOpen]);
+
+  if (isLoading || !isAuthenticated || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Memuat sesi...</p>
+        </div>
+      </div>
+    );
+  }
 
   const visibleItems = navItems.filter((item) => user?.role && item.roles.includes(user.role));
 
@@ -195,10 +237,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             Keluar
           </Button>
 
-          <div className="mt-3 pt-3 border-t border-slate-900/80 flex items-center justify-between text-[11px] text-slate-500">
-            <span>Assessia v{APP_INFO.version}</span>
-            <span className="font-semibold text-slate-400">by {APP_INFO.brand}</span>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setChangelogOpen(true);
+              setHasUnreadChangelog(false);
+            }}
+            className="mt-3 pt-3 border-t border-slate-900/80 w-full flex items-center justify-between text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer group text-left"
+          >
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="h-3 w-3 text-indigo-400 group-hover:rotate-12 transition-transform" />
+              <span>Assessia v{APP_INFO.version}</span>
+              {hasUnreadChangelog && (
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              )}
+            </span>
+            <span className="font-semibold text-slate-500 group-hover:text-slate-400">Rilis & Pembaruan</span>
+          </button>
         </div>
       </aside>
 
@@ -251,14 +306,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Theme Toggle */}
           <ThemeToggle />
 
-          {/* Notification */}
-          <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
-            <Bell className="h-5 w-5" />
-            {/* TODO: wire real notification count */}
-            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
-              0
-            </span>
-          </Button>
+          {/* Notification Bell */}
+          <NotificationBell />
 
           {/* Profile Avatar */}
           <DropdownMenu>
@@ -275,6 +324,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="text-xs text-muted-foreground font-normal mt-0.5">{roleLabel}</div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setChangelogOpen(true);
+                  setHasUnreadChangelog(false);
+                }}
+                className="cursor-pointer"
+              >
+                <Sparkles className="mr-2 h-4 w-4 text-primary" />
+                <span>Catatan Rilis (v{APP_INFO.version})</span>
+                {hasUnreadChangelog && (
+                  <span className="ml-auto h-2 w-2 rounded-full bg-emerald-500" />
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => { logout(); router.push('/login'); }} className="text-destructive focus:text-destructive cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
                 Keluar
@@ -284,22 +347,94 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 animate-fade-in p-4 lg:p-6 bg-slate-50/70 dark:bg-slate-950/20">
+        <main className="flex-1 animate-fade-in p-4 lg:p-6 pb-24 lg:pb-6 bg-slate-50/70 dark:bg-slate-950/20">
           <div className="mx-auto max-w-7xl">{children}</div>
         </main>
 
         {/* Global Dashboard Footer */}
-        <footer className="mt-auto border-t bg-card/60 py-3.5 px-6 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-2">
+        <footer className="mt-auto border-t bg-card/60 py-3.5 px-6 pb-20 lg:pb-3.5 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>{APP_INFO.fullCopyright}</span>
           <div className="flex items-center gap-2">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
             <span>{APP_INFO.name} v{APP_INFO.version}</span>
           </div>
         </footer>
+
+        {/* Mobile/Tablet Quick Frosted Bottom Bar */}
+        <nav
+          data-testid="mobile-bottom-bar"
+          className="lg:hidden fixed bottom-3 inset-x-3 z-40 bg-background/90 backdrop-blur-xl border border-border/70 rounded-2xl shadow-xl shadow-black/10 px-2 py-1.5 flex items-center justify-around"
+        >
+          <Link
+            href="/dashboard"
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all active:scale-95',
+              pathname === '/dashboard'
+                ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            <span>Beranda</span>
+          </Link>
+          <Link
+            href="/dashboard/questions"
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all active:scale-95',
+              isActive('/dashboard/questions')
+                ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <FileQuestion className="h-4 w-4" />
+            <span>Soal</span>
+          </Link>
+          <Link
+            href="/dashboard/exams"
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all active:scale-95',
+              isActive('/dashboard/exams')
+                ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <ClipboardList className="h-4 w-4" />
+            <span>Ujian</span>
+          </Link>
+          <Link
+            href="/dashboard/monitoring"
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all active:scale-95',
+              isActive('/dashboard/monitoring')
+                ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <MonitorPlay className="h-4 w-4" />
+            <span>Pantau</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-all active:scale-95 cursor-pointer"
+          >
+            <Menu className="h-4 w-4" />
+            <span>Menu</span>
+          </button>
+        </nav>
       </div>
 
       {/* Global Command Palette Dialog */}
       <CommandMenu open={commandOpen} onOpenChange={setCommandOpen} />
+
+      {/* In-App Release Notes / Changelog Modal */}
+      <ChangelogModal
+        open={changelogOpen}
+        onClose={() => {
+          setChangelogOpen(false);
+          setHasUnreadChangelog(false);
+        }}
+      />
     </div>
   );
 }

@@ -132,9 +132,22 @@ export const studentApi = {
 
 export const teacherApi = {
   getAll: (params?: PaginationParams) => api.get('/teachers', { params }),
-  create: (data: { nip: string; full_name: string; subject_ids?: string[] }) => api.post('/teachers', data),
-  update: (id: string, data: { nip?: string; full_name?: string; subject_ids?: string[] }) => api.patch(`/teachers/${id}`, data),
+  create: (data: { nip?: string | null; full_name: string; subject_ids?: string[]; can_monitor_all_subjects?: boolean }) => api.post('/teachers', data),
+  update: (id: string, data: { nip?: string | null; full_name?: string; subject_ids?: string[]; can_monitor_all_subjects?: boolean }) => api.patch(`/teachers/${id}`, data),
   delete: (id: string) => api.delete(`/teachers/${id}`),
+  invite: (data: { email: string; subject_ids?: string[]; can_monitor_all_subjects?: boolean }) => api.post('/teachers/invite', data),
+  toggleStatus: (id: string, data: { is_active: boolean }) => api.patch(`/teachers/${id}/status`, data),
+};
+
+export const authApi = {
+  login: (data: any) => api.post('/auth/login', data),
+  registerTeacher: (data: { full_name: string; email: string; password: string; nip?: string | null; turnstile_token?: string; invite_token?: string }) =>
+    api.post('/auth/register-teacher', data),
+  verifyEmail: (data: { token: string }) => api.post('/auth/verify-email', data),
+  resendVerification: (data: { email: string }) => api.post('/auth/resend-verification', data),
+  getInviteInfo: (token: string) => api.get('/auth/invite-info', { params: { token } }),
+  forgotPassword: (data: { email: string }) => api.post('/auth/forgot-password', data),
+  resetPassword: (data: { token: string; password: string }) => api.post('/auth/reset-password', data),
 };
 
 export const examApi = {

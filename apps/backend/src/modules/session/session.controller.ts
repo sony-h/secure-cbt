@@ -69,7 +69,7 @@ export class SessionController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Force submit a student exam session' })
   async forceSubmit(@Req() req: AuthenticatedRequest, @Param('id') sessionId: string) {
-    const data = await this.sessionService.forceSubmit(sessionId, req.user.sub);
+    const data = await this.sessionService.forceSubmit(sessionId, req.user.sub, req.user.role);
     return { success: true, message: 'Session forcefully submitted', data };
   }
 
@@ -77,7 +77,7 @@ export class SessionController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Reset session warnings to zero' })
   async resetWarnings(@Req() req: AuthenticatedRequest, @Param('id') sessionId: string) {
-    const data = await this.sessionService.resetWarnings(sessionId, req.user.sub);
+    const data = await this.sessionService.resetWarnings(sessionId, req.user.sub, req.user.role);
     return { success: true, message: 'Warnings reset to 0', data };
   }
 
@@ -89,7 +89,7 @@ export class SessionController {
     @Param('id') sessionId: string,
     @Body() body: { additional_minutes: number },
   ) {
-    const data = await this.sessionService.extendTime(sessionId, body.additional_minutes, req.user.sub);
+    const data = await this.sessionService.extendTime(sessionId, body.additional_minutes, req.user.sub, req.user.role);
     return { success: true, message: 'Session time extended', data };
   }
 
@@ -97,7 +97,7 @@ export class SessionController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Unlock a locked exam session' })
   async unlockSession(@Req() req: AuthenticatedRequest, @Param('id') sessionId: string) {
-    const data = await this.sessionService.unlockSession(sessionId, req.user.sub);
+    const data = await this.sessionService.unlockSession(sessionId, req.user.sub, req.user.role);
     return { success: true, message: 'Session unlocked', data };
   }
 }

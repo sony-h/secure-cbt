@@ -48,6 +48,12 @@ module.exports = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        aurora: {
+          blue: '#2563EB',
+          cyan: '#06B6D4',
+          purple: '#7C3AED',
+          magenta: '#EC4899',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -63,10 +69,21 @@ module.exports = {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
+        'radar-pulse': {
+          '0%': { transform: 'scale(0.95)', opacity: '0.8' },
+          '50%': { transform: 'scale(1.3)', opacity: '0.2' },
+          '100%': { transform: 'scale(0.95)', opacity: '0.8' },
+        },
+        'aurora-glow': {
+          '0%, 100%': { opacity: '0.4', transform: 'scale(1) rotate(0deg)' },
+          '50%': { opacity: '0.8', transform: 'scale(1.1) rotate(180deg)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'radar-pulse': 'radar-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'aurora-glow': 'aurora-glow 10s ease-in-out infinite',
       },
     },
   },

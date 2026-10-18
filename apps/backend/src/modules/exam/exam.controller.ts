@@ -22,8 +22,11 @@ export class ExamController {
 
   @Get()
   @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
-  async findAll(@Query() query: PaginationQuery & { status?: ExamStatus; subject_id?: string }) {
-    const result = await this.examService.findAll(query);
+  async findAll(
+    @Req() req: AuthenticatedRequest,
+    @Query() query: PaginationQuery & { status?: ExamStatus; subject_id?: string; context?: 'monitoring' | 'reports' | 'management' },
+  ) {
+    const result = await this.examService.findAll(query, req.user?.sub, req.user?.role);
     return { success: true, message: 'Exams retrieved', ...result };
   }
 
@@ -36,36 +39,44 @@ export class ExamController {
 
   @Get(':id')
   @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
-  async findOne(@Param('id') id: string) {
-    const data = await this.examService.findById(id);
+  async findOne(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Query('context') context?: 'monitoring' | 'reports' | 'management',
+  ) {
+    const data = await this.examService.findById(id, req.user?.sub, req.user?.role, context);
     return { success: true, message: 'Exam retrieved', data };
   }
 
   @Post()
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   async create(@Req() req: AuthenticatedRequest, @Body() body: CreateExamDto) {
-    const data = await this.examService.create(body, req.user.sub);
+    const data = await this.examService.create(body, req.user.sub, req.user.role);
     return { success: true, message: 'Exam created', data };
   }
 
   @Patch(':id')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  async update(@Param('id') id: string, @Body() body: UpdateExamDto) {
-    const data = await this.examService.update(id, body);
+  async update(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: UpdateExamDto,
+  ) {
+    const data = await this.examService.update(id, body, req.user?.sub, req.user?.role);
     return { success: true, message: 'Exam updated', data };
   }
 
   @Delete(':id')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  async remove(@Param('id') id: string) {
-    const data = await this.examService.remove(id);
+  async remove(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    const data = await this.examService.remove(id, req.user?.sub, req.user?.role);
     return { success: true, message: 'Exam deleted', data };
   }
 
   @Post(':id/token')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  async generateToken(@Param('id') id: string) {
-    const data = await this.examService.generateToken(id);
+  async generateToken(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    const data = await this.examService.generateToken(id, req.user?.sub, req.user?.role);
     return { success: true, message: 'Token generated', data };
   }
 }

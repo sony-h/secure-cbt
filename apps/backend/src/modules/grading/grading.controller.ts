@@ -20,23 +20,27 @@ export class GradingController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Grade an essay answer' })
   async gradeEssay(@Req() req: AuthenticatedRequest, @Body() body: GradeEssayDto) {
-    const data = await this.gradingService.gradeEssay(body, req.user.sub);
+    const data = await this.gradingService.gradeEssay(body, req.user.sub, req.user.role);
     return { success: true, message: 'Essay graded', data };
   }
 
   @Get('result/:sessionId')
   @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.STUDENT)
   @ApiOperation({ summary: 'Get grading result for a session' })
-  async getResult(@Param('sessionId') sessionId: string) {
-    const data = await this.gradingService.getResult(sessionId);
+  async getResult(@Req() req: AuthenticatedRequest, @Param('sessionId') sessionId: string) {
+    const data = await this.gradingService.getResult(sessionId, req.user?.sub, req.user?.role);
     return { success: true, message: 'Result retrieved', data };
   }
 
   @Get('class/:classId/exam/:examId')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get class score summary' })
-  async getClassScore(@Param('classId') classId: string, @Param('examId') examId: string) {
-    const data = await this.gradingService.getClassScore(classId, examId);
+  async getClassScore(
+    @Req() req: AuthenticatedRequest,
+    @Param('classId') classId: string,
+    @Param('examId') examId: string,
+  ) {
+    const data = await this.gradingService.getClassScore(classId, examId, req.user?.sub, req.user?.role);
     return { success: true, message: 'Class score retrieved', data };
   }
 
@@ -44,11 +48,12 @@ export class GradingController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get sessions with essays (filtered by status)' })
   async getPendingEssays(
+    @Req() req: AuthenticatedRequest,
     @Param('examId') examId: string,
     @Query('class_id') classId?: string,
     @Query('status') status?: 'pending' | 'completed' | 'all',
   ) {
-    const data = await this.gradingService.getPendingEssays(examId, classId, status);
+    const data = await this.gradingService.getPendingEssays(examId, classId, status, req.user?.sub, req.user?.role);
     return { success: true, message: 'Essays retrieved', data };
   }
 
@@ -56,18 +61,22 @@ export class GradingController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get revision history for an essay question' })
   async getEssayHistory(
+    @Req() req: AuthenticatedRequest,
     @Param('sessionId') sessionId: string,
     @Param('questionId') questionId: string,
   ) {
-    const data = await this.gradingService.getEssayHistory(sessionId, questionId);
+    const data = await this.gradingService.getEssayHistory(sessionId, questionId, req.user?.sub, req.user?.role);
     return { success: true, message: 'Essay history retrieved', data };
   }
 
   @Get('session/:sessionId/essays')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Get essay answers for a session' })
-  async getSessionEssays(@Param('sessionId') sessionId: string) {
-    const data = await this.gradingService.getSessionEssays(sessionId);
+  async getSessionEssays(
+    @Req() req: AuthenticatedRequest,
+    @Param('sessionId') sessionId: string,
+  ) {
+    const data = await this.gradingService.getSessionEssays(sessionId, req.user?.sub, req.user?.role);
     return { success: true, message: 'Session essays retrieved', data };
   }
 
@@ -75,7 +84,7 @@ export class GradingController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Regrade all submitted sessions for an exam' })
   async regradeExam(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
-    const data = await this.gradingService.regradeExam(id, req.user.sub);
+    const data = await this.gradingService.regradeExam(id, req.user.sub, req.user.role);
     return { success: true, message: 'Exam regrading completed', data };
   }
 
@@ -83,7 +92,7 @@ export class GradingController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Regrade a single session' })
   async regradeSession(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
-    const data = await this.gradingService.regradeSession(id, req.user.sub);
+    const data = await this.gradingService.regradeSession(id, req.user.sub, req.user.role);
     return { success: true, message: 'Session regrading completed', data };
   }
 }

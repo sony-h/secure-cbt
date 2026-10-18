@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
@@ -40,6 +41,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _greeting = '';
   String _quote = '';
+  DateTime? _lastBackPressTime;
 
   @override
   void initState() {
@@ -56,6 +58,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     _quote = _quotes[Random().nextInt(_quotes.length)];
+  }
+
+  void _handlePopInvoked(bool didPop) {
+    if (didPop) return;
+    final now = DateTime.now();
+    if (_lastBackPressTime == null ||
+        now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+      _lastBackPressTime = now;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Text('Tekan sekali lagi untuk keluar dari aplikasi'),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.textPrimary,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } else {
+      SystemNavigator.pop();
+    }
   }
 
   @override
@@ -84,8 +113,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .map((e) => e as Map<String, dynamic>)
         .toList();
 
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) => _handlePopInvoked(didPop),
+      child: Scaffold(
+        backgroundColor: AppColors.canvas,
       appBar: AppBar(
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -331,7 +363,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 

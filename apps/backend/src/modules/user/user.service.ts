@@ -77,8 +77,16 @@ export class UserService {
   }
 
   async remove(id: string) {
-    await this.findById(id);
-    await this.prisma.user.update({ where: { id }, data: { deleted_at: new Date() } });
+    const existing = await this.findById(id);
+    const suffix = `deleted_${Date.now()}`;
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+        username: `${existing.username}.${suffix}`,
+        email: existing.email ? `${existing.email}.${suffix}` : existing.email,
+      },
+    });
     return { deleted: true };
   }
 }

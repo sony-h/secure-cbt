@@ -9,6 +9,7 @@ import 'package:secure_cbt_mobile/app/route_names.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
 import 'package:secure_cbt_mobile/core/network/dio_client.dart';
 import 'package:secure_cbt_mobile/core/services/audio_cache_service.dart';
+import 'package:secure_cbt_mobile/core/services/image_cache_service.dart';
 import 'package:secure_cbt_mobile/core/network/api_error_handler.dart';
 import 'package:secure_cbt_mobile/core/network/socket_client.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
@@ -317,6 +318,10 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       });
 
       _precacheExamImages(questions);
+      ref.read(imageCacheServiceProvider).preCacheExamImages(questions).catchError((e, st) {
+        AppLogger.warn('Background image pre-caching encountered an error: $e');
+        return 0;
+      });
 
       // Pre-cache question audio stimuli in background
       ref.read(audioCacheServiceProvider).preCacheExamAudio(questions).catchError((e, st) {

@@ -14,7 +14,9 @@ import {
   PreviewImportQuestionsResponse,
   ConfirmImportQuestionsInput,
   ImportQuestionItemInput,
+  UserRole,
 } from '@secure-cbt/shared';
+import { getTeacherScope, assertTeacherSubjectAccess } from '../../common/helpers/teacher-access.helper';
 
 @Injectable()
 export class QuestionImportService {
@@ -30,6 +32,8 @@ export class QuestionImportService {
   async preview(
     file: Express.Multer.File,
     bankId?: string,
+    userId?: string,
+    userRole?: string,
   ): Promise<PreviewImportQuestionsResponse> {
     if (!file || !file.buffer) {
       throw new BadRequestException('File soal wajib diunggah');
@@ -41,6 +45,14 @@ export class QuestionImportService {
       });
       if (!bank) {
         throw new NotFoundException('Bank soal tidak ditemukan');
+      }
+      if (userRole === UserRole.TEACHER && userId) {
+        const scope = await getTeacherScope(this.prisma, userId);
+        assertTeacherSubjectAccess(
+          scope,
+          bank.subject_id,
+          'Anda tidak memiliki hak akses untuk mengimpor soal ke bank ini',
+        );
       }
     }
 
@@ -79,12 +91,25 @@ export class QuestionImportService {
     };
   }
 
-  async confirm(dto: ConfirmImportQuestionsInput): Promise<{ imported_count: number }> {
+  async confirm(
+    dto: ConfirmImportQuestionsInput,
+    userId?: string,
+    userRole?: string,
+  ): Promise<{ imported_count: number }> {
     const bank = await this.prisma.questionBank.findUnique({
       where: { id: dto.bank_id },
     });
     if (!bank) {
       throw new NotFoundException('Bank soal tidak ditemukan');
+    }
+
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherSubjectAccess(
+        scope,
+        bank.subject_id,
+        'Anda tidak memiliki hak akses untuk mengimpor soal ke bank ini',
+      );
     }
 
     if (!dto.questions || dto.questions.length === 0) {

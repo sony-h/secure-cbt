@@ -3,20 +3,10 @@ import 'package:dio_smart_retry/dio_smart_retry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
+import 'package:secure_cbt_mobile/core/network/server_config_provider.dart';
 import 'package:secure_cbt_mobile/core/network/token_refresh_coordinator.dart';
 
-const _apiHost = String.fromEnvironment(
-  'API_URL',
-  defaultValue: 'http://10.0.2.2:3000',
-);
-const _baseUrl = '$_apiHost/api/v1';
-
-String resolveMediaUrl(String? url) {
-  if (url == null || url.isEmpty) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  final cleanHost = _apiHost.replaceAll(RegExp(r'/+$'), '');
-  return '$cleanHost${url.startsWith('/') ? '' : '/'}$url';
-}
+export 'package:secure_cbt_mobile/core/network/server_config_provider.dart' show resolveMediaUrl;
 
 final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
   return const FlutterSecureStorage();
@@ -24,12 +14,14 @@ final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
 
 final tokenRefreshCoordinatorProvider = Provider<TokenRefreshCoordinator>((ref) {
   final storage = ref.watch(secureStorageProvider);
-  return TokenRefreshCoordinator(storage, _baseUrl);
+  final serverConfig = ref.watch(serverConfigProvider);
+  return TokenRefreshCoordinator(storage, serverConfig.baseUrl);
 });
 
 final dioProvider = Provider<Dio>((ref) {
+  final serverConfig = ref.watch(serverConfigProvider);
   final dio = Dio(BaseOptions(
-    baseUrl: _baseUrl,
+    baseUrl: serverConfig.baseUrl,
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),
     headers: {'Content-Type': 'application/json'},

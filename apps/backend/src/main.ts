@@ -58,6 +58,17 @@ async function bootstrap() {
     expressApp.set('trust proxy', 1);
   }
 
+  // ── Frontend Redirect Fallback for email links opened on backend port ──
+  const frontendUrl =
+    process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3001';
+  if (typeof expressApp.get === 'function') {
+    expressApp.get(['/verify-email', '/reset-password', '/register'], (req: any, res: any) => {
+      const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+      const pathname = req.path || '';
+      res.redirect(302, `${frontendUrl}${pathname}${query}`);
+    });
+  }
+
   // ── API prefix ───────────────────────────────────────────────
   app.setGlobalPrefix('api/v1');
 

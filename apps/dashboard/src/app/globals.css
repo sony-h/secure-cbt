@@ -85,3 +85,55 @@
 img {
   @apply ring-1 ring-inset ring-black/10 dark:ring-white/10;
 }
+
+/* Aurora Cosmos & Glassmorphic Utilities */
+.glass-panel {
+  @apply bg-background/80 backdrop-blur-xl border border-border/60 shadow-lg shadow-black/5 dark:shadow-black/20;
+}
+
+.aurora-border-glow {
+  position: relative;
+}
+
+.aurora-border-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.4), rgba(124, 58, 237, 0.3), rgba(236, 72, 153, 0.4));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.aurora-gradient-text {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Touch & Mobile Table Scrollbar */
+.touch-scroll-smooth {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.touch-scroll-smooth::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.touch-scroll-smooth::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.touch-scroll-smooth::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+.touch-scroll-smooth::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}

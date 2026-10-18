@@ -289,7 +289,7 @@ export function DataTable<TData extends Record<string, any>>({
         </div>
       )}
 
-      <div className="rounded-md border overflow-x-auto">
+      <div className="rounded-md border overflow-x-auto touch-scroll-smooth">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

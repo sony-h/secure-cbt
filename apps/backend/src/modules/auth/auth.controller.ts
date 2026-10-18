@@ -1,14 +1,28 @@
-import { Controller, Post, Body, Get, UseGuards, Req, Inject } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, UseGuards, Req, Inject } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { loginSchema, refreshTokenSchema, changePasswordSchema } from '@secure-cbt/shared';
+import {
+  loginSchema,
+  refreshTokenSchema,
+  changePasswordSchema,
+  registerTeacherSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} from '@secure-cbt/shared';
 import type { AuthenticatedRequest } from '../../common/types';
 
 type LoginDto = z.infer<typeof loginSchema>;
 type RefreshTokenDto = z.infer<typeof refreshTokenSchema>;
+type RegisterTeacherDto = z.infer<typeof registerTeacherSchema>;
+type VerifyEmailDto = z.infer<typeof verifyEmailSchema>;
+type ResendVerificationDto = z.infer<typeof resendVerificationSchema>;
+type ForgotPasswordDto = z.infer<typeof forgotPasswordSchema>;
+type ResetPasswordDto = z.infer<typeof resetPasswordSchema>;
 
 @ApiTags('auth')
 @Controller('auth')
@@ -24,6 +38,52 @@ export class AuthController {
   async login(@Body() body: LoginDto) {
     const result = await this.authService.login(body);
     return { success: true, message: 'Login successful', data: result };
+  }
+
+  @Post('register-teacher')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @ApiOperation({ summary: 'Self-register teacher account' })
+  async registerTeacher(@Body() body: RegisterTeacherDto) {
+    const result = await this.authService.registerTeacher(body);
+    return { success: true, message: result.message, data: result };
+  }
+
+  @Post('verify-email')
+  @ApiOperation({ summary: 'Verify teacher email address' })
+  async verifyEmail(@Body() body: VerifyEmailDto) {
+    const result = await this.authService.verifyEmail(body);
+    return { success: true, message: 'Email berhasil diverifikasi', data: result };
+  }
+
+  @Post('resend-verification')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Resend email verification link' })
+  async resendVerification(@Body() body: ResendVerificationDto) {
+    const result = await this.authService.resendVerification(body);
+    return { success: true, message: result.message, data: null };
+  }
+
+  @Get('invite-info')
+  @ApiOperation({ summary: 'Get invitation details by token' })
+  async getInviteInfo(@Query('token') token: string) {
+    const data = await this.authService.getInviteInfo(token);
+    return { success: true, message: 'Informasi undangan valid', data };
+  }
+
+  @Post('forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Request password reset email' })
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
+    const result = await this.authService.forgotPassword(body);
+    return { success: true, message: result.message, data: null };
+  }
+
+  @Post('reset-password')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Reset password with token' })
+  async resetPassword(@Body() body: ResetPasswordDto) {
+    const result = await this.authService.resetPassword(body);
+    return { success: true, message: result.message, data: null };
   }
 
   @Post('refresh')

@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/stores/auth.store';
+import { UserRole } from '@secure-cbt/shared';
 import { academicApi, questionBankApi, examApi } from '@/lib/api-service';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Card, CardContent } from '@/components/ui/card';
@@ -94,10 +96,22 @@ function ExamsPageContent() {
   const [bankFilter, setBankFilter] = useState('');
   const [token, setToken] = useState<string | null>(null);
 
+  const { user } = useAuthStore();
+  const isTeacher = user?.role === UserRole.TEACHER;
+
   const { data: subjects } = useQuery({
     queryKey: ['subjects'],
     queryFn: async () => { const { data } = await academicApi.getSubjects(); return data.data as Subject[]; },
   });
+
+  const availableSubjects = useMemo(() => {
+    if (!subjects) return [];
+    if (!isTeacher) return subjects;
+    const assignedIds = new Set(
+      user?.teacher?.teacher_subjects?.map((ts) => ts.subject_id || ts.subject?.id).filter(Boolean) || [],
+    );
+    return subjects.filter((s) => assignedIds.has(s.id));
+  }, [subjects, isTeacher, user]);
 
   const { data: classes } = useQuery({
     queryKey: ['classes'],
@@ -392,7 +406,7 @@ function ExamsPageContent() {
         onClose={() => { setModalOpen(false); setEditingId(null); }}
         form={form}
         setForm={setForm}
-        subjects={subjects || []}
+        subjects={availableSubjects}
         classes={classes || []}
         banks={banks || []}
         questions={questions || []}

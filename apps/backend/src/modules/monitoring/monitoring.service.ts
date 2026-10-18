@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { SessionStatus } from '@secure-cbt/shared';
+import { SessionStatus, UserRole } from '@secure-cbt/shared';
 import { SessionService } from '../session/session.service';
+import { getTeacherScope, assertTeacherMonitorAccess } from '../../common/helpers/teacher-access.helper';
 
 @Injectable()
 export class MonitoringService {
@@ -10,12 +11,21 @@ export class MonitoringService {
     private readonly sessionService: SessionService,
   ) {}
 
-  async getExamMonitoring(examId: string) {
+  async getExamMonitoring(examId: string, userId?: string, userRole?: string) {
     const exam = await this.prisma.exam.findFirst({
       where: { id: examId, deleted_at: null },
       include: { subject: true },
     });
     if (!exam) throw new NotFoundException('Exam not found');
+
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherMonitorAccess(
+        scope,
+        exam.subject_id,
+        'Anda tidak memiliki izin memantau ujian ini',
+      );
+    }
 
     const sessions = await this.prisma.examSession.findMany({
       where: { exam_id: examId },
@@ -70,9 +80,21 @@ export class MonitoringService {
     };
   }
 
-  async getSessionLogs(sessionId: string) {
-    const session = await this.prisma.examSession.findUnique({ where: { id: sessionId } });
+  async getSessionLogs(sessionId: string, userId?: string, userRole?: string) {
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: { exam: { select: { subject_id: true } } },
+    });
     if (!session) throw new NotFoundException('Session not found');
+
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherMonitorAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak memiliki izin memantau sesi ujian ini',
+      );
+    }
 
     return this.prisma.sessionLog.findMany({
       where: { exam_session_id: sessionId },

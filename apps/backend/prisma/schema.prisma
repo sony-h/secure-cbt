@@ -68,6 +68,7 @@ model User {
   password_hash String
   role          UserRole
   is_active     Boolean   @default(true)
+  email_verified_at DateTime?
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
   deleted_at    DateTime?
@@ -111,13 +112,14 @@ model Student {
 // ── teachers ─────────────────────────────────────────────────────
 
 model Teacher {
-  id         String    @id @default(uuid()) @db.Uuid
-  user_id    String    @unique @db.Uuid
-  nip        String?   @unique
-  full_name  String
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-  deleted_at DateTime?
+  id                       String    @id @default(uuid()) @db.Uuid
+  user_id                  String    @unique @db.Uuid
+  nip                      String?   @unique
+  full_name                String
+  can_monitor_all_subjects Boolean   @default(false)
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @updatedAt
+  deleted_at               DateTime?
 
   user              User             @relation(fields: [user_id], references: [id], onDelete: Restrict)
   teacher_subjects  TeacherSubject[]
@@ -539,3 +541,37 @@ model RefreshToken {
   @@index([expires_at])
   @@map("refresh_tokens")
 }
+
+// ── verification_tokens ──────────────────────────────────────────
+
+model VerificationToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  identifier  String
+  token_hash  String   @unique
+  type        String
+  expires_at  DateTime
+  created_at  DateTime @default(now())
+
+  @@index([identifier, type])
+  @@index([token_hash])
+  @@map("verification_tokens")
+}
+
+// ── teacher_invites ──────────────────────────────────────────────
+
+model TeacherInvite {
+  id                       String    @id @default(uuid()) @db.Uuid
+  email                    String    @unique
+  token_hash               String    @unique
+  subject_ids              Json?
+  can_monitor_all_subjects Boolean   @default(false)
+  invited_by               String    @db.Uuid
+  expires_at               DateTime
+  accepted_at              DateTime?
+  created_at               DateTime  @default(now())
+
+  @@index([email])
+  @@index([token_hash])
+  @@map("teacher_invites")
+}
+

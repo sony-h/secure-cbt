@@ -2,14 +2,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:socket_io_client/socket_io_client.dart' as socket_io;
 import 'package:secure_cbt_mobile/core/logger/logger.dart';
+import 'package:secure_cbt_mobile/core/network/server_config_provider.dart';
 
-const _socketBaseUrl = String.fromEnvironment(
+const _defaultSocketBaseUrl = String.fromEnvironment(
   'API_URL',
   defaultValue: 'http://10.0.2.2:3000',
 );
 
 class MonitoringSocket {
+  final String _socketBaseUrl;
   socket_io.Socket? _socket;
+
+  MonitoringSocket({String? serverUrl})
+      : _socketBaseUrl = serverUrl ?? _defaultSocketBaseUrl;
 
   void Function(Map<String, dynamic> data)? _onBroadcast;
   void Function(Map<String, dynamic> data)? _onForceSubmit;
@@ -145,5 +150,6 @@ class MonitoringSocket {
 }
 
 final monitoringSocketProvider = Provider<MonitoringSocket>((ref) {
-  return MonitoringSocket();
+  final serverConfig = ref.watch(serverConfigProvider);
+  return MonitoringSocket(serverUrl: serverConfig.socketBaseUrl);
 });

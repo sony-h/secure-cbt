@@ -1,13 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateExamInput, UpdateExamInput, createExamSchema, updateExamSchema,
-  PaginationQuery, ExamStatus, SessionStatus, SocketEvent, shuffle,
+  PaginationQuery, ExamStatus, SessionStatus, SocketEvent, shuffle, UserRole,
 } from '@secure-cbt/shared';
 import { randomBytes } from 'crypto';
 import { parsePagination, buildMeta } from '../../common/helpers/pagination.helper';
 import { resolveTeacherId } from '../../common/helpers/user-resolver.helper';
+import { getTeacherScope, assertTeacherSubjectAccess, assertTeacherMonitorAccess } from '../../common/helpers/teacher-access.helper';
 
 @Injectable()
 export class ExamService {
@@ -17,12 +18,41 @@ export class ExamService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async findAll(query: PaginationQuery & { status?: ExamStatus; subject_id?: string }) {
+  async findAll(
+    query: PaginationQuery & { status?: ExamStatus; subject_id?: string; context?: 'monitoring' | 'reports' | 'management' },
+    userId?: string,
+    userRole?: string,
+    contextOverride?: 'monitoring' | 'reports' | 'management',
+  ) {
     const { skip, page, perPage } = parsePagination(query);
     const { status, subject_id, search } = query;
+    const context = contextOverride || query.context || 'management';
     const where: any = { deleted_at: null };
+
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      const isProctorView = (context === 'monitoring' || context === 'reports') && scope.canMonitorAllSubjects;
+
+      if (!isProctorView) {
+        if (scope.subjectIds.length === 0) {
+          return { data: [], meta: buildMeta(0, { page, perPage, skip }) };
+        }
+        if (subject_id) {
+          if (!scope.subjectIds.includes(subject_id)) {
+            return { data: [], meta: buildMeta(0, { page, perPage, skip }) };
+          }
+          where.subject_id = subject_id;
+        } else {
+          where.subject_id = { in: scope.subjectIds };
+        }
+      } else {
+        if (subject_id) where.subject_id = subject_id;
+      }
+    } else {
+      if (subject_id) where.subject_id = subject_id;
+    }
+
     if (status) where.status = status;
-    if (subject_id) where.subject_id = subject_id;
     if (search) where.title = { contains: search, mode: 'insensitive' };
 
     const [data, total] = await Promise.all([
@@ -43,7 +73,12 @@ export class ExamService {
     return { data: computed, meta: buildMeta(total, { page, perPage, skip }) };
   }
 
-  async findById(id: string) {
+  async findById(
+    id: string,
+    userId?: string,
+    userRole?: string,
+    context?: 'monitoring' | 'reports' | 'management',
+  ) {
     const exam = await this.prisma.exam.findFirst({
       where: { id, deleted_at: null },
       include: {
@@ -55,18 +90,46 @@ export class ExamService {
       },
     });
     if (!exam) throw new NotFoundException('Exam not found');
+
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      if (context === 'monitoring' || context === 'reports') {
+        assertTeacherMonitorAccess(
+          scope,
+          exam.subject_id,
+          'Anda tidak memiliki izin memantau atau melihat laporan ujian ini',
+        );
+      } else {
+        assertTeacherSubjectAccess(
+          scope,
+          exam.subject_id,
+          'Anda tidak memiliki hak akses untuk ujian mata pelajaran ini',
+        );
+      }
+    }
+
     return exam;
   }
 
-  async create(dto: CreateExamInput, userId: string) {
+  async create(dto: CreateExamInput, userId: string, userRole?: string) {
     const data = createExamSchema.parse(dto);
 
     if (new Date(data.end_at) <= new Date(data.start_at)) {
       throw new BadRequestException('End time must be after start time');
     }
 
-    // Resolve teacher ID from user ID
-    const teacherId = await resolveTeacherId(this.prisma, userId);
+    let teacherId: string | null = null;
+    if (userRole === UserRole.TEACHER) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherSubjectAccess(
+        scope,
+        data.subject_id,
+        'Anda tidak memiliki hak akses untuk membuat ujian pada mata pelajaran ini',
+      );
+      teacherId = scope.teacherId || null;
+    } else {
+      teacherId = await resolveTeacherId(this.prisma, userId);
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const exam = await tx.exam.create({
@@ -139,9 +202,18 @@ export class ExamService {
     });
   }
 
-  async update(id: string, dto: UpdateExamInput) {
+  async update(id: string, dto: UpdateExamInput, userId?: string, userRole?: string) {
     const data = updateExamSchema.parse(dto);
-    const existing = await this.findById(id);
+    const existing = await this.findById(id, userId, userRole, 'management');
+
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherSubjectAccess(
+        scope,
+        existing.subject_id,
+        'Anda tidak memiliki hak akses mengedit ujian mata pelajaran ini',
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       await tx.exam.update({
@@ -216,14 +288,30 @@ export class ExamService {
     });
   }
 
-  async remove(id: string) {
-    await this.findById(id);
+  async remove(id: string, userId?: string, userRole?: string) {
+    const exam = await this.findById(id, userId, userRole, 'management');
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherSubjectAccess(
+        scope,
+        exam.subject_id,
+        'Anda tidak memiliki hak akses menghapus ujian mata pelajaran ini',
+      );
+    }
     await this.prisma.exam.update({ where: { id }, data: { deleted_at: new Date() } });
     return { deleted: true };
   }
 
-  async generateToken(id: string) {
-    const exam = await this.findById(id);
+  async generateToken(id: string, userId?: string, userRole?: string) {
+    const exam = await this.findById(id, userId, userRole, 'monitoring');
+    if (userRole === UserRole.TEACHER && userId) {
+      const scope = await getTeacherScope(this.prisma, userId);
+      assertTeacherMonitorAccess(
+        scope,
+        exam.subject_id,
+        'Anda tidak memiliki izin merilis token untuk ujian ini',
+      );
+    }
     if (exam.status !== ExamStatus.PUBLISHED && exam.status !== ExamStatus.ONGOING) {
       throw new BadRequestException('Exam must be published first');
     }

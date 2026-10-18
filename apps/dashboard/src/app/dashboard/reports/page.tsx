@@ -3,6 +3,7 @@
 import { useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/stores/auth.store';
 import { examApi, academicApi, reportApi, settingsApi, gradingApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -66,6 +67,14 @@ function ReportsPageContent() {
   const [activeTab, setActiveTab] = useState<'students' | 'item-analysis'>('students');
   const [isExportingExcel, setIsExportingExcel] = useState(false);
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isTeacher = user?.role === UserRole.TEACHER;
+
+  const teacherSubjectIds = useMemo(() => {
+    return new Set(
+      user?.teacher?.teacher_subjects?.map((ts) => ts.subject_id || ts.subject?.id).filter(Boolean) || [],
+    );
+  }, [user]);
 
   const regradeMutation = useMutation({
     mutationFn: async () => {
@@ -245,6 +254,14 @@ function ReportsPageContent() {
     }
   };
 
+  const currentExam = exams?.find((e) => e.id === selectedExam);
+  const canRegrade =
+    !isTeacher ||
+    (currentExam &&
+      teacherSubjectIds.has(
+        (currentExam as any).subject?.id || (currentExam as any).subject_id,
+      ));
+
   return (
     <div className="space-y-6 print:p-0 print:space-y-4">
       <div className="hidden print:block border-b-2 border-primary pb-4 mb-4 text-center">
@@ -313,41 +330,43 @@ function ReportsPageContent() {
               </Select>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="text-amber-600 border-amber-300 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/30 gap-1.5"
-                    disabled={!selectedExam || !results?.length || regradeMutation.isPending}
-                  >
-                    <RotateCcw className={cn('h-4 w-4', regradeMutation.isPending && 'animate-spin')} />
-                    Hitung Ulang Nilai (Regrade)
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Hitung Ulang Nilai Ujian (Regrade)?</AlertDialogTitle>
-                    <AlertDialogDescription className="space-y-2 text-sm text-left">
-                      <span>
-                        Sistem akan mengevaluasi ulang seluruh jawaban objektif (Pilihan Ganda, Benar/Salah, Jawaban Singkat) seluruh siswa pada ujian ini terhadap kunci jawaban dan opsi terbaru.
-                      </span>
-                      <br /><br />
-                      <span className="font-semibold text-foreground">
-                        Catatan: Nilai esai manual yang telah dinilai guru akan tetap aman dan tidak akan diubah atau dihapus.
-                      </span>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Batal</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => regradeMutation.mutate()}
-                      className="bg-amber-600 hover:bg-amber-700 text-white"
+              {canRegrade && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="text-amber-600 border-amber-300 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/30 gap-1.5"
+                      disabled={!selectedExam || !results?.length || regradeMutation.isPending}
                     >
-                      {regradeMutation.isPending ? 'Memproses...' : 'Ya, Hitung Ulang Nilai'}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      <RotateCcw className={cn('h-4 w-4', regradeMutation.isPending && 'animate-spin')} />
+                      Hitung Ulang Nilai (Regrade)
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Hitung Ulang Nilai Ujian (Regrade)?</AlertDialogTitle>
+                      <AlertDialogDescription className="space-y-2 text-sm text-left">
+                        <span>
+                          Sistem akan mengevaluasi ulang seluruh jawaban objektif (Pilihan Ganda, Benar/Salah, Jawaban Singkat) seluruh siswa pada ujian ini terhadap kunci jawaban dan opsi terbaru.
+                        </span>
+                        <br /><br />
+                        <span className="font-semibold text-foreground">
+                          Catatan: Nilai esai manual yang telah dinilai guru akan tetap aman dan tidak akan diubah atau dihapus.
+                        </span>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => regradeMutation.mutate()}
+                        className="bg-amber-600 hover:bg-amber-700 text-white"
+                      >
+                        {regradeMutation.isPending ? 'Memproses...' : 'Ya, Hitung Ulang Nilai'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
 
               <Button
                 variant="outline"
