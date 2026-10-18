@@ -67,3 +67,7 @@ apps/backend/test/dist/
 
 # Local upload storage (backend local-storage driver writes question media here)
 apps/backend/storage/
+
+# Local roster spreadsheets — real student PII, never commit
+assets/*.xls
+assets/*.xlsx
