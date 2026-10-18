@@ -22,6 +22,27 @@ export function QuestionsStep({ form, setForm, banks, questions, bankFilter, set
     ? questions.filter((q) => q.question_bank?.id === bankFilter)
     : questions;
 
+  const filteredIds = filteredQuestions.map((q) => q.id);
+  const selectedFilteredCount = filteredQuestions.filter((q) => form.question_ids.includes(q.id)).length;
+  const allFilteredSelected = filteredQuestions.length > 0 && selectedFilteredCount === filteredQuestions.length;
+  const isIndeterminate = selectedFilteredCount > 0 && !allFilteredSelected;
+
+  const handleToggleSelectAll = () => {
+    if (allFilteredSelected) {
+      const filteredSet = new Set(filteredIds);
+      setForm({
+        ...form,
+        question_ids: form.question_ids.filter((id) => !filteredSet.has(id)),
+      });
+    } else {
+      const mergedSet = new Set([...form.question_ids, ...filteredIds]);
+      setForm({
+        ...form,
+        question_ids: Array.from(mergedSet),
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -34,7 +55,25 @@ export function QuestionsStep({ form, setForm, banks, questions, bankFilter, set
           </SelectContent>
         </Select>
       </div>
-      <p className="text-sm text-muted-foreground">{form.question_ids.length} soal dipilih</p>
+
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{form.question_ids.length} soal dipilih</p>
+        {filteredQuestions.length > 0 && (
+          <label
+            data-testid="select-all-questions"
+            className="flex items-center gap-2 cursor-pointer select-none text-sm font-medium hover:text-primary transition-colors"
+          >
+            <Checkbox
+              checked={allFilteredSelected ? true : isIndeterminate ? 'indeterminate' : false}
+              onCheckedChange={handleToggleSelectAll}
+            />
+            <span>
+              Pilih Semua ({filteredQuestions.length})
+            </span>
+          </label>
+        )}
+      </div>
+
       <div className="max-h-60 overflow-y-auto space-y-2 border rounded-md p-2">
         {filteredQuestions.map((q) => (
           <label key={q.id} className={`flex items-start gap-2 p-2 rounded cursor-pointer hover:bg-muted ${form.question_ids.includes(q.id) ? 'bg-primary/5 border border-primary/30 rounded' : ''}`}>
