@@ -15,8 +15,13 @@ class ExamViolationHandler {
     _violationsEnabled = true;
   }
 
+  void disable() {
+    _violationsEnabled = false;
+    _violationPending = false;
+  }
+
   void handleLifecycleChange(AppLifecycleState state) {
-    if (!_violationsEnabled) return;
+    if (!_violationsEnabled || ref.read(examProvider).isSubmitted) return;
     final notifier = ref.read(examProvider.notifier);
     switch (state) {
       case AppLifecycleState.paused:

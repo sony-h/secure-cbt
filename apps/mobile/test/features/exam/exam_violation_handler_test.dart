@@ -91,4 +91,38 @@ void main() {
     )).called(1);
     expect(capturedNotifier!.state.warningCount, 1);
   });
+
+  testWidgets('ExamViolationHandler ignores pause/minimization when disable() is called (submitting/countdown)', (tester) async {
+    ExamViolationHandler? capturedHandler;
+    ExamNotifier? capturedNotifier;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localDatabaseProvider.overrideWithValue(mockDb),
+        ],
+        child: MaterialApp(
+          home: TestContainerWidget(
+            onReady: (handler, notifier) {
+              capturedHandler = handler;
+              capturedNotifier = notifier;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await capturedNotifier!.loadSession('test-session-2', [], 1500, mockDio);
+    capturedHandler!.enable();
+
+    // Student clicks submit or countdown starts -> disable handler
+    capturedHandler!.disable();
+
+    // Trigger paused state (e.g. status bar pull-down, home gesture)
+    capturedHandler!.handleLifecycleChange(AppLifecycleState.paused);
+
+    // Should NOT increment warning count or log violation
+    expect(capturedNotifier!.state.warningCount, 0);
+  });
 }

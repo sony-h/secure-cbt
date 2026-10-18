@@ -142,7 +142,16 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
       ScreenSecurity.enable();
 
       final notifier = ref.read(examProvider.notifier);
-      _submitHandler = ExamSubmitHandler(dio: _dio, sessionId: widget.sessionId, ref: ref, context: context);
+      _submitHandler = ExamSubmitHandler(
+        dio: _dio,
+        sessionId: widget.sessionId,
+        ref: ref,
+        context: context,
+        onDisarmViolations: () {
+          _violationHandler?.disable();
+          ref.read(violationAlarmServiceProvider).stopAlarm();
+        },
+      );
       notifier.setOnForceSubmit(() => _submitHandler!.forceSubmit());
       notifier.loadSession(
         widget.sessionId,

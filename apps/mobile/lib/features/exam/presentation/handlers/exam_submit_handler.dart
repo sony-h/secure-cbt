@@ -14,6 +14,7 @@ class ExamSubmitHandler {
   final String sessionId;
   final WidgetRef ref;
   final BuildContext context;
+  final VoidCallback? onDisarmViolations;
 
   bool _submitting = false;
 
@@ -22,6 +23,7 @@ class ExamSubmitHandler {
     required this.sessionId,
     required this.ref,
     required this.context,
+    this.onDisarmViolations,
   });
 
   bool get isSubmitting => _submitting;
@@ -29,6 +31,7 @@ class ExamSubmitHandler {
   Future<void> forceSubmit() async {
     if (_submitting) return;
     _submitting = true;
+    onDisarmViolations?.call();
     try {
       await dio.post('/sessions/submit', data: {
         'session_id': sessionId,
@@ -70,6 +73,7 @@ class ExamSubmitHandler {
   Future<void> submitExam() async {
     if (_submitting) return;
     _submitting = true;
+    onDisarmViolations?.call();
     try {
       await dio.post('/sessions/submit', data: {'session_id': sessionId});
     } catch (e) {
