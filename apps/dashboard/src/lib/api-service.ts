@@ -121,9 +121,13 @@ export const academicApi = {
 
 export const studentApi = {
   getAll: (params?: StudentQueryParams) => api.get('/students', { params }),
-  create: (data: { nis: string; full_name: string; class_id: string; status?: string }) => api.post('/students', data),
-  update: (id: string, data: { nis?: string; full_name?: string; class_id?: string; status?: string }) => api.patch(`/students/${id}`, data),
+  create: (data: { nis: string; full_name: string; class_id: string; status?: string; password?: string }) => api.post('/students', data),
+  update: (id: string, data: { nis?: string; full_name?: string; class_id?: string; status?: string; password?: string }) => api.patch(`/students/${id}`, data),
   delete: (id: string) => api.delete(`/students/${id}`),
+  exportExcel: (data?: { class_id?: string; student_ids?: string[] }) =>
+    api.post('/students/export/excel', data || {}, { responseType: 'blob' }),
+  batchGeneratePasswords: (data: { class_id?: string; student_ids?: string[] }) =>
+    api.post('/students/batch-generate-passwords', data),
 };
 
 export const teacherApi = {

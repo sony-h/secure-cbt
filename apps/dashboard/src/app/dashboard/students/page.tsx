@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { studentApi, academicApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
-import { UserRole } from '@secure-cbt/shared';
+import { UserRole, generateClassPassword } from '@secure-cbt/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,10 +23,11 @@ import {
   AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileDown, KeyRound, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import { Modal } from '@/components/ui/modal';
+import { StudentExportDialog } from '@/components/students/student-export-dialog';
 
 interface Student {
   id: string;
@@ -34,6 +35,7 @@ interface Student {
   full_name: string;
   class?: { id: string; name: string; major?: { name: string } };
   status: string;
+  plain_password?: string | null;
   created_at: string;
 }
 
@@ -48,9 +50,10 @@ interface StudentForm {
   full_name: string;
   class_id: string;
   status: string;
+  password?: string;
 }
 
-const emptyForm: StudentForm = { nis: '', full_name: '', class_id: '', status: 'ACTIVE' };
+const emptyForm: StudentForm = { nis: '', full_name: '', class_id: '', status: 'ACTIVE', password: '' };
 
 function StudentDialog({
   open,
@@ -97,6 +100,32 @@ function StudentDialog({
           </Select>
         </div>
         <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Password Akun</Label>
+            {form.class_id && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs text-primary px-2 hover:bg-primary/10"
+                onClick={() => {
+                  const targetCls = classes.find((c) => c.id === form.class_id);
+                  const generated = generateClassPassword(targetCls?.name || 'CBT');
+                  setForm({ ...form, password: generated });
+                }}
+              >
+                <KeyRound className="mr-1 h-3 w-3" />
+                Format Kelas
+              </Button>
+            )}
+          </div>
+          <Input
+            value={form.password || ''}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            placeholder={isEditing ? 'Kosongkan jika password tidak diubah' : 'Otomatis NIS jika dikosongkan'}
+          />
+        </div>
+        <div className="space-y-2">
           <Label>Status</Label>
           <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
             <SelectTrigger><SelectValue placeholder="Pilih Status" /></SelectTrigger>
@@ -139,6 +168,9 @@ function StudentsPageContent() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<StudentForm>(emptyForm);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
+  const [batchClassId, setBatchClassId] = useState<string>('');
 
   const { data: students, isLoading } = useQuery({
     queryKey: ['students'],
@@ -166,18 +198,58 @@ function StudentsPageContent() {
     onError: () => toast.error('Gagal menghapus siswa'),
   });
 
+  const batchMutation = useMutation({
+    mutationFn: (dto: { class_id: string }) => studentApi.batchGeneratePasswords(dto),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      toast.success(`Berhasil generate password untuk ${res.data?.data?.count || 0} siswa`);
+      setBatchModalOpen(false);
+      setBatchClassId('');
+    },
+    onError: () => toast.error('Gagal generate password kelas'),
+  });
+
+  const handleExportExcel = async (options: { class_id?: string; student_ids?: string[] }) => {
+    try {
+      const res = await studentApi.exportExcel(options);
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Data_Kredensial_Siswa_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success('File Excel berhasil diunduh');
+    } catch {
+      toast.error('Gagal mengunduh file Excel');
+    }
+  };
+
   const handleSave = () => {
     if (!form.nis.trim()) { toast.error('NIS harus diisi'); return; }
     if (!form.full_name.trim()) { toast.error('Nama harus diisi'); return; }
     if (!form.class_id) { toast.error('Pilih kelas'); return; }
     const dto: any = { nis: form.nis, full_name: form.full_name, class_id: form.class_id };
+    if (form.password && form.password.trim()) {
+      dto.password = form.password.trim();
+    }
     if (editingId) dto.status = form.status;
     saveMutation.mutate(dto);
   };
 
   const handleEdit = (s: Student) => {
     setEditingId(s.id);
-    setForm({ nis: s.nis, full_name: s.full_name, class_id: s.class?.id || '', status: s.status });
+    setForm({
+      nis: s.nis,
+      full_name: s.full_name,
+      class_id: s.class?.id || '',
+      status: s.status,
+      password: s.plain_password || '',
+    });
     setModalOpen(true);
   };
 
@@ -193,6 +265,31 @@ function StudentsPageContent() {
     { accessorKey: 'nis', header: 'NIS', enableSorting: true, cell: ({ row }) => <span className="font-medium">{row.original.nis}</span> },
     { accessorKey: 'full_name', header: 'Nama Lengkap', enableSorting: true },
     { id: 'className', accessorFn: (row: any) => row.class?.name, header: 'Kelas', filterFn: 'equalsString', cell: ({ row }: any) => row.original.class?.name || '-' },
+    {
+      accessorKey: 'plain_password',
+      header: 'Password Akun',
+      cell: ({ row }) => {
+        const pw = row.original.plain_password;
+        if (!pw) return <span className="text-muted-foreground text-xs italic">Sama NIS</span>;
+        return (
+          <div className="flex items-center gap-1.5 font-mono text-xs font-semibold bg-muted px-2 py-0.5 rounded w-fit">
+            <span>{pw}</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(pw);
+                toast.success('Password disalin ke clipboard');
+              }}
+              className="hover:text-primary transition-colors p-0.5"
+              title="Salin Password"
+            >
+              <Copy className="h-3 w-3" />
+            </button>
+          </div>
+        );
+      },
+    },
     { 
       accessorKey: 'status', 
       header: 'Status', 
@@ -232,8 +329,36 @@ function StudentsPageContent() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-3xl font-bold tracking-tight">Siswa</h1><p className="text-muted-foreground">Kelola data siswa</p></div>
-        {canEdit && <Button onClick={handleAdd}><Plus className="mr-2 h-4 w-4" />Tambah Siswa</Button>}
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Siswa</h1>
+          <p className="text-muted-foreground">Kelola data siswa, kredensial akun, dan ekspor dokumen</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setExportModalOpen(true)}
+            disabled={isLoading || !students || students.length === 0}
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Ekspor Siswa (Excel / PDF)
+          </Button>
+          {canEdit && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setBatchModalOpen(true)}
+                disabled={isLoading || !classes || classes.length === 0}
+              >
+                <KeyRound className="mr-2 h-4 w-4" />
+                Generate Password Kelas
+              </Button>
+              <Button onClick={handleAdd}>
+                <Plus className="mr-2 h-4 w-4" />
+                Tambah Siswa
+              </Button>
+            </>
+          )}
+        </div>
       </div>
       <Card>
         <CardContent className="pt-6">
@@ -258,7 +383,65 @@ function StudentsPageContent() {
           />
         </CardContent>
       </Card>
-      <StudentDialog open={modalOpen} onClose={() => { setModalOpen(false); setEditingId(null); }} form={form} setForm={setForm} classes={classes || []} onSave={handleSave} isEditing={!!editingId} isSaving={saveMutation.isPending} />
+
+      <StudentDialog
+        open={modalOpen}
+        onClose={() => { setModalOpen(false); setEditingId(null); }}
+        form={form}
+        setForm={setForm}
+        classes={classes || []}
+        onSave={handleSave}
+        isEditing={!!editingId}
+        isSaving={saveMutation.isPending}
+      />
+
+      <StudentExportDialog
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        students={students || []}
+        classes={classes || []}
+        onExportExcel={handleExportExcel}
+      />
+
+      <Modal
+        open={batchModalOpen}
+        onClose={() => setBatchModalOpen(false)}
+        title="Generate Password Format Kelas"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setBatchModalOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => batchClassId && batchMutation.mutate({ class_id: batchClassId })}
+              disabled={batchMutation.isPending || !batchClassId}
+            >
+              {batchMutation.isPending ? 'Memproses...' : 'Generate Password'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Sistem akan men-generate password baru dengan format prefix kelas (contoh: <code>AKL-xxxxxx</code> untuk kelas X AKL) untuk semua siswa di kelas yang dipilih. Password langsung aktif untuk login CBT.
+          </p>
+          <div className="space-y-2">
+            <Label>Pilih Kelas Sasaran</Label>
+            <Select value={batchClassId} onValueChange={setBatchClassId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih Kelas Target" />
+              </SelectTrigger>
+              <SelectContent>
+                {(classes || []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Response } from 'express';
 import { z } from 'zod';
 import { StudentService } from './student.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -23,6 +24,40 @@ export class StudentController {
   async findAll(@Query() query: PaginationQuery & { class_id?: string; status?: string }) {
     const result = await this.studentService.findAll(query);
     return { success: true, message: 'Students retrieved', ...result };
+  }
+
+  @Get('export/excel')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER)
+  @ApiOperation({ summary: 'Export student credentials to Excel (.xlsx)' })
+  async exportExcelGet(
+    @Res() res: Response,
+    @Query('class_id') classId?: string,
+  ) {
+    const buffer = await this.studentService.generateExcelExport({ class_id: classId });
+    const filename = `Data_Siswa_${classId ? classId.substring(0, 8) : 'Semua'}.xlsx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
+
+  @Post('export/excel')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.TEACHER)
+  @ApiOperation({ summary: 'Export filtered student credentials to Excel (.xlsx)' })
+  async exportExcelPost(
+    @Res() res: Response,
+    @Body() body: { class_id?: string; student_ids?: string[] },
+  ) {
+    const buffer = await this.studentService.generateExcelExport(body);
+    const filename = `Data_Siswa_Ekspor.xlsx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 
   @Get(':id')

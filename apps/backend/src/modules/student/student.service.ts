@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import ExcelJS from 'exceljs';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateStudentInput,
@@ -213,5 +214,115 @@ export class StudentService {
       count: updatedStudents.length,
       students: updatedStudents,
     };
+  }
+
+  async generateExcelExport(query?: { class_id?: string; student_ids?: string[] }) {
+    const where: any = { deleted_at: null };
+    if (query?.class_id) where.class_id = query.class_id;
+    if (query?.student_ids && query.student_ids.length > 0) {
+      where.id = { in: query.student_ids };
+    }
+
+    const students = await this.prisma.student.findMany({
+      where,
+      include: { class: { include: { major: true } } },
+      orderBy: [
+        { class: { name: 'asc' } },
+        { full_name: 'asc' },
+      ],
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Secure CBT System';
+    const sheet = workbook.addWorksheet('Data Akun Siswa', {
+      views: [{ showGridLines: true }],
+    });
+
+    // Title header
+    sheet.mergeCells('A2:G2');
+    const titleCell = sheet.getCell('A2');
+    titleCell.value = 'DATA AKUN DAN KREDENSIAL PESERTA CBT';
+    titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E3A8A' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    sheet.getRow(2).height = 28;
+
+    // Subtitle
+    const exportDateStr = new Date().toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    sheet.mergeCells('A3:G3');
+    const subCell = sheet.getCell('A3');
+    subCell.value = `Tanggal Ekspor: ${exportDateStr} | Total: ${students.length} Siswa`;
+    subCell.font = { name: 'Arial', size: 10, italic: true, color: { argb: 'DBEAFE' } };
+    subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E3A8A' } };
+    subCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    sheet.getRow(3).height = 20;
+
+    // Header row at row 5
+    const headers = ['No', 'NIS', 'Nama Lengkap Siswa', 'Kelas', 'Username', 'Password', 'Status'];
+    const headerRow = sheet.getRow(5);
+    headerRow.values = headers;
+    headerRow.height = 24;
+    headerRow.eachCell((cell) => {
+      cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '2563EB' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = {
+        top: { style: 'thin', color: { argb: '94A3B8' } },
+        bottom: { style: 'thin', color: { argb: '94A3B8' } },
+        left: { style: 'thin', color: { argb: '94A3B8' } },
+        right: { style: 'thin', color: { argb: '94A3B8' } },
+      };
+    });
+
+    // Column widths
+    sheet.getColumn(1).width = 6;
+    sheet.getColumn(2).width = 16;
+    sheet.getColumn(3).width = 32;
+    sheet.getColumn(4).width = 18;
+    sheet.getColumn(5).width = 18;
+    sheet.getColumn(6).width = 20;
+    sheet.getColumn(7).width = 14;
+
+    // Data rows
+    let rowIndex = 6;
+    for (let i = 0; i < students.length; i++) {
+      const s = students[i]!;
+      const row = sheet.getRow(rowIndex++);
+      row.values = [
+        i + 1,
+        s.nis,
+        s.full_name,
+        s.class?.name || '-',
+        s.nis,
+        s.plain_password || s.nis,
+        s.status === 'ACTIVE' ? 'Aktif' : s.status === 'GRADUATED' ? 'Lulus' : 'Nonaktif',
+      ];
+      row.height = 20;
+
+      row.eachCell((cell, colNumber) => {
+        cell.font = { name: 'Arial', size: 9 };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'CBD5E1' } },
+          bottom: { style: 'thin', color: { argb: 'CBD5E1' } },
+          left: { style: 'thin', color: { argb: 'CBD5E1' } },
+          right: { style: 'thin', color: { argb: 'CBD5E1' } },
+        };
+        if (colNumber === 1 || colNumber === 2 || colNumber === 5 || colNumber === 7) {
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        } else if (colNumber === 6) {
+          cell.alignment = { vertical: 'middle', horizontal: 'center' };
+          cell.font = { name: 'Courier New', size: 10, bold: true };
+        } else {
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        }
+      });
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer as Buffer;
   }
 }
