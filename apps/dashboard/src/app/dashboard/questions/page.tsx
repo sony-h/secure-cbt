@@ -25,13 +25,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, Copy, Image as ImageIcon, FileUp, ArrowRightLeft } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, Image as ImageIcon, FileUp, ArrowRightLeft, FileQuestion } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import { MathRenderer } from '@/components/ui/math-renderer';
 import { questionTypes, difficultyLevels } from '@/components/questions/question-modal';
 import { ImportQuestionsModal } from '@/components/questions/import-questions-modal';
 import { BulkMoveDialog } from '@/components/questions/bulk-move-dialog';
+import { SubpageHero } from '@/components/dashboard/subpage-hero';
 
 interface QuestionBank {
   id: string;
@@ -282,22 +283,39 @@ function QuestionsPageContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Bank Soal</h1>
-          <p className="text-muted-foreground">Kelola bank soal dan pertanyaan ujian</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
-            <FileUp className="mr-2 h-4 w-4" />
-            Import Soal
-          </Button>
-          <Button onClick={handleAdd}>
-            <Plus className="mr-2 h-4 w-4" />
-            Tambah Soal
-          </Button>
-        </div>
-      </div>
+      <SubpageHero
+        icon={FileQuestion}
+        title="Bank Soal & Studio Soal"
+        subtitle="Susun butir pertanyaan berstandar ANBK dengan formula LaTeX, diagram WebP, dan stimulus audio interaktif."
+        badges={[
+          { label: 'ANBK Certified Format', variant: 'cyan' },
+          { label: 'LaTeX & Formula Support', variant: 'violet' },
+        ]}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setIsImportModalOpen(true)}
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20 font-bold text-xs h-10 px-3.5 rounded-xl gap-2 backdrop-blur-md active:scale-95 transition-all"
+            >
+              <FileUp className="h-4 w-4 text-cyan-300" />
+              <span>Import Soal</span>
+            </Button>
+            <Button
+              onClick={handleAdd}
+              className="bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-md shadow-violet-600/25 active:scale-95 transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Studio Soal</span>
+            </Button>
+          </>
+        }
+        stats={[
+          { label: 'Butir Soal', value: questions?.length ?? '—' },
+          { label: 'Bank Soal', value: banks?.length ?? '—', accent: '#06B6D4' },
+          { label: 'Mapel Diampu', value: availableSubjects?.length ?? '—', accent: '#7C3AED' },
+        ]}
+      />
 
       <Tabs
         value={activeTab}

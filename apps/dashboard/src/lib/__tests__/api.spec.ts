@@ -25,7 +25,7 @@ describe('handleAuthFailure', () => {
     expect(localStorage.getItem('refresh_token')).toBeNull();
     expect(window.location.href).toBe('/login?redirect=%2Fdashboard%2Fexams%3Fstatus%3DACTIVE');
 
-    window.location = originalLocation;
+    window.location = originalLocation as any;
   });
 
   it('redirects to plain /login when current path is root /', () => {
@@ -42,7 +42,7 @@ describe('handleAuthFailure', () => {
 
     expect(window.location.href).toBe('/login');
 
-    window.location = originalLocation;
+    window.location = originalLocation as any;
   });
 
   it('does not redirect if already on /login', () => {
@@ -59,6 +59,6 @@ describe('handleAuthFailure', () => {
 
     expect(window.location.href).toBe('');
 
-    window.location = originalLocation;
+    window.location = originalLocation as any;
   });
 });

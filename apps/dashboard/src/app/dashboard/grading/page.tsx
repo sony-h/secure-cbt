@@ -17,6 +17,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileCheck, AlertCircle, Clock, CheckCircle2, History, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { SubpageHero } from '@/components/dashboard/subpage-hero';
 
 interface Exam { id: string; title: string; subject?: { name: string }; status: string; }
 interface PendingStudent {
@@ -263,14 +264,22 @@ function GradingPageContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Penilaian Esai</h1>
-          <p className="text-muted-foreground">Nilai dan revisi jawaban esai siswa beserta riwayat audit</p>
-        </div>
-      </div>
+      <SubpageHero
+        icon={FileCheck}
+        title="Studio Penilaian & Koreksi Esai"
+        subtitle="Periksa dan evaluasi jawaban uraian siswa, berikan umpan balik kualitatif, serta lacak riwayat revisi skor terverifikasi."
+        badges={[
+          { label: 'Audit Trail & Riwayat Nilai', variant: 'violet' },
+          { label: 'Koreksi Berstandar Rubrik', variant: 'cyan' },
+        ]}
+        stats={[
+          { label: 'Perlu Dinilai', value: totalPending, accent: totalPending > 0 ? '#F59E0B' : '#10B981' },
+          { label: 'Peserta Esai', value: studentList?.length ?? 0 },
+          { label: 'Ujian Tersedia', value: availableExams?.length ?? 0, accent: '#7C3AED' },
+        ]}
+      />
 
-      <Card>
+      <Card className="rounded-2xl border-slate-200/80 dark:border-slate-800/80 shadow-xs">
         <CardHeader>
           <CardTitle>Pilih Ujian</CardTitle>
           <CardDescription>Pilih ujian yang memiliki jawaban esai untuk dinilai atau ditinjau</CardDescription>

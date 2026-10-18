@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import DashboardLayout from '../layout';
 import { UserRole } from '@secure-cbt/shared';
@@ -135,5 +135,41 @@ describe('DashboardLayout', () => {
     const mobileNav = screen.getByTestId('mobile-bottom-bar');
     expect(mobileNav).toBeTruthy();
     expect(screen.getByText('Pantau')).toBeTruthy();
+  });
+
+  it('allows collapsing and expanding the desktop sidebar and toggles aria-label', async () => {
+    mockAuthState = {
+      user: {
+        id: 'u1',
+        username: 'admin',
+        role: UserRole.ADMIN,
+        full_name: 'Admin User',
+      },
+      isAuthenticated: true,
+      isLoading: false,
+      logout: vi.fn(),
+    };
+
+    render(
+      <DashboardLayout>
+        <div data-testid="child-page">Secret Exam Page</div>
+      </DashboardLayout>,
+    );
+
+    let toggleBtn = screen.getByTestId('sidebar-collapse-toggle');
+    expect(toggleBtn).toBeTruthy();
+    expect(toggleBtn.getAttribute('aria-label')).toBe('Ciutkan navigasi');
+
+    // Click toggle to collapse
+    fireEvent.click(toggleBtn);
+    toggleBtn = screen.getByTestId('sidebar-collapse-toggle');
+    expect(toggleBtn.getAttribute('aria-label')).toBe('Bentangkan navigasi');
+    expect(localStorage.getItem('assessia:sidebar-collapsed')).toBe('true');
+
+    // Click toggle to expand back
+    fireEvent.click(toggleBtn);
+    toggleBtn = screen.getByTestId('sidebar-collapse-toggle');
+    expect(toggleBtn.getAttribute('aria-label')).toBe('Ciutkan navigasi');
+    expect(localStorage.getItem('assessia:sidebar-collapsed')).toBe('false');
   });
 });

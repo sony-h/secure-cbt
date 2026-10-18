@@ -21,10 +21,11 @@ import {
   AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Plus, Pencil, Trash2, Mail, UserCheck, UserX, Send, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Plus, Pencil, Trash2, Mail, UserCheck, UserX, Send, ShieldCheck, ShieldAlert, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import { Modal } from '@/components/ui/modal';
+import { SubpageHero } from '@/components/dashboard/subpage-hero';
 
 interface Teacher {
   id: string;
@@ -499,23 +500,45 @@ function TeachersPageContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Guru</h1>
-          <p className="text-muted-foreground">Kelola data guru, mata pelajaran, dan aktivasi akun pengajar</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setInviteModalOpen(true)}>
-            <Mail className="mr-2 h-4 w-4" />
-            Undang Guru
-          </Button>
-          <Button onClick={handleAdd}>
-            <Plus className="mr-2 h-4 w-4" />
-            Tambah Guru
-          </Button>
-        </div>
-      </div>
-      <Card>
+      <SubpageHero
+        icon={GraduationCap}
+        title="Direktori Tenaga Pengajar"
+        subtitle="Kelola profil guru, penugasan mata pelajaran yang diampu, serta hak akses pengawas ujian institusi."
+        badges={[
+          { label: 'Resend Email Invitation', variant: 'violet' },
+          { label: 'Proctor Authorization', variant: 'cyan' },
+        ]}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setInviteModalOpen(true)}
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20 font-bold text-xs h-10 px-3.5 rounded-xl gap-2 backdrop-blur-md active:scale-95 transition-all"
+            >
+              <Mail className="h-4 w-4 text-cyan-300" />
+              <span>Undang Guru</span>
+            </Button>
+            <Button
+              onClick={handleAdd}
+              className="bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-md shadow-violet-600/25 active:scale-95 transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Tambah Guru</span>
+            </Button>
+          </>
+        }
+        stats={[
+          { label: 'Total Guru', value: teachers?.length ?? '—' },
+          {
+            label: 'Pengawas',
+            value: teachers?.filter((t: any) => t.can_monitor_all_subjects).length ?? '—',
+            accent: '#7C3AED',
+          },
+          { label: 'Mapel Kurikulum', value: subjects?.length ?? '—', accent: '#06B6D4' },
+        ]}
+      />
+
+      <Card className="rounded-2xl border-slate-200/80 dark:border-slate-800/80 shadow-xs">
         <CardContent className="pt-6">
           <DataTable
             columns={teacherColumns}

@@ -3,13 +3,13 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
 import { authApi } from '@/lib/api-service';
 import { useAuthStore } from '@/stores/auth.store';
 import { toast } from 'sonner';
+import { AuthSplitLayout } from '@/components/auth/auth-split-layout';
 
 function VerifyEmailContent() {
   const router = useRouter();
@@ -38,7 +38,7 @@ function VerifyEmailContent() {
           user: data.user,
         });
         setSuccess(true);
-        toast.success('Email berhasil diverifikasi! Selamat datang.');
+        toast.success('Email berhasil diverifikasi! Selamat datang di Assessia.');
         setTimeout(() => {
           router.push('/dashboard');
         }, 2000);
@@ -52,63 +52,104 @@ function VerifyEmailContent() {
       });
   }, [token, router, setSession]);
 
-  return (
-    <Card className="relative overflow-hidden w-full max-w-md border shadow-lg text-center p-6 space-y-6">
-      {loading ? (
-        <div className="py-8 space-y-4">
-          <Spinner className="mx-auto h-10 w-10 text-primary" />
-          <p className="text-sm font-medium text-foreground">Memverifikasi alamat email Anda...</p>
-          <p className="text-xs text-muted-foreground">Mohon tunggu sebentar.</p>
+  if (loading) {
+    return (
+      <div className="py-12 space-y-4 text-center">
+        <Spinner className="mx-auto h-10 w-10 text-violet-600 dark:text-violet-400" />
+        <h2 className="text-base font-bold text-slate-800 dark:text-slate-200">
+          Memverifikasi alamat email Anda...
+        </h2>
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          Sistem sedang memvalidasi token otentikasi. Mohon tunggu sebentar.
+        </p>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="space-y-6 text-center py-4">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 shadow-md shadow-emerald-500/10">
+          <CheckCircle2 className="h-10 w-10" />
         </div>
-      ) : success ? (
-        <div className="space-y-4 py-4">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="h-10 w-10" />
-          </div>
-          <div className="space-y-1.5">
-            <CardTitle className="text-xl font-bold text-foreground">Email Terverifikasi!</CardTitle>
-            <CardDescription className="text-sm">
-              Akun Guru Anda telah aktif. Anda dialihkan ke dashboard secara otomatis...
-            </CardDescription>
-          </div>
-          <Button asChild className="w-full mt-4">
+
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+            Email Berhasil Diverifikasi! 🎉
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+            Akun Guru Anda kini telah aktif sepenuhnya. Anda akan dialihkan ke dashboard institusi secara otomatis...
+          </p>
+        </div>
+
+        <div className="pt-2">
+          <Button
+            asChild
+            className="w-full h-11 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-[#7C3AED] via-[#2563EB] to-[#06B6D4] hover:opacity-95 shadow-lg shadow-blue-600/20"
+          >
             <Link href="/dashboard">
-              Buka Dashboard Sekarang <ArrowRight className="ml-2 h-4 w-4" />
+              <span>Buka Dashboard Sekarang</span>
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
         </div>
-      ) : (
-        <div className="space-y-4 py-4">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-            <XCircle className="h-10 w-10" />
-          </div>
-          <div className="space-y-1.5">
-            <CardTitle className="text-xl font-bold text-foreground">Verifikasi Gagal</CardTitle>
-            <CardDescription className="text-sm text-destructive font-medium">
-              {errorMsg}
-            </CardDescription>
-          </div>
-          <div className="pt-4 flex flex-col gap-2">
-            <Button asChild variant="default" className="w-full">
-              <Link href="/register">Daftar Ulang atau Kirim Tautan Baru</Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/login">Kembali ke Halaman Masuk</Link>
-            </Button>
-          </div>
-        </div>
-      )}
-    </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 text-center py-4">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 text-destructive border border-destructive/20 shadow-sm">
+        <XCircle className="h-8 w-8" />
+      </div>
+
+      <div className="space-y-2">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+          Verifikasi Gagal ⚠️
+        </h2>
+        <p className="text-xs sm:text-sm text-destructive font-medium max-w-sm mx-auto">
+          {errorMsg}
+        </p>
+      </div>
+
+      <div className="pt-2 flex flex-col gap-2.5">
+        <Button
+          asChild
+          className="w-full h-11 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-[#7C3AED] via-[#2563EB] to-[#06B6D4] hover:opacity-95 shadow-lg shadow-blue-600/20"
+        >
+          <Link href="/register">Daftar Ulang atau Kirim Tautan Baru</Link>
+        </Button>
+        <Button
+          asChild
+          variant="outline"
+          className="w-full h-11 rounded-xl text-xs font-semibold border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900"
+        >
+          <Link href="/login">Kembali ke Halaman Masuk</Link>
+        </Button>
+      </div>
+    </div>
   );
 }
 
 export default function VerifyEmailPage() {
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 py-8 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100 via-transparent to-transparent dark:from-indigo-950/30" />
-      <Suspense fallback={<Spinner className="h-8 w-8 text-primary" />}>
+    <AuthSplitLayout
+      badgeText="Verifikasi Akun Pendidik"
+      badgeVariant="emerald"
+      title="Aktivasi Akun Assessia ✨"
+      subtitle="Memastikan keamanan data dan kredensial pengajar pada platform Assessia."
+      backHref="/login"
+      backLabel="Kembali ke Masuk"
+    >
+      <Suspense
+        fallback={
+          <div className="flex h-40 items-center justify-center">
+            <Spinner className="h-8 w-8 text-emerald-600" />
+          </div>
+        }
+      >
         <VerifyEmailContent />
       </Suspense>
-    </div>
+    </AuthSplitLayout>
   );
 }

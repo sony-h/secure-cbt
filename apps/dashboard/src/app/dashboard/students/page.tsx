@@ -23,11 +23,12 @@ import {
   AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Plus, Pencil, Trash2, FileDown, KeyRound, Copy } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileDown, KeyRound, Copy, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import { Modal } from '@/components/ui/modal';
 import { StudentExportDialog } from '@/components/students/student-export-dialog';
+import { SubpageHero } from '@/components/dashboard/subpage-hero';
 
 interface Student {
   id: string;
@@ -328,39 +329,59 @@ function StudentsPageContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Siswa</h1>
-          <p className="text-muted-foreground">Kelola data siswa, kredensial akun, dan ekspor dokumen</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setExportModalOpen(true)}
-            disabled={isLoading || !students || students.length === 0}
-          >
-            <FileDown className="mr-2 h-4 w-4" />
-            Ekspor Siswa (Excel / PDF)
-          </Button>
-          {canEdit && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => setBatchModalOpen(true)}
-                disabled={isLoading || !classes || classes.length === 0}
-              >
-                <KeyRound className="mr-2 h-4 w-4" />
-                Generate Password Kelas
-              </Button>
-              <Button onClick={handleAdd}>
-                <Plus className="mr-2 h-4 w-4" />
-                Tambah Siswa
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-      <Card>
+      <SubpageHero
+        icon={Users}
+        title="Direktori Peserta Didik"
+        subtitle="Kelola data siswa, rombel kelas, pembuatan kredensial massal, dan kartu peserta ujian PDF/Excel."
+        badges={[
+          { label: 'Autentikasi Terenkripsi', variant: 'cyan' },
+          { label: 'Cetak Kartu Ujian', variant: 'violet' },
+        ]}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setExportModalOpen(true)}
+              disabled={isLoading || !students || students.length === 0}
+              className="bg-white/10 hover:bg-white/20 text-white border-white/20 font-bold text-xs h-10 px-3.5 rounded-xl gap-2 backdrop-blur-md active:scale-95 transition-all"
+            >
+              <FileDown className="h-4 w-4 text-cyan-300" />
+              <span>Ekspor (PDF/Excel)</span>
+            </Button>
+            {canEdit && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setBatchModalOpen(true)}
+                  disabled={isLoading || !classes || classes.length === 0}
+                  className="bg-white/10 hover:bg-white/20 text-white border-white/20 font-bold text-xs h-10 px-3.5 rounded-xl gap-2 backdrop-blur-md active:scale-95 transition-all"
+                >
+                  <KeyRound className="h-4 w-4 text-violet-300" />
+                  <span>Password Kelas</span>
+                </Button>
+                <Button
+                  onClick={handleAdd}
+                  className="bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-md shadow-violet-600/25 active:scale-95 transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Tambah Siswa</span>
+                </Button>
+              </>
+            )}
+          </>
+        }
+        stats={[
+          { label: 'Total Siswa', value: students?.length ?? '—' },
+          {
+            label: 'Aktif',
+            value: students?.filter((s: any) => s.status === 'ACTIVE').length ?? '—',
+            accent: '#10B981',
+          },
+          { label: 'Kelas', value: classes?.length ?? '—', accent: '#06B6D4' },
+        ]}
+      />
+
+      <Card className="rounded-2xl border-slate-200/80 dark:border-slate-800/80 shadow-xs">
         <CardContent className="pt-6">
           <DataTable
             columns={studentColumns}

@@ -33,6 +33,30 @@ describe('EmailService', () => {
       expect(mockSend).not.toHaveBeenCalled();
     });
 
+    it('defaults fromEmail to Assessia <onboarding@resend.dev> if EMAIL_FROM not provided', async () => {
+      const mockConfig: any = {
+        get: vi.fn((key: string) => {
+          if (key === 'RESEND_API_KEY') return 're_test_key';
+          if (key === 'FRONTEND_URL') return 'https://cbt.domain.com';
+          return null;
+        }),
+      };
+
+      mockSend.mockResolvedValueOnce({
+        data: { id: 'msg_default_from' },
+        error: null,
+      });
+
+      const service = new EmailService(mockConfig);
+      await service.sendVerificationEmail('guru@test.id', 'Budi', 'token123');
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: 'Assessia <onboarding@resend.dev>',
+        }),
+      );
+    });
+
     it('sanitizes appUrl if CORS_ORIGIN contains multiple comma-separated domains', async () => {
       const mockConfig: any = {
         get: vi.fn((key: string) => {
@@ -60,6 +84,118 @@ describe('EmailService', () => {
           html: expect.stringContaining('https://cbt.domain.com,https://api.domain.com'),
         }),
       );
+    });
+  });
+
+  describe('Assessia branding and template integrity', () => {
+    it('sends verification email with Assessia branding, motto, and Orivastra footer', async () => {
+      const mockConfig: any = {
+        get: vi.fn((key: string) => {
+          if (key === 'RESEND_API_KEY') return 're_test_key';
+          if (key === 'FRONTEND_URL') return 'https://assessia.orivastra.id';
+          return null;
+        }),
+      };
+
+      mockSend.mockResolvedValueOnce({
+        data: { id: 'msg_verify' },
+        error: null,
+      });
+
+      const service = new EmailService(mockConfig);
+      await service.sendVerificationEmail('guru@sekolah.id', 'Dr. Sarah', 'token_v_1');
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subject: 'Verifikasi Alamat Email Anda - Assessia',
+          to: 'guru@sekolah.id',
+          html: expect.stringMatching(/Assessia/i),
+        }),
+      );
+
+      const html = mockSend.mock.calls[0][0].html;
+      expect(html).toContain('by Orivastra');
+      expect(html).toContain('Measure Learning. Empower Progress.');
+      expect(html).toContain('From Origin to the Stars.');
+      expect(html).toContain('2026 Assessia — Orivastra');
+      expect(html).toContain('Dr. Sarah');
+      expect(html).toContain('https://assessia.orivastra.id/verify-email?token=token_v_1');
+
+      // Ensure deprecated branding is completely removed
+      expect(html).not.toContain('Secure CBT');
+      expect(html).not.toContain('SMK Informatika Wonosobo');
+    });
+
+    it('sends teacher invite email with Assessia branding and inviter attribution', async () => {
+      const mockConfig: any = {
+        get: vi.fn((key: string) => {
+          if (key === 'RESEND_API_KEY') return 're_test_key';
+          if (key === 'FRONTEND_URL') return 'https://assessia.orivastra.id';
+          return null;
+        }),
+      };
+
+      mockSend.mockResolvedValueOnce({
+        data: { id: 'msg_invite' },
+        error: null,
+      });
+
+      const service = new EmailService(mockConfig);
+      await service.sendTeacherInviteEmail('calonguru@sekolah.id', 'token_inv_1', 'Bpk. Hendra');
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subject: 'Undangan Bergabung sebagai Guru - Assessia',
+          to: 'calonguru@sekolah.id',
+        }),
+      );
+
+      const html = mockSend.mock.calls[0][0].html;
+      expect(html).toContain('by Orivastra');
+      expect(html).toContain('Measure Learning. Empower Progress.');
+      expect(html).toContain('2026 Assessia — Orivastra');
+      expect(html).toContain('Bpk. Hendra');
+      expect(html).toContain('https://assessia.orivastra.id/register?invite=token_inv_1');
+
+      // Ensure deprecated branding is completely removed
+      expect(html).not.toContain('Secure CBT');
+      expect(html).not.toContain('SMK Informatika Wonosobo');
+    });
+
+    it('sends password reset email with Assessia branding and security notice', async () => {
+      const mockConfig: any = {
+        get: vi.fn((key: string) => {
+          if (key === 'RESEND_API_KEY') return 're_test_key';
+          if (key === 'FRONTEND_URL') return 'https://assessia.orivastra.id';
+          return null;
+        }),
+      };
+
+      mockSend.mockResolvedValueOnce({
+        data: { id: 'msg_reset' },
+        error: null,
+      });
+
+      const service = new EmailService(mockConfig);
+      await service.sendPasswordResetEmail('guru@sekolah.id', 'Budi Santoso', 'token_pwd_1');
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subject: 'Atur Ulang Kata Sandi - Assessia',
+          to: 'guru@sekolah.id',
+        }),
+      );
+
+      const html = mockSend.mock.calls[0][0].html;
+      expect(html).toContain('by Orivastra');
+      expect(html).toContain('Measure Learning. Empower Progress.');
+      expect(html).toContain('2026 Assessia — Orivastra');
+      expect(html).toContain('Budi Santoso');
+      expect(html).toContain('https://assessia.orivastra.id/reset-password?token=token_pwd_1');
+
+      // Ensure deprecated branding is completely removed
+      expect(html).not.toContain('Secure CBT');
+      expect(html).not.toContain('SMK Informatika Wonosobo');
     });
   });
 

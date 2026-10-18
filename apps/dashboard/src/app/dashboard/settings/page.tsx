@@ -24,7 +24,9 @@ import {
   Upload,
   Download,
   Trash2,
+  Settings,
 } from 'lucide-react';
+import { SubpageHero } from '@/components/dashboard/subpage-hero';
 
 interface SettingsData {
   id: string; warning_limit: number; auto_submit_enabled: boolean;
@@ -169,14 +171,26 @@ function SettingsPageContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Pengaturan</h1>
-          <p className="text-muted-foreground">Konfigurasi sistem dan ujian</p>
-        </div>
-      </div>
+      <SubpageHero
+        icon={Settings}
+        title="Pengaturan Sistem & Kebijakan Ujian"
+        subtitle="Konfigurasi protokol keamanan anti-cheat, interval auto-save sinkronisasi jawaban, serta master template baku institusi."
+        badges={[
+          { label: 'Anti-Cheat Security Policy', variant: 'violet' },
+          { label: `KKM Default: ${settings.passing_grade}`, variant: 'cyan' },
+          {
+            label: settings.fullscreen_required ? 'Fullscreen Wajib' : 'Fullscreen Opsional',
+            variant: settings.fullscreen_required ? 'emerald' : 'default',
+          },
+        ]}
+        stats={[
+          { label: 'Warning Limit', value: `${settings.warning_limit}x` },
+          { label: 'Auto-Save', value: `${settings.autosave_interval}s`, accent: '#06B6D4' },
+          { label: 'KKM Kelulusan', value: settings.passing_grade, accent: '#10B981' },
+        ]}
+      />
 
-      <Card>
+      <Card className="rounded-2xl border-slate-200/80 dark:border-slate-800/80 shadow-xs">
         <CardHeader><CardTitle>Keamanan Ujian</CardTitle><CardDescription>Konfigurasi batas peringatan, fullscreen, dan auto-submit</CardDescription></CardHeader>
         <CardContent className="space-y-4">
           <SettingRow label="Batas Peringatan" description="Jumlah maksimal pelanggaran sebelum ujian otomatis dikumpulkan" value={settings.warning_limit} type="number" min={1} max={10} onSave={(val) => updateMutation.mutate({ warning_limit: Number(val) })} disabled={updateMutation.isPending} />

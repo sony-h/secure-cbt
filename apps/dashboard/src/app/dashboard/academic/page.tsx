@@ -26,6 +26,7 @@ import { YearDialog } from '@/components/academic/year-dialog';
 import { MajorDialog } from '@/components/academic/major-dialog';
 import { ClassDialog } from '@/components/academic/class-dialog';
 import { SubjectDialog } from '@/components/academic/subject-dialog';
+import { SubpageHero } from '@/components/dashboard/subpage-hero';
 
 interface MajorOption { id: string; name: string; code: string; }
 interface YearOption { id: string; name: string; is_active: boolean; }
@@ -256,7 +257,21 @@ function AcademicPageContent() {
 
   return (
     <div className="space-y-6">
-      <div><h1 className="text-3xl font-bold tracking-tight">Data Akademik</h1><p className="text-muted-foreground">Kelola tahun ajaran, jurusan, kelas, dan mata pelajaran</p></div>
+      <SubpageHero
+        icon={School}
+        title="Manajemen Akademik Institusi"
+        subtitle="Konfigurasi tahun ajaran aktif, rombel kelas, program keahlian/jurusan, dan struktur mata pelajaran kurikulum."
+        badges={[
+          { label: 'Tahun Ajaran Terverifikasi', variant: 'cyan' },
+          { label: 'Struktur Kurikulum', variant: 'violet' },
+        ]}
+        stats={[
+          { label: 'Tahun Ajaran', value: years?.length ?? '—' },
+          { label: 'Jurusan', value: majors?.length ?? '—', accent: '#06B6D4' },
+          { label: 'Kelas Rombel', value: classes?.length ?? '—', accent: '#7C3AED' },
+          { label: 'Mata Pelajaran', value: subjects?.length ?? '—', accent: '#EC4899' },
+        ]}
+      />
 
       <Tabs value={activeTab} onValueChange={(val) => { setActiveTab(val); updateUrlParams({ tab: val }); }} className="w-full">
         <TabsList>

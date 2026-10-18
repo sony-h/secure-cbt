@@ -1,7 +1,7 @@
 export const APP_INFO = {
   name: 'Assessia',
   fullName: 'Assessia by Orivastra',
-  version: '1.7.2',
+  version: '1.8.0',
   brand: 'Orivastra',
   tagline: 'Measure Learning. Empower Progress.',
   parentTagline: 'From Origin to the Stars.',

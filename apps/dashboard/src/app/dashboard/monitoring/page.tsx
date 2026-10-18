@@ -43,6 +43,7 @@ import {
 import { toast } from 'sonner';
 import { ProctorBroadcastModal, BroadcastTargetStudent } from '@/components/monitoring/proctor-broadcast-modal';
 import { StudentActionDialog, ActionStudentSession } from '@/components/monitoring/student-action-dialog';
+import { SubpageHero } from '@/components/dashboard/subpage-hero';
 
 interface Exam {
   id: string;
@@ -77,6 +78,7 @@ function MonitoringPageContent() {
 
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [connectedStudents, setConnectedStudents] = useState<Set<string>>(new Set());
+  const [socketConnected, setSocketConnected] = useState(false);
   const [sessionData, setSessionData] = useState<StudentSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -173,7 +175,12 @@ function MonitoringPageContent() {
     });
 
     socket.on('connect', () => {
+      setSocketConnected(true);
       socket.emit('teacher.connected', { examId: selectedExamId });
+    });
+
+    socket.on('disconnect', () => {
+      setSocketConnected(false);
     });
 
     socket.on('connected.students', (data: { studentIds?: string[]; studentUserIds?: string[] }) => {
@@ -365,132 +372,68 @@ function MonitoringPageContent() {
 
   return (
     <div className="space-y-6">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              Pusat Kendali Pengawasan (Mission Control)
-            </h1>
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Pantau integritas ujian, kelola tindakan langsung siswa, dan siarkan pengumuman real-time.
-          </p>
-        </div>
-
-        {/* View Mode & Announcement Action */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <Button
-            type="button"
-            onClick={() => {
-              setBroadcastTargetStudent(null);
-              setBroadcastModalOpen(true);
-            }}
-            disabled={!selectedExamId}
-            className="rounded-xl gap-2 font-bold bg-primary text-primary-foreground shadow-sm hover:shadow"
-          >
-            <Megaphone className="h-4 w-4" />
-            <span>Kirim Pengumuman</span>
-          </Button>
-
-          <div className="inline-flex rounded-xl bg-muted p-1 border border-border">
-            <button
+      <SubpageHero
+        icon={Activity}
+        title="Mission Control Monitoring"
+        subtitle="Pantau integritas ujian, pantau koneksi real-time siswa, deteksi pelanggaran, dan siarkan pengumuman darurat."
+        badges={[
+          {
+            label: socketConnected ? 'Socket Live Terhubung' : (selectedExamId ? 'Menghubungkan Socket...' : 'Menunggu Pilihan Sesi'),
+            icon: socketConnected ? Wifi : WifiOff,
+            variant: socketConnected ? 'emerald' : 'amber',
+          },
+          ...(currentExam
+            ? [{ label: `Sesi: ${currentExam.title}`, variant: 'cyan' as const }]
+            : []),
+        ]}
+        actions={
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+            <Button
               type="button"
-              onClick={() => setViewMode('grid')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'grid'
-                  ? 'bg-card text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              onClick={() => {
+                setBroadcastTargetStudent(null);
+                setBroadcastModalOpen(true);
+              }}
+              disabled={!selectedExamId}
+              className="bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-md shadow-violet-600/25 active:scale-95 transition-all disabled:opacity-50"
             >
-              <LayoutGrid className="h-3.5 w-3.5" /> Denah (Grid)
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'list'
-                  ? 'bg-card text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <List className="h-3.5 w-3.5" /> Tabel (List)
-            </button>
+              <Megaphone className="h-4 w-4" />
+              <span>Kirim Pengumuman</span>
+            </Button>
+
+            <div className="inline-flex rounded-xl bg-white/10 p-1 border border-white/15 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'grid'
+                    ? 'bg-white/20 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" /> Denah
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'list'
+                    ? 'bg-white/20 text-white shadow-xs'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <List className="h-3.5 w-3.5" /> Tabel
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* 4 Telemetry Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {monitoringLoading && selectedExamId ? (
-          <>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-2xl border border-border/70 bg-card p-5">
-                <Skeleton className="h-4 w-20 mb-2" />
-                <Skeleton className="h-8 w-16" />
-              </div>
-            ))}
-          </>
-        ) : (
-          <>
-            <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs relative overflow-hidden group">
-              <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-blue-500/10 blur-xl" />
-              <div className="flex items-center justify-between relative z-10">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Peserta</span>
-                <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                  <Users className="h-4.5 w-4.5" />
-                </div>
-              </div>
-              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mt-2 tabular-nums relative z-10">{totalStudents}</p>
-              <p className="text-xs text-muted-foreground mt-1 relative z-10">Siswa terdaftar di ujian</p>
-            </div>
-
-            <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs relative overflow-hidden group">
-              <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-cyan-500/15 blur-xl" />
-              <div className="flex items-center justify-between relative z-10">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aktif Terhubung</span>
-                <div className="relative h-9 w-9 rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
-                  <span className="absolute inset-0 rounded-xl bg-cyan-400/30 animate-radar-pulse pointer-events-none" />
-                  <Wifi className="h-4.5 w-4.5 relative z-10" />
-                </div>
-              </div>
-              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-cyan-600 dark:text-cyan-400 mt-2 tabular-nums relative z-10">{activeCount}</p>
-              <p className="text-xs text-muted-foreground mt-1 relative z-10">Sedang mengerjakan soal</p>
-            </div>
-
-            <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-xs relative overflow-hidden group">
-              <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-purple-500/10 blur-xl" />
-              <div className="flex items-center justify-between relative z-10">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Telah Selesai</span>
-                <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                  <CheckCircle className="h-4.5 w-4.5" />
-                </div>
-              </div>
-              <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mt-2 tabular-nums relative z-10">{submittedCount}</p>
-              <p className="text-xs text-muted-foreground mt-1 relative z-10">Lembar jawaban terkumpul</p>
-            </div>
-
-            <div className={`rounded-2xl border p-5 shadow-xs transition-colors relative overflow-hidden group ${warnings > 0 ? 'border-pink-500/40 bg-pink-500/5' : 'border-border/70 bg-card'}`}>
-              {warnings > 0 && (
-                <div className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-pink-500/15 blur-xl" />
-              )}
-              <div className="flex items-center justify-between relative z-10">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pelanggaran</span>
-                <div className={`relative h-9 w-9 rounded-xl flex items-center justify-center ${warnings > 0 ? 'bg-pink-500/20 text-pink-600 dark:text-pink-400' : 'bg-muted text-muted-foreground'}`}>
-                  {warnings > 0 && (
-                    <span className="absolute inset-0 rounded-xl bg-pink-500/30 animate-ping pointer-events-none" />
-                  )}
-                  <AlertTriangle className="h-4.5 w-4.5 relative z-10" />
-                </div>
-              </div>
-              <p className={`text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 tabular-nums relative z-10 ${warnings > 0 ? 'text-pink-600 dark:text-pink-400' : 'text-foreground'}`}>
-                {warnings}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1 relative z-10">Siswa dengan poin strike</p>
-            </div>
-          </>
-        )}
-      </div>
+        }
+        stats={[
+          { label: 'Peserta', value: totalStudents },
+          { label: 'Online', value: activeCount, accent: '#10B981' },
+          { label: 'Selesai', value: submittedCount, accent: '#7C3AED' },
+          { label: 'Pelanggaran', value: warnings, accent: warnings > 0 ? '#EF4444' : undefined },
+        ]}
+      />
 
       {/* Main Mission Control Workstation Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

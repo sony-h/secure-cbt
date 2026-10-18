@@ -19,10 +19,11 @@ import {
   AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
   AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
-import { Plus, Pencil, Trash2, Key, Clock, Calendar, Copy, Check, FileCheck, Layers, Sparkles } from 'lucide-react';
+import { Plus, Pencil, Trash2, Key, Clock, Calendar, Copy, Check, FileCheck, Layers, Sparkles, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { CreateExamModal, emptyExamForm, type ExamFormData } from '@/components/exams/create-exam-modal';
 import { TokenModal } from '@/components/exams/token-modal';
+import { SubpageHero } from '@/components/dashboard/subpage-hero';
 
 interface Exam {
   id: string;
@@ -334,38 +335,38 @@ function ExamsPageContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">Jadwal &amp; Sesi Ujian</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Buat, kelola paket soal, dan pantau token sesi ujian</p>
-        </div>
-        <Button onClick={() => { setEditingId(null); setForm(emptyExamForm); setModalOpen(true); }} className="rounded-xl gap-2 font-semibold shadow-xs">
-          <Plus className="h-4 w-4" />
-          Buat Ujian Baru
-        </Button>
-      </div>
+      <SubpageHero
+        icon={ClipboardList}
+        title="Jadwal & Sesi Ujian"
+        subtitle="Rencanakan asesmen digital, kelola distribusi token keamanan, dan sinkronisasi butir soal."
+        badges={[
+          { label: 'Assessia Engine v1.8.0', icon: Sparkles, variant: 'violet' },
+          ...(ongoingCount > 0
+            ? [{ label: `${ongoingCount} Ujian Berlangsung`, variant: 'emerald' as const }]
+            : []),
+        ]}
+        actions={
+          <Button
+            onClick={() => {
+              setEditingId(null);
+              setForm(emptyExamForm);
+              setModalOpen(true);
+            }}
+            className="bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-md shadow-violet-600/25 active:scale-95 transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Buat Ujian Baru</span>
+          </Button>
+        }
+        stats={[
+          { label: 'Total', value: totalExams },
+          { label: 'Aktif', value: ongoingCount, accent: '#10B981' },
+          { label: 'Terbit', value: publishedCount, accent: '#3B82F6' },
+          { label: 'Selesai', value: finishedCount },
+        ]}
+      />
 
-      {/* Quick Status Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
-          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Jadwal</span>
-          <p className="text-2xl font-extrabold tracking-tight text-foreground mt-1 tabular-nums">{totalExams}</p>
-        </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Sedang Aktif</span>
-          <p className="text-2xl font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">{ongoingCount}</p>
-        </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
-          <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Terbit / Siap</span>
-          <p className="text-2xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400 mt-1 tabular-nums">{publishedCount}</p>
-        </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-4 shadow-xs">
-          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Selesai</span>
-          <p className="text-2xl font-extrabold tracking-tight text-foreground mt-1 tabular-nums">{finishedCount}</p>
-        </div>
-      </div>
-
-      <Card className="rounded-2xl border-border/70 shadow-xs">
+      <Card className="rounded-2xl border-slate-200/80 dark:border-slate-800/80 shadow-xs">
         <CardContent className="pt-6">
           <DataTable
             columns={examColumns}

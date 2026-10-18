@@ -2,16 +2,15 @@
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
-import { GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
-import Link from 'next/link';
-import { APP_INFO } from '@/lib/constants/app-info';
+import { AuthSplitLayout } from '@/components/auth/auth-split-layout';
+import { ArrowRight } from 'lucide-react';
 
 function LoginForm() {
   const router = useRouter();
@@ -38,7 +37,7 @@ function LoginForm() {
     setLoading(true);
     try {
       await login(username, password);
-      toast.success('Login berhasil');
+      toast.success('Login berhasil! Mengalihkan ke dashboard...');
       router.push(targetRedirect);
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Login gagal. Periksa username dan password.';
@@ -49,97 +48,94 @@ function LoginForm() {
   };
 
   return (
-    <Card className="relative overflow-hidden w-full max-w-md transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/10">
-      <CardHeader className="text-center">
-        <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl p-1 bg-white dark:bg-slate-900 shadow-md ring-1 ring-border">
-          <img
-            src="/logo-only-light.png"
-            alt="Assessia"
-            className="h-12 w-12 object-contain"
-          />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="username" className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+          Username atau Email
+        </Label>
+        <Input
+          id="username"
+          placeholder="Masukkan username atau email"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+          autoFocus
+          className="h-11 px-4 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 focus-visible:ring-violet-500 focus-visible:border-violet-500 transition-all text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password" className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+            Kata Sandi
+          </Label>
+          <Link
+            href="/forgot-password"
+            className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 hover:underline transition-colors"
+          >
+            Lupa kata sandi?
+          </Link>
         </div>
-        <CardTitle className="text-2xl font-extrabold tracking-tight text-foreground">Assessia</CardTitle>
-        <p className="text-xs font-semibold text-primary/90 mt-0.5 tracking-wide">
-          "{APP_INFO.tagline}"
+        <Input
+          id="password"
+          type="password"
+          placeholder="Masukkan password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          className="h-11 px-4 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 focus-visible:ring-violet-500 focus-visible:border-violet-500 transition-all text-sm"
+        />
+      </div>
+
+      <div className="pt-2">
+        <Button
+          type="submit"
+          className="w-full h-11 rounded-xl text-sm font-bold text-white shadow-lg shadow-blue-600/20 bg-gradient-to-r from-[#7C3AED] via-[#2563EB] to-[#06B6D4] hover:opacity-95 hover:shadow-blue-600/30 transition-all"
+          disabled={loading}
+        >
+          {loading ? (
+            <Spinner className="mr-2 h-4 w-4 text-white" />
+          ) : (
+            <>
+              <span>Masuk ke Dashboard</span>
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </>
+          )}
+        </Button>
+      </div>
+
+      <div className="text-center pt-3 border-t border-slate-200/80 dark:border-slate-800/80 mt-6">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Belum memiliki akun guru?{' '}
+          <Link
+            href="/register"
+            className="font-bold text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-300 underline decoration-violet-300 dark:decoration-violet-600 transition-colors"
+          >
+            Daftar Akun Baru
+          </Link>
         </p>
-        <CardDescription className="text-xs mt-1">
-          Masuk ke panel institusi untuk mengelola asesmen &amp; ujian
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="username">Username atau Email</Label>
-            <Input
-              id="username"
-              placeholder="Masukkan username atau email"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link
-                href="/forgot-password"
-                className="text-xs text-muted-foreground hover:text-primary hover:underline"
-              >
-                Lupa kata sandi?
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Masukkan password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-3">
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? <Spinner className="mr-2" /> : null}
-            Masuk
-          </Button>
-          <div className="text-center text-xs text-muted-foreground">
-            Belum memiliki akun?{' '}
-            <Link href="/register" className="font-semibold text-primary hover:underline">
-              Daftar Akun Guru
-            </Link>
-          </div>
-        </CardFooter>
-      </form>
-    </Card>
+      </div>
+    </form>
   );
 }
 
 export default function LoginPage() {
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100 via-transparent to-transparent dark:from-indigo-950/30" />
+    <AuthSplitLayout
+      badgeText="Portal Pendidik & Admin"
+      badgeVariant="purple"
+      title="Selamat Datang Kembali 👋"
+      subtitle="Masuk ke panel institusi untuk mengelola bank soal, ujian, dan integritas asesmen digital."
+    >
       <Suspense
         fallback={
-          <div className="flex h-32 items-center justify-center">
-            <Spinner className="h-8 w-8" />
+          <div className="flex h-40 items-center justify-center">
+            <Spinner className="h-8 w-8 text-violet-600" />
           </div>
         }
       >
         <LoginForm />
       </Suspense>
-      <footer className="absolute bottom-4 flex flex-col items-center text-center gap-0.5 px-4">
-        <span className="text-xs font-bold tracking-widest text-foreground/80 uppercase">
-          {APP_INFO.brand}
-        </span>
-        <span className="text-[11px] text-muted-foreground italic">
-          "{APP_INFO.parentTagline}"
-        </span>
-        <span className="text-[10px] text-muted-foreground/60 mt-0.5">
-          {APP_INFO.builtBy} • {APP_INFO.copyright} • v{APP_INFO.version}
-        </span>
-      </footer>
-    </div>
+    </AuthSplitLayout>
   );
 }

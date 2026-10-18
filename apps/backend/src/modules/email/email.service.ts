@@ -21,7 +21,7 @@ export class EmailService {
     }
 
     this.fromEmail =
-      this.config.get<string>('EMAIL_FROM') || 'Secure CBT <onboarding@resend.dev>';
+      this.config.get<string>('EMAIL_FROM') || 'Assessia <onboarding@resend.dev>';
     const rawUrl =
       this.config.get<string>('FRONTEND_URL') ||
       this.config.get<string>('DASHBOARD_URL') ||
@@ -33,54 +33,104 @@ export class EmailService {
 
   async sendVerificationEmail(to: string, name: string, token: string): Promise<boolean> {
     const verificationUrl = `${this.appUrl}/verify-email?token=${encodeURIComponent(token)}`;
-    const subject = 'Verifikasi Alamat Email Anda - Secure CBT';
+    const subject = 'Verifikasi Alamat Email Anda - Assessia';
 
     const html = `
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }
-    .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-    .header { background: #0f172a; padding: 28px; text-align: center; color: #ffffff; }
-    .header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-    .header p { margin: 6px 0 0 0; color: #94a3b8; font-size: 13px; }
-    .content { padding: 32px; }
-    .greeting { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
-    .body-text { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px; }
-    .btn-container { text-align: center; margin: 32px 0; }
-    .btn { display: inline-block; background-color: #2563eb; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; }
-    .btn:hover { background-color: #1d4ed8; }
-    .note { font-size: 12px; color: #64748b; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 20px; }
-    .url-fallback { word-break: break-all; color: #2563eb; font-size: 12px; margin-top: 8px; }
-    .footer { background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; }
+    body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1e293b; }
+    .wrapper { width: 100%; background-color: #f1f5f9; padding: 36px 12px; box-sizing: border-box; }
+    .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08), 0 0 1px 1px rgba(15, 23, 42, 0.04); border: 1px solid #e2e8f0; }
+    .ribbon { height: 6px; background: linear-gradient(90deg, #7C3AED 0%, #2563EB 50%, #06B6D4 100%); }
+    .header { padding: 36px 32px 20px 32px; text-align: center; background: #ffffff; }
+    .content { padding: 0 36px 36px 36px; }
+    .badge { display: inline-block; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 9999px; padding: 5px 14px; font-size: 11px; font-weight: 700; color: #6d28d9; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 18px; }
+    .btn { display: inline-block; background: linear-gradient(135deg, #7C3AED 0%, #2563EB 60%, #06B6D4 100%); color: #ffffff !important; text-decoration: none; padding: 13px 36px; border-radius: 10px; font-size: 14.5px; font-weight: 700; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); }
+    .footer { background: #f8fafc; border-top: 1px solid #f1f5f9; padding: 24px 32px; text-align: center; }
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Secure CBT</h1>
-      <p>SMK Informatika Wonosobo</p>
-    </div>
-    <div class="content">
-      <div class="greeting">Halo, ${name}!</div>
-      <p class="body-text">
-        Terima kasih telah mendaftar sebagai Guru pada platform Secure CBT. Silakan konfirmasi alamat email Anda untuk mengaktifkan akun dan mulai mengelola bank soal serta ujian.
-      </p>
-      <div class="btn-container">
-        <a href="${verificationUrl}" class="btn">Verifikasi Email Saya</a>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  <div class="wrapper" style="width: 100%; background-color: #f1f5f9; padding: 36px 12px; box-sizing: border-box;">
+    <div class="container" style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0;">
+      <!-- Aurora Gradient Ribbon -->
+      <div class="ribbon" style="height: 6px; background: linear-gradient(90deg, #7C3AED 0%, #2563EB 50%, #06B6D4 100%);"></div>
+
+      <!-- Header -->
+      <div class="header" style="padding: 36px 32px 20px 32px; text-align: center; background: #ffffff;">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+          <tr>
+            <td style="vertical-align: middle; padding-right: 12px;">
+              <img src="${this.appUrl}/logo-only-light.png" alt="Assessia" width="44" height="44" style="display: block; border: 0; outline: none; object-fit: contain;" />
+            </td>
+            <td style="vertical-align: middle; text-align: left;">
+              <div style="font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #0b132b; line-height: 1;">Assessia</div>
+              <div style="font-size: 11px; font-weight: 600; color: #6366f1; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 3px;">by Orivastra</div>
+            </td>
+          </tr>
+        </table>
+        <div style="font-size: 12px; font-style: italic; color: #64748b; margin-top: 10px;">
+          &ldquo;Measure Learning. Empower Progress.&rdquo;
+        </div>
+        <div style="height: 1px; background: #f1f5f9; margin-top: 20px;"></div>
       </div>
-      <div class="note">
-        Tautan verifikasi ini berlaku selama <strong>24 jam</strong>. Jika Anda tidak pernah mendaftar di Secure CBT, abaikan email ini.
-        <div class="url-fallback">
-          Atau salin tautan berikut ke browser:<br>
-          ${verificationUrl}
+
+      <!-- Main Content -->
+      <div class="content" style="padding: 0 36px 36px 36px;">
+        <div class="badge" style="display: inline-block; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 9999px; padding: 5px 14px; font-size: 11px; font-weight: 700; color: #6d28d9; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 18px;">
+          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #7C3AED; margin-right: 6px; vertical-align: middle;"></span>Aktivasi Akun Pendidik
+        </div>
+
+        <h1 style="margin: 0 0 12px 0; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
+          Selamat Datang, ${name}! 👋
+        </h1>
+
+        <p style="margin: 0 0 16px 0; font-size: 14.5px; line-height: 1.65; color: #475569;">
+          Terima kasih telah mendaftar di <strong>Assessia</strong>. Silakan konfirmasi alamat email Anda untuk mengaktifkan akun dan mulai menyusun bank soal, ujian, serta analitik penilaian digital.
+        </p>
+
+        <!-- CTA Box -->
+        <div style="background: #fafafa; border: 1px solid #f1f5f9; border-radius: 12px; padding: 24px; text-align: center; margin: 28px 0;">
+          <div style="font-size: 13px; color: #64748b; margin-bottom: 16px; font-weight: 500;">
+            Konfirmasi alamat email Anda dengan menekan tombol di bawah:
+          </div>
+          <a href="${verificationUrl}" class="btn" style="display: inline-block; background: linear-gradient(135deg, #7C3AED 0%, #2563EB 60%, #06B6D4 100%); color: #ffffff !important; text-decoration: none; padding: 13px 36px; border-radius: 10px; font-size: 14.5px; font-weight: 700; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);">
+            Verifikasi Email Saya &rarr;
+          </a>
+          <div style="font-size: 11.5px; color: #94a3b8; margin-top: 14px;">
+            ⏱ Tautan ini berlaku selama <strong>24 jam</strong>
+          </div>
+        </div>
+
+        <!-- Security / Fallback -->
+        <div style="background: #f8fafc; border-left: 3px solid #6366f1; border-radius: 0 8px 8px 0; padding: 14px 18px; margin-top: 24px;">
+          <div style="font-size: 12px; color: #475569; line-height: 1.6;">
+            <strong>Catatan Keamanan:</strong> Jika tombol di atas tidak dapat diklik, salin dan buka tautan berikut pada peramban Anda:
+            <div style="margin-top: 6px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; font-size: 11px; color: #2563EB; word-break: break-all; background: #ffffff; padding: 8px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              ${verificationUrl}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="footer">
-      &copy; 2026 Secure CBT — SMK Informatika Wonosobo. All rights reserved.
+
+      <!-- Footer -->
+      <div class="footer" style="background: #f8fafc; border-top: 1px solid #f1f5f9; padding: 24px 32px; text-align: center;">
+        <div style="font-size: 12.5px; font-weight: 800; color: #1e293b; letter-spacing: 0.06em; text-transform: uppercase;">
+          ASSESSIA
+        </div>
+        <div style="font-size: 11.5px; font-style: italic; color: #64748b; margin-top: 2px;">
+          &ldquo;Measure Learning. Empower Progress.&rdquo;
+        </div>
+        <div style="height: 1px; width: 60px; background: #e2e8f0; margin: 12px auto;"></div>
+        <div style="font-size: 11px; color: #94a3b8; line-height: 1.6;">
+          Dikembangkan oleh <strong>Orivastra</strong> &bull; <em>&ldquo;From Origin to the Stars.&rdquo;</em><br>
+          &copy; 2026 Assessia — Orivastra. Seluruh hak cipta dilindungi undang-undang.
+        </div>
+      </div>
     </div>
   </div>
 </body>
@@ -120,57 +170,108 @@ export class EmailService {
     invitedByName?: string,
   ): Promise<boolean> {
     const inviteUrl = `${this.appUrl}/register?invite=${encodeURIComponent(inviteToken)}`;
-    const subject = 'Undangan Bergabung sebagai Guru - Secure CBT';
+    const subject = 'Undangan Bergabung sebagai Guru - Assessia';
 
     const html = `
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }
-    .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-    .header { background: #0f172a; padding: 28px; text-align: center; color: #ffffff; }
-    .header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-    .header p { margin: 6px 0 0 0; color: #94a3b8; font-size: 13px; }
-    .content { padding: 32px; }
-    .greeting { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
-    .body-text { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px; }
-    .btn-container { text-align: center; margin: 32px 0; }
-    .btn { display: inline-block; background-color: #059669; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; }
-    .btn:hover { background-color: #047857; }
-    .note { font-size: 12px; color: #64748b; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 20px; }
-    .url-fallback { word-break: break-all; color: #059669; font-size: 12px; margin-top: 8px; }
-    .footer { background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; }
+    body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1e293b; }
+    .wrapper { width: 100%; background-color: #f1f5f9; padding: 36px 12px; box-sizing: border-box; }
+    .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08), 0 0 1px 1px rgba(15, 23, 42, 0.04); border: 1px solid #e2e8f0; }
+    .ribbon { height: 6px; background: linear-gradient(90deg, #06B6D4 0%, #2563EB 50%, #7C3AED 100%); }
+    .header { padding: 36px 32px 20px 32px; text-align: center; background: #ffffff; }
+    .content { padding: 0 36px 36px 36px; }
+    .badge { display: inline-block; background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 9999px; padding: 5px 14px; font-size: 11px; font-weight: 700; color: #0891b2; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 18px; }
+    .btn { display: inline-block; background: linear-gradient(135deg, #0284c7 0%, #2563EB 60%, #7C3AED 100%); color: #ffffff !important; text-decoration: none; padding: 13px 36px; border-radius: 10px; font-size: 14.5px; font-weight: 700; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35); }
+    .footer { background: #f8fafc; border-top: 1px solid #f1f5f9; padding: 24px 32px; text-align: center; }
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Secure CBT</h1>
-      <p>SMK Informatika Wonosobo</p>
-    </div>
-    <div class="content">
-      <div class="greeting">Undangan Bergabung</div>
-      <p class="body-text">
-        Anda telah diundang ${invitedByName ? `oleh <strong>${invitedByName}</strong> ` : ''}untuk bergabung sebagai Guru pada platform ujian <strong>Secure CBT SMK Informatika Wonosobo</strong>.
-      </p>
-      <p class="body-text">
-        Silakan klik tombol di bawah ini untuk melengkapi data dan membuat kata sandi akun Anda.
-      </p>
-      <div class="btn-container">
-        <a href="${inviteUrl}" class="btn">Terima Undangan & Buat Akun</a>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  <div class="wrapper" style="width: 100%; background-color: #f1f5f9; padding: 36px 12px; box-sizing: border-box;">
+    <div class="container" style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0;">
+      <!-- Aurora Gradient Ribbon -->
+      <div class="ribbon" style="height: 6px; background: linear-gradient(90deg, #06B6D4 0%, #2563EB 50%, #7C3AED 100%);"></div>
+
+      <!-- Header -->
+      <div class="header" style="padding: 36px 32px 20px 32px; text-align: center; background: #ffffff;">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+          <tr>
+            <td style="vertical-align: middle; padding-right: 12px;">
+              <img src="${this.appUrl}/logo-only-light.png" alt="Assessia" width="44" height="44" style="display: block; border: 0; outline: none; object-fit: contain;" />
+            </td>
+            <td style="vertical-align: middle; text-align: left;">
+              <div style="font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #0b132b; line-height: 1;">Assessia</div>
+              <div style="font-size: 11px; font-weight: 600; color: #0891b2; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 3px;">by Orivastra</div>
+            </td>
+          </tr>
+        </table>
+        <div style="font-size: 12px; font-style: italic; color: #64748b; margin-top: 10px;">
+          &ldquo;Measure Learning. Empower Progress.&rdquo;
+        </div>
+        <div style="height: 1px; background: #f1f5f9; margin-top: 20px;"></div>
       </div>
-      <div class="note">
-        Undangan ini berlaku selama <strong>7 hari</strong>. Email Anda telah terverifikasi secara otomatis saat mendaftar melalui tautan ini.
-        <div class="url-fallback">
-          Atau salin tautan berikut ke browser:<br>
-          ${inviteUrl}
+
+      <!-- Main Content -->
+      <div class="content" style="padding: 0 36px 36px 36px;">
+        <div class="badge" style="display: inline-block; background: #ecfeff; border: 1px solid #a5f3fc; border-radius: 9999px; padding: 5px 14px; font-size: 11px; font-weight: 700; color: #0891b2; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 18px;">
+          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #06B6D4; margin-right: 6px; vertical-align: middle;"></span>Undangan Kolaborasi Pengajar
+        </div>
+
+        <h1 style="margin: 0 0 12px 0; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
+          Undangan Bergabung sebagai Guru ✨
+        </h1>
+
+        <p style="margin: 0 0 16px 0; font-size: 14.5px; line-height: 1.65; color: #475569;">
+          Anda telah diundang ${invitedByName ? `oleh <strong>${invitedByName}</strong> ` : ''}untuk bergabung sebagai Guru pada platform penilaian modern <strong>Assessia</strong>.
+        </p>
+
+        <p style="margin: 0 0 20px 0; font-size: 14.5px; line-height: 1.65; color: #475569;">
+          Silakan klik tautan di bawah ini untuk menerima undangan, melengkapi profil pendidik, dan membuat kata sandi akun Anda.
+        </p>
+
+        <!-- CTA Box -->
+        <div style="background: #fafafa; border: 1px solid #f1f5f9; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
+          <div style="font-size: 13px; color: #64748b; margin-bottom: 16px; font-weight: 500;">
+            Tekan tautan di bawah untuk menerima undangan dan membuat kata sandi Anda:
+          </div>
+          <a href="${inviteUrl}" class="btn" style="display: inline-block; background: linear-gradient(135deg, #0284c7 0%, #2563EB 60%, #7C3AED 100%); color: #ffffff !important; text-decoration: none; padding: 13px 36px; border-radius: 10px; font-size: 14.5px; font-weight: 700; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);">
+            Terima Undangan &amp; Aktivasi Akun &rarr;
+          </a>
+          <div style="font-size: 11.5px; color: #94a3b8; margin-top: 14px;">
+            ⏱ Undangan ini berlaku selama <strong>7 hari</strong>
+          </div>
+        </div>
+
+        <!-- Security / Fallback -->
+        <div style="background: #f8fafc; border-left: 3px solid #06b6d4; border-radius: 0 8px 8px 0; padding: 14px 18px; margin-top: 24px;">
+          <div style="font-size: 12px; color: #475569; line-height: 1.6;">
+            <strong>Tautan Alternatif:</strong> Jika Anda mengalami kendala saat menekan tombol, salin dan buka tautan peramban berikut:
+            <div style="margin-top: 6px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; font-size: 11px; color: #0284c7; word-break: break-all; background: #ffffff; padding: 8px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              ${inviteUrl}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="footer">
-      &copy; 2026 Secure CBT — SMK Informatika Wonosobo. All rights reserved.
+
+      <!-- Footer -->
+      <div class="footer" style="background: #f8fafc; border-top: 1px solid #f1f5f9; padding: 24px 32px; text-align: center;">
+        <div style="font-size: 12.5px; font-weight: 800; color: #1e293b; letter-spacing: 0.06em; text-transform: uppercase;">
+          ASSESSIA
+        </div>
+        <div style="font-size: 11.5px; font-style: italic; color: #64748b; margin-top: 2px;">
+          &ldquo;Measure Learning. Empower Progress.&rdquo;
+        </div>
+        <div style="height: 1px; width: 60px; background: #e2e8f0; margin: 12px auto;"></div>
+        <div style="font-size: 11px; color: #94a3b8; line-height: 1.6;">
+          Dikembangkan oleh <strong>Orivastra</strong> &bull; <em>&ldquo;From Origin to the Stars.&rdquo;</em><br>
+          &copy; 2026 Assessia — Orivastra. Seluruh hak cipta dilindungi undang-undang.
+        </div>
+      </div>
     </div>
   </div>
 </body>
@@ -210,54 +311,105 @@ export class EmailService {
     resetToken: string,
   ): Promise<boolean> {
     const resetUrl = `${this.appUrl}/reset-password?token=${encodeURIComponent(resetToken)}`;
-    const subject = 'Atur Ulang Kata Sandi - Secure CBT';
+    const subject = 'Atur Ulang Kata Sandi - Assessia';
 
     const html = `
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b; }
-    .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-    .header { background: #0f172a; padding: 28px; text-align: center; color: #ffffff; }
-    .header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-    .header p { margin: 6px 0 0 0; color: #94a3b8; font-size: 13px; }
-    .content { padding: 32px; }
-    .greeting { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
-    .body-text { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px; }
-    .btn-container { text-align: center; margin: 32px 0; }
-    .btn { display: inline-block; background-color: #2563eb; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; }
-    .btn:hover { background-color: #1d4ed8; }
-    .note { font-size: 12px; color: #64748b; line-height: 1.5; border-top: 1px solid #e2e8f0; padding-top: 20px; }
-    .url-fallback { word-break: break-all; color: #2563eb; font-size: 12px; margin-top: 8px; }
-    .footer { background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; }
+    body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1e293b; }
+    .wrapper { width: 100%; background-color: #f1f5f9; padding: 36px 12px; box-sizing: border-box; }
+    .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08), 0 0 1px 1px rgba(15, 23, 42, 0.04); border: 1px solid #e2e8f0; }
+    .ribbon { height: 6px; background: linear-gradient(90deg, #ec4899 0%, #7C3AED 50%, #2563EB 100%); }
+    .header { padding: 36px 32px 20px 32px; text-align: center; background: #ffffff; }
+    .content { padding: 0 36px 36px 36px; }
+    .badge { display: inline-block; background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 9999px; padding: 5px 14px; font-size: 11px; font-weight: 700; color: #be185d; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 18px; }
+    .btn { display: inline-block; background: linear-gradient(135deg, #7C3AED 0%, #2563EB 100%); color: #ffffff !important; text-decoration: none; padding: 13px 36px; border-radius: 10px; font-size: 14.5px; font-weight: 700; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); }
+    .footer { background: #f8fafc; border-top: 1px solid #f1f5f9; padding: 24px 32px; text-align: center; }
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Secure CBT</h1>
-      <p>SMK Informatika Wonosobo</p>
-    </div>
-    <div class="content">
-      <div class="greeting">Halo, ${name}!</div>
-      <p class="body-text">
-        Kami menerima permintaan untuk mengatur ulang kata sandi akun Secure CBT Anda. Silakan klik tombol di bawah ini untuk membuat kata sandi baru.
-      </p>
-      <div class="btn-container">
-        <a href="${resetUrl}" class="btn">Atur Ulang Kata Sandi</a>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  <div class="wrapper" style="width: 100%; background-color: #f1f5f9; padding: 36px 12px; box-sizing: border-box;">
+    <div class="container" style="max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0;">
+      <!-- Aurora Gradient Ribbon -->
+      <div class="ribbon" style="height: 6px; background: linear-gradient(90deg, #ec4899 0%, #7C3AED 50%, #2563EB 100%);"></div>
+
+      <!-- Header -->
+      <div class="header" style="padding: 36px 32px 20px 32px; text-align: center; background: #ffffff;">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+          <tr>
+            <td style="vertical-align: middle; padding-right: 12px;">
+              <img src="${this.appUrl}/logo-only-light.png" alt="Assessia" width="44" height="44" style="display: block; border: 0; outline: none; object-fit: contain;" />
+            </td>
+            <td style="vertical-align: middle; text-align: left;">
+              <div style="font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #0b132b; line-height: 1;">Assessia</div>
+              <div style="font-size: 11px; font-weight: 600; color: #7c3aed; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 3px;">by Orivastra</div>
+            </td>
+          </tr>
+        </table>
+        <div style="font-size: 12px; font-style: italic; color: #64748b; margin-top: 10px;">
+          &ldquo;Measure Learning. Empower Progress.&rdquo;
+        </div>
+        <div style="height: 1px; background: #f1f5f9; margin-top: 20px;"></div>
       </div>
-      <div class="note">
-        Tautan reset kata sandi ini berlaku selama <strong>1 jam</strong>. Jika Anda tidak pernah meminta pengaturan ulang kata sandi, akun Anda tetap aman dan Anda dapat mengabaikan email ini.
-        <div class="url-fallback">
-          Atau salin tautan berikut ke browser:<br>
-          ${resetUrl}
+
+      <!-- Main Content -->
+      <div class="content" style="padding: 0 36px 36px 36px;">
+        <div class="badge" style="display: inline-block; background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 9999px; padding: 5px 14px; font-size: 11px; font-weight: 700; color: #be185d; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 18px;">
+          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #ec4899; margin-right: 6px; vertical-align: middle;"></span>Keamanan Akun
+        </div>
+
+        <h1 style="margin: 0 0 12px 0; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
+          Atur Ulang Kata Sandi Akun 🔐
+        </h1>
+
+        <p style="margin: 0 0 16px 0; font-size: 14.5px; line-height: 1.65; color: #475569;">
+          Halo ${name}, kami menerima permintaan pengaturan ulang kata sandi untuk akun pengajar Anda di <strong>Assessia</strong>.
+        </p>
+
+        <p style="margin: 0 0 20px 0; font-size: 14.5px; line-height: 1.65; color: #475569;">
+          Silakan tekan tombol di bawah ini untuk membuat kata sandi baru akun Anda.
+        </p>
+
+        <!-- CTA Box -->
+        <div style="background: #fafafa; border: 1px solid #f1f5f9; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
+          <div style="font-size: 13px; color: #64748b; margin-bottom: 16px; font-weight: 500;">
+            Tekan tombol di bawah untuk membuat kata sandi baru:
+          </div>
+          <a href="${resetUrl}" class="btn" style="display: inline-block; background: linear-gradient(135deg, #7C3AED 0%, #2563EB 100%); color: #ffffff !important; text-decoration: none; padding: 13px 36px; border-radius: 10px; font-size: 14.5px; font-weight: 700; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);">
+            Atur Ulang Kata Sandi &rarr;
+          </a>
+          <div style="font-size: 11.5px; color: #94a3b8; margin-top: 14px;">
+            ⏱ Tautan ini hanya berlaku selama <strong>60 menit</strong>
+          </div>
+        </div>
+
+        <!-- Security Notice -->
+        <div style="background: #fffbeb; border-left: 3px solid #f59e0b; border-radius: 0 8px 8px 0; padding: 14px 18px; margin-top: 24px;">
+          <div style="font-size: 12px; color: #92400e; line-height: 1.6;">
+            <strong>Bukan Anda yang meminta?</strong> Akun Anda tetap aman. Anda dapat mengabaikan email ini dengan aman atau hubungi administrator jika mencurigai aktivitas mencurigakan.
+          </div>
         </div>
       </div>
-    </div>
-    <div class="footer">
-      &copy; 2026 Secure CBT — SMK Informatika Wonosobo. All rights reserved.
+
+      <!-- Footer -->
+      <div class="footer" style="background: #f8fafc; border-top: 1px solid #f1f5f9; padding: 24px 32px; text-align: center;">
+        <div style="font-size: 12.5px; font-weight: 800; color: #1e293b; letter-spacing: 0.06em; text-transform: uppercase;">
+          ASSESSIA
+        </div>
+        <div style="font-size: 11.5px; font-style: italic; color: #64748b; margin-top: 2px;">
+          &ldquo;Measure Learning. Empower Progress.&rdquo;
+        </div>
+        <div style="height: 1px; width: 60px; background: #e2e8f0; margin: 12px auto;"></div>
+        <div style="font-size: 11px; color: #94a3b8; line-height: 1.6;">
+          Dikembangkan oleh <strong>Orivastra</strong> &bull; <em>&ldquo;From Origin to the Stars.&rdquo;</em><br>
+          &copy; 2026 Assessia — Orivastra. Seluruh hak cipta dilindungi undang-undang.
+        </div>
+      </div>
     </div>
   </div>
 </body>

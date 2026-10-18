@@ -11,7 +11,7 @@ describe('ChangelogModal', () => {
   });
 
   it('renders changelog entries with versions, release dates, and categories', () => {
-    const latest = CHANGELOG_ENTRIES[0];
+    const latest = CHANGELOG_ENTRIES[0]!;
 
     render(
       <ChangelogModal
@@ -27,7 +27,7 @@ describe('ChangelogModal', () => {
 
   it('calls onClose and updates localStorage with latest seen version when closed', () => {
     const onClose = vi.fn();
-    const latest = CHANGELOG_ENTRIES[0];
+    const latest = CHANGELOG_ENTRIES[0]!;
 
     render(
       <ChangelogModal

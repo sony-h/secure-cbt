@@ -35,6 +35,7 @@ import { cn } from '@/lib/utils';
 import { StudentSessionReviewModal } from '@/components/reports/student-session-review-modal';
 import { ItemAnalysisView } from '@/components/reports/item-analysis-view';
 import { FormalReportModal } from '@/components/reports/formal-report-modal';
+import { SubpageHero } from '@/components/dashboard/subpage-hero';
 
 interface Exam { id: string; title: string; subject?: { name: string }; status: string; _count?: { exam_sessions: number }; }
 interface ClassItem { id: string; name: string; major?: { name: string }; }
@@ -275,26 +276,23 @@ function ReportsPageContent() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between print:hidden">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Laporan</h1>
-          <p className="text-muted-foreground">Lihat hasil ujian dan nilai siswa</p>
-        </div>
-      </div>
+      <SubpageHero
+        className="print:hidden"
+        icon={BarChart3}
+        title="Laporan & Rekapitulasi Asesmen"
+        subtitle="Analisis butir soal, kalkulasi statistik daya pembeda, rekapitulasi nilai kelas, dan cetak laporan resmi berstandar institusi."
+        badges={[
+          { label: 'Analisis Butir Soal ANBK', variant: 'violet' },
+          { label: `Standar KKM: ${settings?.passing_grade ?? 70}`, variant: 'cyan' },
+        ]}
+        stats={[
+          { label: 'Peserta', value: results?.length || 0 },
+          { label: 'Rata-rata', value: averageScore, accent: '#06B6D4' },
+          { label: 'Tuntas', value: passedCount, accent: '#10B981' },
+        ]}
+      />
 
-      <div className="grid grid-cols-3 gap-4 print:grid-cols-3 print:gap-2">
-        <Card className="print:border print:shadow-none">
-          <CardContent className="pt-6"><div className="flex items-center gap-3"><FileText className="h-5 w-5 text-muted-foreground print:hidden" /><div><p className="text-xs text-muted-foreground">Total Peserta</p><p className="text-2xl font-bold">{results?.length || 0}</p></div></div></CardContent>
-        </Card>
-        <Card className="print:border print:shadow-none">
-          <CardContent className="pt-6"><div className="flex items-center gap-3"><BarChart3 className="h-5 w-5 text-primary print:hidden" /><div><p className="text-xs text-muted-foreground">Rata-rata Nilai</p><p className="text-2xl font-bold">{averageScore}</p></div></div></CardContent>
-        </Card>
-        <Card className="print:border print:shadow-none">
-          <CardContent className="pt-6"><div className="flex items-center gap-3"><Download className="h-5 w-5 text-green-600 print:hidden" /><div><p className="text-xs text-muted-foreground">Lulus (Kriteria &ge; {settings?.passing_grade ?? 70})</p><p className="text-2xl font-bold text-green-600 print:text-slate-900">{passedCount}</p></div></div></CardContent>
-        </Card>
-      </div>
-
-      <Card className="print:border-0 print:shadow-none">
+      <Card className="print:border-0 print:shadow-none rounded-2xl border-slate-200/80 dark:border-slate-800/80 shadow-xs">
         <CardHeader className="print:hidden"><CardTitle>Hasil Ujian</CardTitle><CardDescription>Pilih ujian dan kelas untuk melihat hasil</CardDescription></CardHeader>
         <CardContent>
           <div className="flex items-end gap-3 mb-6 print:hidden">
