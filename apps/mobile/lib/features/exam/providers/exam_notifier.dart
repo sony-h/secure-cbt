@@ -315,7 +315,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
     AppLogger.warn('Violation: $event (warning $newCount / ${state.warningLimit})');
     _onViolation?.call(event, newCount, state.sessionId);
 
-    if (newCount >= state.warningLimit) {
+    if (state.warningLimit > 0 && newCount >= state.warningLimit) {
       AppLogger.error('Warning limit exceeded! Auto-submitting exam.');
       _onForceSubmit?.call();
     }

@@ -130,13 +130,11 @@ export class SessionService {
       ? (exam.is_random_pool ? candidatePool : shuffle(ordered))
       : (exam.is_random_pool ? ordered : ordered);
 
-    // Persist shuffled order or pooled subset so resume() can restore it
-    if (exam.randomize_questions || exam.is_random_pool) {
-      await this.prisma.examSession.update({
-        where: { id: session.id },
-        data: { question_order: finalOrder.map((eq) => eq.id) },
-      });
-    }
+    // Persist question order deterministically so resume() and grading restore it reliably
+    await this.prisma.examSession.update({
+      where: { id: session.id },
+      data: { question_order: finalOrder.map((eq) => eq.id) },
+    });
 
     const questions = finalOrder.map((eq) => {
       const opts = exam.randomize_answers
@@ -195,7 +193,7 @@ export class SessionService {
     if (resumed_from_exit) {
       warningCount += 1;
       const warningLimit = session.exam?.warning_limit ?? 5;
-      if (warningCount >= warningLimit && session.exam?.auto_submit_enabled) {
+      if (warningLimit > 0 && warningCount >= warningLimit && session.exam?.auto_submit_enabled) {
         autoSubmitRequired = true;
       }
 

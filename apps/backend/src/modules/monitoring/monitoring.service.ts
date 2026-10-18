@@ -97,7 +97,7 @@ export class MonitoringService {
 
     // Check if warning limit exceeded
     const exam = await this.prisma.exam.findUnique({ where: { id: session.exam_id } });
-    if (exam && updated.warning_count >= exam.warning_limit && exam.auto_submit_enabled) {
+    if (exam && exam.warning_limit > 0 && updated.warning_count >= exam.warning_limit && exam.auto_submit_enabled) {
       await this.sessionService.autoSubmit(sessionId);
     }
 

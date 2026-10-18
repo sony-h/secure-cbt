@@ -41,6 +41,16 @@ describe('createExamSchema with Random Pool & Difficulty Point Weights', () => {
     expect(parsed.pool_mode).toBe('BALANCED');
   });
 
+  it('parses valid exam when is_random_pool is false and pool_question_count is null', () => {
+    const parsed = createExamSchema.parse({
+      ...baseValidExam,
+      is_random_pool: false,
+      pool_question_count: null,
+    });
+    expect(parsed.is_random_pool).toBe(false);
+    expect(parsed.pool_question_count).toBeNull();
+  });
+
   it('rejects non-positive points or pool_question_count', () => {
     expect(() =>
       createExamSchema.parse({
