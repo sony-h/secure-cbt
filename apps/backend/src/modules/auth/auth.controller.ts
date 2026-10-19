@@ -33,7 +33,10 @@ export class AuthController {
   ) {}
 
   @Post('login')
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  // NOTE: students on the school network share ONE public IP (NAT), so this per-IP
+  // limit is effectively school-wide — keep it generous or logins will 429 during
+  // exam starts. Tune via THROTTLE_LOGIN_LIMIT (default 600/min).
+  @Throttle({ default: { limit: Number(process.env.THROTTLE_LOGIN_LIMIT) || 600, ttl: 60000 } })
   @ApiOperation({ summary: 'Login with username and password' })
   async login(@Body() body: LoginDto) {
     const result = await this.authService.login(body);
