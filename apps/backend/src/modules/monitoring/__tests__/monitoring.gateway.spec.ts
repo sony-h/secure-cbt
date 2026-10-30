@@ -113,9 +113,9 @@ describe('MonitoringGateway', () => {
         message: 'Ujian dikumpulkan oleh pengawas',
       });
 
-      // Targeted student gets the event
-      expect(mockServer.to).toHaveBeenCalledWith('socket-student-123');
+      // Targeted student gets the event via student room (not raw socketId to avoid duplicate delivery)
       expect(mockServer.to).toHaveBeenCalledWith('student:student-user-1');
+      expect(mockServer.to).not.toHaveBeenCalledWith('socket-student-123');
 
       // Proctors room gets the event
       expect(mockServer.to).toHaveBeenCalledWith('exam:exam-1:proctors');
@@ -162,9 +162,9 @@ describe('MonitoringGateway', () => {
         timestamp: '2026-10-16T10:00:00Z',
       });
 
-      // Targeted student socket and room
-      expect(mockServer.to).toHaveBeenCalledWith('socket-student-456');
+      // Targeted student room (not raw socketId to avoid duplicate delivery)
       expect(mockServer.to).toHaveBeenCalledWith('student:student-user-456');
+      expect(mockServer.to).not.toHaveBeenCalledWith('socket-student-456');
 
       // Proctor room
       expect(mockServer.to).toHaveBeenCalledWith('exam:exam-1:proctors');
