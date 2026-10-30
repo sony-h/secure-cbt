@@ -720,14 +720,99 @@ export class SessionService {
     return updated;
   }
 
+  async adjustWarnings(
+    sessionId: string,
+    delta: number,
+    proctorUserId: string,
+    userRole?: string,
+  ) {
+    if (!delta || delta === 0) {
+      throw new BadRequestException('Perubahan poin pelanggaran tidak boleh 0');
+    }
+
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { full_name: true, user_id: true } },
+        exam: { select: { subject_id: true, warning_limit: true, auto_submit_enabled: true } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    if (userRole === UserRole.TEACHER && proctorUserId) {
+      const scope = await getTeacherScope(this.prisma, proctorUserId);
+      assertTeacherMonitorAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak memiliki izin memantau atau mengelola sesi ujian ini',
+      );
+    }
+
+    if (
+      session.status === SessionStatus.SUBMITTED ||
+      session.status === SessionStatus.AUTO_SUBMITTED ||
+      session.status === SessionStatus.EXPIRED
+    ) {
+      throw new BadRequestException('Tidak dapat mengubah poin pelanggaran untuk sesi yang sudah selesai');
+    }
+
+    const currentWarnings = session.warning_count ?? 0;
+    const newWarnings = Math.max(0, currentWarnings + delta);
+    const proctorName = await this.resolveProctorName(proctorUserId);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedSession = await tx.examSession.update({
+        where: { id: sessionId },
+        data: { warning_count: newWarnings },
+      });
+
+      const logEvent = delta > 0 ? 'WARNING_ADDED' : 'WARNING_REDUCED';
+      const logDescription =
+        delta > 0
+          ? `Poin pelanggaran (+${delta}) ditambahkan oleh pengawas (${proctorName}). Total: ${newWarnings}`
+          : `Poin pelanggaran (${delta}) dikurangi oleh pengawas (${proctorName}). Total: ${newWarnings}`;
+
+      await tx.sessionLog.create({
+        data: {
+          exam_session_id: sessionId,
+          event: logEvent,
+          description: logDescription,
+        },
+      });
+
+      return updatedSession;
+    });
+
+    this.eventEmitter.emit(SocketEvent.SESSION_WARNINGS_ADJUSTED, {
+      sessionId: session.id,
+      examId: session.exam_id,
+      studentId: session.student_id,
+      studentUserId: session.student.user_id,
+      studentName: session.student.full_name,
+      warningCount: newWarnings,
+      delta,
+    });
+
+    const limit = session.exam.warning_limit ?? 0;
+    if (delta > 0 && limit > 0 && newWarnings >= limit && session.exam.auto_submit_enabled) {
+      try {
+        await this.autoSubmit(session.id, 'Batas poin pelanggaran tercapai');
+      } catch (err) {
+        this.logger.error(`Failed to auto-submit session ${session.id} after manual strike limit reached`, err);
+      }
+    }
+
+    return updated;
+  }
+
   async extendTime(
     sessionId: string,
     additionalMinutes: number,
     proctorUserId: string,
     userRole?: string,
   ) {
-    if (!additionalMinutes || additionalMinutes <= 0) {
-      throw new BadRequestException('Menit tambahan harus lebih besar dari 0');
+    if (!additionalMinutes || additionalMinutes === 0) {
+      throw new BadRequestException('Perubahan waktu ujian tidak boleh 0 menit');
     }
 
     const session = await this.prisma.examSession.findUnique({
@@ -753,12 +838,12 @@ export class SessionService {
       session.status === SessionStatus.AUTO_SUBMITTED ||
       session.status === SessionStatus.EXPIRED
     ) {
-      throw new BadRequestException('Tidak dapat menambah waktu untuk sesi ujian yang sudah selesai');
+      throw new BadRequestException('Tidak dapat mengubah waktu untuk sesi ujian yang sudah selesai');
     }
 
     const additionalSeconds = additionalMinutes * 60;
     const currentRemaining = session.remaining_time_seconds ?? 0;
-    const newRemaining = currentRemaining + additionalSeconds;
+    const newRemaining = Math.max(0, currentRemaining + additionalSeconds);
     const proctorName = await this.resolveProctorName(proctorUserId);
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -767,11 +852,17 @@ export class SessionService {
         data: { remaining_time_seconds: newRemaining },
       });
 
+      const logEvent = additionalMinutes > 0 ? 'TIME_EXTENDED' : 'TIME_REDUCED';
+      const logDescription =
+        additionalMinutes > 0
+          ? `Waktu ujian ditambah ${additionalMinutes} menit oleh pengawas (${proctorName})`
+          : `Waktu ujian dikurangi ${Math.abs(additionalMinutes)} menit oleh pengawas (${proctorName})`;
+
       await tx.sessionLog.create({
         data: {
           exam_session_id: sessionId,
-          event: 'TIME_EXTENDED',
-          description: `Waktu ujian ditambah ${additionalMinutes} menit oleh pengawas (${proctorName})`,
+          event: logEvent,
+          description: logDescription,
         },
       });
 

@@ -803,10 +803,120 @@ describe('SessionService', () => {
     });
   });
 
+  describe('adjustWarnings()', () => {
+    it('should throw NotFoundException if session not found', async () => {
+      mockPrisma.examSession.findUnique.mockResolvedValue(null);
+      await expect((service as any).adjustWarnings(UUID(), 1, 'proctor-1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should increment warning count on positive delta and emit SESSION_WARNINGS_ADJUSTED', async () => {
+      const sessionId = UUID();
+      const examId = UUID();
+      const studentId = UUID();
+      const studentUserId = 'user-std';
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        exam_id: examId,
+        student_id: studentId,
+        warning_count: 1,
+        exam: { warning_limit: 3, auto_submit_enabled: true },
+        student: { full_name: 'Student Strike', user_id: studentUserId },
+      });
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.examSession = {
+          update: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: sessionId, ...data })),
+        };
+        tx.sessionLog = { create: vi.fn().mockResolvedValue({}) };
+        return fn(tx);
+      });
+
+      const result = await (service as any).adjustWarnings(sessionId, 1, 'proctor-1');
+      expect(result.warning_count).toBe(2);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(SocketEvent.SESSION_WARNINGS_ADJUSTED, expect.objectContaining({
+        sessionId,
+        examId,
+        studentUserId,
+        warningCount: 2,
+        delta: 1,
+      }));
+    });
+
+    it('should decrement warning count on negative delta and clamp to 0', async () => {
+      const sessionId = UUID();
+      const examId = UUID();
+      const studentId = UUID();
+      const studentUserId = 'user-std';
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        exam_id: examId,
+        student_id: studentId,
+        warning_count: 1,
+        exam: { warning_limit: 3, auto_submit_enabled: true },
+        student: { full_name: 'Student Strike', user_id: studentUserId },
+      });
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.examSession = {
+          update: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: sessionId, ...data })),
+        };
+        tx.sessionLog = { create: vi.fn().mockResolvedValue({}) };
+        return fn(tx);
+      });
+
+      const result = await (service as any).adjustWarnings(sessionId, -2, 'proctor-1');
+      expect(result.warning_count).toBe(0);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(SocketEvent.SESSION_WARNINGS_ADJUSTED, expect.objectContaining({
+        sessionId,
+        examId,
+        studentUserId,
+        warningCount: 0,
+        delta: -2,
+      }));
+    });
+  });
+
   describe('extendTime()', () => {
-    it('should throw BadRequestException if additional minutes <= 0', async () => {
+    it('should throw BadRequestException if additional minutes === 0', async () => {
       await expect(service.extendTime(UUID(), 0, 'proctor-1')).rejects.toThrow(BadRequestException);
-      await expect(service.extendTime(UUID(), -5, 'proctor-1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reduce remaining time when additional minutes is negative and clamp to 0', async () => {
+      const sessionId = UUID();
+      const examId = UUID();
+      const studentId = UUID();
+      const studentUserId = 'user-std';
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        exam_id: examId,
+        student_id: studentId,
+        status: SessionStatus.ACTIVE,
+        remaining_time_seconds: 120, // 2 minutes
+        student: { full_name: 'Active Student', user_id: studentUserId },
+      });
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.examSession = {
+          update: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: sessionId, ...data })),
+        };
+        tx.sessionLog = { create: vi.fn().mockResolvedValue({}) };
+        return fn(tx);
+      });
+
+      // -5 minutes (-300 seconds) from 120 seconds should clamp to 0
+      const result = await service.extendTime(sessionId, -5, 'proctor-1');
+      expect(result.remaining_time_seconds).toBe(0);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(SocketEvent.SESSION_TIME_EXTENDED, expect.objectContaining({
+        sessionId,
+        examId,
+        studentUserId,
+        additionalMinutes: -5,
+        additionalSeconds: -300,
+        remainingTimeSeconds: 0,
+      }));
     });
 
     it('should throw NotFoundException if session not found', async () => {

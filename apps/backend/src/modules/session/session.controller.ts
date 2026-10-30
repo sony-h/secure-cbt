@@ -81,6 +81,18 @@ export class SessionController {
     return { success: true, message: 'Warnings reset to 0', data };
   }
 
+  @Post(':id/adjust-warnings')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Adjust session warning strikes (+1, -1)' })
+  async adjustWarnings(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') sessionId: string,
+    @Body() body: { delta: number },
+  ) {
+    const data = await this.sessionService.adjustWarnings(sessionId, body.delta, req.user.sub, req.user.role);
+    return { success: true, message: 'Session warnings adjusted', data };
+  }
+
   @Post(':id/extend-time')
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Extend session remaining time' })
