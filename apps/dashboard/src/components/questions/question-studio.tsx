@@ -46,6 +46,7 @@ export interface QuestionStudioData {
   audio_url?: string | null;
   audio_play_limit?: number | null;
   difficulty: string;
+  case_sensitive?: boolean;
   explanation: string;
   options: { content: string; is_correct: boolean; image_url?: string | null }[];
   tags: string[];
@@ -74,6 +75,7 @@ export const defaultQuestionStudioData: QuestionStudioData = {
   audio_url: null,
   audio_play_limit: 2,
   difficulty: 'MEDIUM',
+  case_sensitive: false,
   explanation: '',
   options: [
     { content: '', is_correct: true, image_url: null },
@@ -193,6 +195,7 @@ export function QuestionStudio({
         ? (form.audio_play_limit !== undefined ? form.audio_play_limit : 2)
         : null,
       difficulty: form.difficulty,
+      case_sensitive: form.type === 'SHORT_ANSWER' ? Boolean(form.case_sensitive) : false,
       explanation: form.explanation.trim() || null,
       options:
         form.type === 'ESSAY'
@@ -578,8 +581,34 @@ export function QuestionStudio({
                   <Plus className="h-3.5 w-3.5" /> Tambah Variasi Kunci
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {form.options.map((opt, idx) => (
+              <CardContent className="space-y-4">
+                <div className="flex items-start gap-3 rounded-lg border border-border/70 bg-muted/30 p-3">
+                  <Checkbox
+                    id="case-insensitive-toggle"
+                    checked={!form.case_sensitive}
+                    onCheckedChange={(checked) =>
+                      setForm({
+                        ...form,
+                        case_sensitive: !Boolean(checked),
+                      })
+                    }
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-0.5">
+                    <Label
+                      htmlFor="case-insensitive-toggle"
+                      className="text-xs font-semibold cursor-pointer select-none"
+                    >
+                      Abaikan huruf besar / kecil (Accept all cases)
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground leading-normal">
+                      Bila dicentang, jawaban seperti &quot;jakarta&quot;, &quot;Jakarta&quot;, dan &quot;JAKARTA&quot; dianggap sama dan dinilai benar.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {form.options.map((opt, idx) => (
                   <div key={idx} className="flex items-center gap-3">
                     <span className="w-6 text-xs font-bold text-muted-foreground shrink-0 text-center">
                       #{idx + 1}
@@ -621,6 +650,7 @@ export function QuestionStudio({
                     )}
                   </div>
                 ))}
+                </div>
               </CardContent>
             </Card>
           )}
