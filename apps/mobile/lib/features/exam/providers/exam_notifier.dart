@@ -135,6 +135,10 @@ class ExamNotifier extends StateNotifier<ExamState> {
     final clamped = count < 0 ? 0 : count;
     state = state.copyWith(warningCount: clamped);
     AppLogger.info('Warning count updated to: $clamped');
+
+    if (state.warningLimit > 0 && clamped >= state.warningLimit) {
+      _onForceSubmit?.call();
+    }
   }
 
   void resetWarnings() {

@@ -97,4 +97,24 @@ describe('StudentActionDialog', () => {
       expect(apiService.sessionApi.extendTime).toHaveBeenCalledWith('sess-123', -5);
     });
   });
+
+  it('should disable strike steppers and reset button if session is EXPIRED', () => {
+    const expiredSession = {
+      ...mockSession,
+      status: 'EXPIRED',
+      warning_count: 2,
+    };
+
+    render(
+      <StudentActionDialog
+        session={expiredSession}
+        open={true}
+        onOpenChange={() => {}}
+      />
+    );
+
+    expect((screen.getByText('+1 Strike').closest('button') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('-1 Strike').closest('button') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('Reset 0').closest('button') as HTMLButtonElement).disabled).toBe(true);
+  });
 });

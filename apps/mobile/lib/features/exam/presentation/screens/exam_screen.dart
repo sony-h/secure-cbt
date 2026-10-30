@@ -150,6 +150,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
 
       // Load local answers from Drift SQLite and merge with remote answers
       final localAnswers = await ref.read(localDatabaseProvider).getAllAnswers(widget.sessionId);
+      if (!mounted) return;
       final remoteAnswersRaw = session['answers'];
       final Map<String, String> mergedAnswers = {};
       if (remoteAnswersRaw is Map) {

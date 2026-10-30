@@ -796,7 +796,15 @@ export class SessionService {
     const limit = session.exam.warning_limit ?? 0;
     if (delta > 0 && limit > 0 && newWarnings >= limit && session.exam.auto_submit_enabled) {
       try {
-        await this.autoSubmit(session.id, 'Batas poin pelanggaran tercapai');
+        await this.autoSubmit(session.id);
+        this.eventEmitter.emit(SocketEvent.SESSION_FORCE_SUBMIT, {
+          sessionId: session.id,
+          examId: session.exam_id,
+          studentId: session.student_id,
+          studentUserId: session.student.user_id,
+          studentName: session.student.full_name,
+          message: 'Batas poin pelanggaran tercapai. Ujian dikumpulkan otomatis.',
+        });
       } catch (err) {
         this.logger.error(`Failed to auto-submit session ${session.id} after manual strike limit reached`, err);
       }

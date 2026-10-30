@@ -327,4 +327,74 @@ describe('QuestionBankService - Deletion & Exam Guard', () => {
       expect(res?.audio_play_limit).toBe(1);
     });
   });
+
+  describe('create() & update() with case_sensitive', () => {
+    it('should persist case_sensitive when creating a question', async () => {
+      const bankId = UUID();
+      const questionId = UUID();
+      mockPrisma.questionBank.findUnique.mockResolvedValue({ id: bankId });
+      mockPrisma.question.create.mockResolvedValue({
+        id: questionId,
+        question_bank_id: bankId,
+        type: QuestionType.SHORT_ANSWER,
+        content: 'Ibukota Indonesia?',
+        case_sensitive: true,
+      });
+      mockPrisma.question.findUnique.mockResolvedValue({
+        id: questionId,
+        question_bank_id: bankId,
+        type: QuestionType.SHORT_ANSWER,
+        content: 'Ibukota Indonesia?',
+        case_sensitive: true,
+        options: [],
+        tags: [],
+      });
+
+      const res = await service.create({
+        question_bank_id: bankId,
+        type: QuestionType.SHORT_ANSWER,
+        content: 'Ibukota Indonesia?',
+        difficulty: 'MEDIUM' as any,
+        case_sensitive: true,
+        options: [{ content: 'IKN Nusantara', is_correct: true }],
+      });
+
+      expect(mockPrisma.question.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          case_sensitive: true,
+        }),
+      });
+      expect(res?.case_sensitive).toBe(true);
+    });
+
+    it('should update case_sensitive when updating a question', async () => {
+      const questionId = UUID();
+      mockPrisma.question.findFirst.mockResolvedValue({
+        id: questionId,
+        deleted_at: null,
+      });
+      mockPrisma.question.update.mockResolvedValue({
+        id: questionId,
+        case_sensitive: true,
+      });
+      mockPrisma.question.findUnique.mockResolvedValue({
+        id: questionId,
+        case_sensitive: true,
+        options: [],
+        tags: [],
+      });
+
+      const res = await service.update(questionId, {
+        case_sensitive: true,
+      });
+
+      expect(mockPrisma.question.update).toHaveBeenCalledWith({
+        where: { id: questionId },
+        data: expect.objectContaining({
+          case_sensitive: true,
+        }),
+      });
+      expect(res?.case_sensitive).toBe(true);
+    });
+  });
 });

@@ -876,6 +876,41 @@ describe('SessionService', () => {
         delta: -2,
       }));
     });
+
+    it('should auto-submit and emit SESSION_FORCE_SUBMIT when positive delta reaches or exceeds warning_limit', async () => {
+      const sessionId = UUID();
+      const examId = UUID();
+      const studentId = UUID();
+      const studentUserId = 'user-std-max';
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        exam_id: examId,
+        student_id: studentId,
+        warning_count: 2,
+        exam: { warning_limit: 3, auto_submit_enabled: true },
+        student: { full_name: 'Student Strike Limit', user_id: studentUserId },
+      });
+
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.examSession = {
+          update: vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: sessionId, ...data })),
+        };
+        tx.sessionLog = { create: vi.fn().mockResolvedValue({}) };
+        return fn(tx);
+      });
+
+      const autoSubmitSpy = vi.spyOn(service as any, 'autoSubmit').mockResolvedValue({ id: sessionId, status: SessionStatus.AUTO_SUBMITTED });
+
+      await (service as any).adjustWarnings(sessionId, 1, 'proctor-1');
+
+      expect(autoSubmitSpy).toHaveBeenCalledWith(sessionId);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(SocketEvent.SESSION_FORCE_SUBMIT, expect.objectContaining({
+        sessionId,
+        examId,
+        studentUserId,
+      }));
+    });
   });
 
   describe('extendTime()', () => {

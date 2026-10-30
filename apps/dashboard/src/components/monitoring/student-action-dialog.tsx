@@ -58,7 +58,10 @@ export function StudentActionDialog({
 
   if (!session) return null;
 
-  const isCompleted = session.status === 'SUBMITTED' || session.status === 'AUTO_SUBMITTED';
+  const isCompleted =
+    session.status === 'SUBMITTED' ||
+    session.status === 'AUTO_SUBMITTED' ||
+    session.status === 'EXPIRED';
 
   const handleForceSubmit = async () => {
     if (!confirmForceSubmit) {
@@ -288,7 +291,7 @@ export function StudentActionDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={session.warning_count === 0 || loadingAction !== null}
+                disabled={session.warning_count === 0 || isCompleted || loadingAction !== null}
                 onClick={handleResetWarnings}
                 className="rounded-xl text-xs font-bold"
               >

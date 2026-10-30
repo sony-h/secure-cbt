@@ -46,10 +46,10 @@ class _DoubleBackExitWrapperState extends State<DoubleBackExitWrapper> {
 void main() {
   testWidgets('DoubleBackExitWrapper shows snackbar on first back press', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
+      const MaterialApp(
         home: Scaffold(
           body: DoubleBackExitWrapper(
-            child: const Center(child: Text('Home Content')),
+            child: Center(child: Text('Home Content')),
           ),
         ),
       ),
