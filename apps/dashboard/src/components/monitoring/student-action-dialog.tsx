@@ -93,15 +93,31 @@ export function StudentActionDialog({
     }
   };
 
+  const handleAdjustWarnings = async (delta: number) => {
+    try {
+      setLoadingAction(`adjust-warnings-${delta}`);
+      await sessionApi.adjustWarnings(session.id, delta);
+      const actionText = delta > 0 ? `ditambah ${delta}` : `dikurangi ${Math.abs(delta)}`;
+      toast.success(`Peringatan pelanggaran ${session.student.full_name} berhasil ${actionText}`);
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal mengubah poin pelanggaran');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const handleExtendTime = async (minutes: number) => {
     try {
       setLoadingAction(`extend-${minutes}`);
       await sessionApi.extendTime(session.id, minutes);
-      toast.success(`Waktu ujian ${session.student.full_name} berhasil ditambah ${minutes} menit`);
+      const actionText = minutes > 0 ? `ditambah ${minutes}` : `dikurangi ${Math.abs(minutes)}`;
+      toast.success(`Waktu ujian ${session.student.full_name} berhasil ${actionText} menit`);
       onOpenChange(false);
       onSuccess?.();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menambah waktu ujian');
+      toast.error(err.response?.data?.message || 'Gagal mengubah waktu ujian');
     } finally {
       setLoadingAction(null);
     }
@@ -163,55 +179,123 @@ export function StudentActionDialog({
             </div>
           </div>
 
-          {/* Action 1: Extend Time Buttons */}
+          {/* Action 1: Adjust Time Buttons (+ and -) */}
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-primary" /> Tambah Waktu Pengerjaan
+              <Clock className="h-3.5 w-3.5 text-primary" /> Penyesuaian Waktu Ujian
             </label>
-            <div className="grid grid-cols-4 gap-2">
-              {[5, 10, 15, 30].map((mins) => (
-                <Button
-                  key={mins}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isCompleted || loadingAction !== null}
-                  onClick={() => handleExtendTime(mins)}
-                  className="rounded-xl text-xs font-bold hover:bg-primary/10 hover:text-primary hover:border-primary/50 transition-all"
-                >
-                  {loadingAction === `extend-${mins}` ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    `+${mins}m`
-                  )}
-                </Button>
-              ))}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 w-16 shrink-0">
+                  + Tambah:
+                </span>
+                <div className="grid grid-cols-4 gap-1.5 flex-1">
+                  {[5, 10, 15, 30].map((mins) => (
+                    <Button
+                      key={mins}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isCompleted || loadingAction !== null}
+                      onClick={() => handleExtendTime(mins)}
+                      className="rounded-xl text-xs font-bold hover:bg-emerald-500/10 hover:text-emerald-600 hover:border-emerald-500/50 transition-all h-8"
+                    >
+                      {loadingAction === `extend-${mins}` ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        `+${mins}m`
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 w-16 shrink-0">
+                  - Kurangi:
+                </span>
+                <div className="grid grid-cols-4 gap-1.5 flex-1">
+                  {[-5, -10, -15, -30].map((mins) => (
+                    <Button
+                      key={mins}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isCompleted || loadingAction !== null}
+                      onClick={() => handleExtendTime(mins)}
+                      className="rounded-xl text-xs font-bold hover:bg-amber-500/10 hover:text-amber-600 hover:border-amber-500/50 transition-all h-8"
+                    >
+                      {loadingAction === `extend-${mins}` ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        `${mins}m`
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Action 2: Reset Warning Strikes */}
-          <div className="p-3.5 rounded-xl border border-border/80 bg-background space-y-2">
+          {/* Action 2: Strike Controls (+1, -1, Reset 0) */}
+          <div className="p-3.5 rounded-xl border border-border/80 bg-background space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <RotateCcw className="h-3.5 w-3.5 text-amber-500" /> Reset Poin Pelanggaran
+                  <RotateCcw className="h-3.5 w-3.5 text-amber-500" /> Kelola Poin Pelanggaran (Strike)
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Kembalikan jumlah strike peringatan siswa ke 0.
+                  Beri toleransi keringanan, sanksi tambahan (+1), atau reset ke 0.
                 </p>
               </div>
+              <span className={`font-mono font-bold text-xs px-2 py-0.5 rounded-md ${session.warning_count > 0 ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20' : 'bg-muted text-muted-foreground'}`}>
+                {session.warning_count} Strike
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={session.warning_count === 0 || loadingAction !== null || isCompleted}
+                onClick={() => handleAdjustWarnings(-1)}
+                className="rounded-xl text-xs font-bold border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 transition-all"
+              >
+                {loadingAction === 'adjust-warnings--1' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  '-1 Strike'
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isCompleted || loadingAction !== null}
+                onClick={() => handleAdjustWarnings(1)}
+                className="rounded-xl text-xs font-bold border-rose-500/30 text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 transition-all"
+              >
+                {loadingAction === 'adjust-warnings-1' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  '+1 Strike'
+                )}
+              </Button>
+
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 disabled={session.warning_count === 0 || loadingAction !== null}
                 onClick={handleResetWarnings}
-                className="rounded-xl text-xs font-bold shrink-0"
+                className="rounded-xl text-xs font-bold"
               >
                 {loadingAction === 'reset-warnings' ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  'Reset Strike'
+                  'Reset 0'
                 )}
               </Button>
             </div>
