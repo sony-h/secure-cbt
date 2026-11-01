@@ -5,7 +5,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { GradingService } from '../grading/grading.service';
 import {
   StartSessionInput, ResumeSessionInput, SyncTimeInput, SubmitSessionInput,
+  ReopenSessionInput,
   startSessionSchema, resumeSessionSchema, syncTimeSchema, submitSessionSchema,
+  reopenSessionSchema,
   SessionStatus, ExamStatus, SocketEvent, shuffle, UserRole,
 } from '@secure-cbt/shared';
 import { resolveStudentId } from '../../common/helpers/user-resolver.helper';
@@ -946,6 +948,99 @@ export class SessionService {
       studentId: session.student_id,
       studentUserId: session.student.user_id,
       studentName: session.student.full_name,
+    });
+
+    return updated;
+  }
+
+  async reopenSession(
+    sessionId: string,
+    proctorUserId: string,
+    dto: ReopenSessionInput,
+    userRole?: string,
+  ) {
+    const { additional_minutes, reset_strikes } = reopenSessionSchema.parse({
+      ...dto,
+      session_id: sessionId,
+    });
+
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { id: true, full_name: true, user_id: true } },
+        exam: { select: { id: true, subject_id: true, status: true, end_at: true, duration_minutes: true } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    if (userRole === UserRole.TEACHER && proctorUserId) {
+      const scope = await getTeacherScope(this.prisma, proctorUserId);
+      assertTeacherMonitorAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak memiliki izin memantau atau mengelola sesi ujian ini',
+      );
+    }
+
+    if (session.status === SessionStatus.ACTIVE || session.status === SessionStatus.PAUSED) {
+      throw new BadRequestException('Sesi ujian masih berstatus aktif');
+    }
+
+    const now = new Date();
+    if (
+      now > session.exam.end_at ||
+      session.exam.status === ExamStatus.FINISHED ||
+      session.exam.status === ExamStatus.CANCELLED
+    ) {
+      throw new BadRequestException('Jadwal ujian telah berakhir. Sesi tidak dapat dibuka kembali.');
+    }
+
+    const proctorName = await this.resolveProctorName(proctorUserId);
+
+    // Calculate restored remaining time
+    const baseRemaining = session.remaining_time_seconds ?? (session.exam.duration_minutes * 60);
+    const addedSeconds = (additional_minutes ?? 0) * 60;
+    const restoredRemainingTime = Math.max(60, baseRemaining + addedSeconds);
+    const updatedWarningCount = reset_strikes ? 0 : session.warning_count;
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedSession = await tx.examSession.update({
+        where: { id: sessionId },
+        data: {
+          status: SessionStatus.ACTIVE,
+          submitted_at: null,
+          reopened_at: new Date(),
+          reopened_by: proctorUserId,
+          remaining_time_seconds: restoredRemainingTime,
+          warning_count: updatedWarningCount,
+        },
+      });
+
+      // Remove provisional score so it re-grades cleanly upon future submission
+      await tx.score.deleteMany({
+        where: { exam_session_id: sessionId },
+      });
+
+      await tx.sessionLog.create({
+        data: {
+          exam_session_id: sessionId,
+          event: 'SESSION_REOPENED',
+          description: `Sesi dibuka kembali oleh pengawas (${proctorName}). Sisa waktu: ${Math.round(restoredRemainingTime / 60)} menit.${reset_strikes ? ' Peringatan pelanggaran direset ke 0.' : ''}`,
+        },
+      });
+
+      return updatedSession;
+    });
+
+    this.eventEmitter.emit(SocketEvent.SESSION_REOPENED, {
+      sessionId: session.id,
+      examId: session.exam_id,
+      studentId: session.student_id,
+      studentUserId: session.student.user_id,
+      studentName: session.student.full_name,
+      remainingTimeSeconds: restoredRemainingTime,
+      warningCount: updatedWarningCount,
+      reopenedBy: proctorName,
     });
 
     return updated;

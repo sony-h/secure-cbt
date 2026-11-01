@@ -145,4 +145,26 @@ export class MonitoringListener {
       examId: payload.examId,
     });
   }
+
+  @OnEvent(SocketEvent.SESSION_REOPENED)
+  async handleSessionReopened(payload: {
+    sessionId: string;
+    examId: string;
+    studentId: string;
+    studentUserId: string;
+    studentName?: string;
+    remainingTimeSeconds: number;
+    warningCount: number;
+    reopenedBy?: string;
+  }) {
+    this.logger.log(`Session reopened: ${payload.sessionId} by ${payload.reopenedBy}`);
+    this.gateway.notifyStudentAction(payload.studentUserId, payload.examId, SocketEvent.SESSION_REOPENED, {
+      sessionId: payload.sessionId,
+      examId: payload.examId,
+      remainingTimeSeconds: payload.remainingTimeSeconds,
+      warningCount: payload.warningCount,
+      reopenedBy: payload.reopenedBy,
+      message: 'Sesi ujian Anda telah dibuka kembali oleh pengawas',
+    });
+  }
 }

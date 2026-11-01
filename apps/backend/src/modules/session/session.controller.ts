@@ -112,4 +112,21 @@ export class SessionController {
     const data = await this.sessionService.unlockSession(sessionId, req.user.sub, req.user.role);
     return { success: true, message: 'Session unlocked', data };
   }
+
+  @Post(':id/reopen')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Reopen an accidentally submitted exam session' })
+  async reopenSession(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') sessionId: string,
+    @Body() body: { additional_minutes?: number; reset_strikes?: boolean },
+  ) {
+    const data = await this.sessionService.reopenSession(
+      sessionId,
+      req.user.sub,
+      body,
+      req.user.role,
+    );
+    return { success: true, message: 'Session reopened successfully', data };
+  }
 }
