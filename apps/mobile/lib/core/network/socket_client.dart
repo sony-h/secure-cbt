@@ -20,6 +20,8 @@ class MonitoringSocket {
   void Function(Map<String, dynamic> data)? _onForceSubmit;
   void Function(Map<String, dynamic> data)? _onTimeExtended;
   void Function(Map<String, dynamic> data)? _onWarningsReset;
+  void Function(Map<String, dynamic> data)? _onWarningsAdjusted;
+  void Function(Map<String, dynamic> data)? _onSessionUnlocked;
 
   bool get isConnected => _socket?.connected ?? false;
 
@@ -37,6 +39,14 @@ class MonitoringSocket {
 
   void setOnWarningsReset(void Function(Map<String, dynamic> data)? callback) {
     _onWarningsReset = callback;
+  }
+
+  void setOnWarningsAdjusted(void Function(Map<String, dynamic> data)? callback) {
+    _onWarningsAdjusted = callback;
+  }
+
+  void setOnSessionUnlocked(void Function(Map<String, dynamic> data)? callback) {
+    _onSessionUnlocked = callback;
   }
 
   Future<void> connect(String userId, String examId, {String? studentName}) async {
@@ -94,6 +104,22 @@ class MonitoringSocket {
         _onWarningsReset?.call(Map<String, dynamic>.from(data));
       } else {
         _onWarningsReset?.call({});
+      }
+    });
+
+    _socket?.on('session.warnings_adjusted', (data) {
+      AppLogger.info('Monitoring socket received warnings adjusted: $data');
+      if (data is Map) {
+        _onWarningsAdjusted?.call(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket?.on('session.unlocked', (data) {
+      AppLogger.info('Monitoring socket received session unlocked: $data');
+      if (data is Map) {
+        _onSessionUnlocked?.call(Map<String, dynamic>.from(data));
+      } else {
+        _onSessionUnlocked?.call({});
       }
     });
 

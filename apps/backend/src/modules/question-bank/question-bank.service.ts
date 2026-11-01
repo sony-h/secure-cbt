@@ -203,6 +203,7 @@ export class QuestionBankService {
           audio_url: data.audio_url,
           audio_play_limit: data.audio_play_limit,
           difficulty: data.difficulty,
+          case_sensitive: data.case_sensitive ?? false,
           explanation: data.explanation,
         },
       });
@@ -246,6 +247,7 @@ export class QuestionBankService {
           audio_url: data.audio_url,
           audio_play_limit: data.audio_play_limit,
           difficulty: data.difficulty,
+          case_sensitive: data.case_sensitive,
           explanation: data.explanation,
         },
       });

@@ -18,6 +18,7 @@ import 'package:secure_cbt_mobile/features/exam/providers/exam_state.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/exam_app_bar.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/exam_question_card.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/exam_bottom_bar.dart';
+import 'package:secure_cbt_mobile/features/exam/presentation/widgets/exam_notification_banner.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/question_palette.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submit_dialog.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/handlers/exam_submit_handler.dart';
@@ -45,6 +46,22 @@ class ExamScreen extends ConsumerStatefulWidget {
   ConsumerState<ExamScreen> createState() => _ExamScreenState();
 }
 
+class _InExamBannerData {
+  final ExamNotificationBannerType type;
+  final String title;
+  final String message;
+  final String? badgeText;
+  final Duration duration;
+
+  const _InExamBannerData({
+    required this.type,
+    required this.title,
+    required this.message,
+    this.badgeText,
+    this.duration = const Duration(seconds: 6),
+  });
+}
+
 class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObserver {
   late Dio _dio;
   late PageController _pageController;
@@ -52,12 +69,18 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
   ExamViolationHandler? _violationHandler;
   StreamSubscription<bool>? _multiWindowSubscription;
   StreamSubscription<bool>? _windowFocusSubscription;
-  Map<String, dynamic>? _activeBroadcast;
-  Timer? _broadcastTimer;
+  _InExamBannerData? _activeBanner;
   bool _vibrationEnabled = true;
   bool _alarmEnabled = true;
   int _alarmDuration = 3;
   String _alarmSound = 'sharp_beep';
+
+  void _showNotificationBanner(_InExamBannerData banner) {
+    if (!mounted) return;
+    setState(() {
+      _activeBanner = banner;
+    });
+  }
 
   @override
   void initState() {
@@ -71,7 +94,6 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
   @override
   void dispose() {
     ref.read(violationAlarmServiceProvider).stopAlarm();
-    _broadcastTimer?.cancel();
     _multiWindowSubscription?.cancel();
     _windowFocusSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -81,6 +103,8 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
     socket.setOnForceSubmit(null);
     socket.setOnTimeExtended(null);
     socket.setOnWarningsReset(null);
+    socket.setOnWarningsAdjusted(null);
+    socket.setOnSessionUnlocked(null);
     socket.disconnect();
     ScreenSecurity.disable();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -126,6 +150,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
 
       // Load local answers from Drift SQLite and merge with remote answers
       final localAnswers = await ref.read(localDatabaseProvider).getAllAnswers(widget.sessionId);
+      if (!mounted) return;
       final remoteAnswersRaw = session['answers'];
       final Map<String, String> mergedAnswers = {};
       if (remoteAnswersRaw is Map) {
@@ -195,20 +220,16 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
           final msg = data['message']?.toString() ?? '';
           final urgency = data['urgency']?.toString() ?? 'low';
           final isPersonal = targetUserId != null && targetUserId.isNotEmpty;
-          setState(() {
-            _activeBroadcast = {
-              'message': msg,
-              'urgency': urgency,
-              'isPersonal': isPersonal,
-              'timestamp': DateTime.now(),
-            };
-          });
-          _broadcastTimer?.cancel();
-          _broadcastTimer = Timer(Duration(seconds: urgency == 'high' ? 30 : 15), () {
-            if (mounted) {
-              setState(() => _activeBroadcast = null);
-            }
-          });
+
+          _showNotificationBanner(_InExamBannerData(
+            type: isPersonal
+                ? ExamNotificationBannerType.personalMessage
+                : ExamNotificationBannerType.roomBroadcast,
+            title: isPersonal ? 'PESAN PRIBADI PENGAWAS' : 'PENGUMUMAN PENGAWAS',
+            message: msg,
+            badgeText: isPersonal ? 'PRIBADI' : (urgency == 'high' ? 'PENTING' : 'SEMUA SISWA'),
+            duration: Duration(seconds: urgency == 'high' ? 30 : 15),
+          ));
         });
 
         // Real-time force submit listener (targeted to specific session / student)
@@ -224,17 +245,17 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
           }
 
           final reason = data['message']?.toString() ?? 'Ujian telah dikumpulkan paksa oleh pengawas.';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(reason),
-              backgroundColor: Colors.red.shade700,
-              duration: const Duration(seconds: 4),
-            ),
-          );
+          _showNotificationBanner(_InExamBannerData(
+            type: ExamNotificationBannerType.strikePenalty,
+            title: 'UJIAN DIKUMPULKAN PAKSA',
+            message: reason,
+            badgeText: 'PENGHENTIAN',
+            duration: const Duration(seconds: 8),
+          ));
           _submitHandler?.forceSubmit();
         });
 
-        // Real-time time extension listener (targeted to specific session / student)
+        // Real-time time extension / reduction listener (targeted to specific session / student)
         socket.setOnTimeExtended((data) {
           if (!mounted) return;
           final targetSessionId = data['sessionId']?.toString();
@@ -250,27 +271,29 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
               (data['additional_minutes'] as int? ?? 0);
           final additionalSeconds = data['additionalSeconds'] as int? ??
               (data['additional_seconds'] as int? ?? (additionalMinutes * 60));
-          if (additionalSeconds > 0) {
+
+          if (additionalSeconds != 0) {
             notifier.extendTime(additionalSeconds);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.alarm_add, color: Colors.white, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Waktu ujian diperpanjang +$additionalMinutes menit oleh pengawas.',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                backgroundColor: Colors.indigo.shade600,
-                duration: const Duration(seconds: 5),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+
+            if (additionalSeconds > 0) {
+              final mins = additionalMinutes > 0 ? additionalMinutes : (additionalSeconds / 60).ceil();
+              _showNotificationBanner(_InExamBannerData(
+                type: ExamNotificationBannerType.timeAdded,
+                title: 'WAKTU UJIAN DITAMBAH',
+                message: 'Pengawas menambahkan $mins menit waktu pengerjaan.',
+                badgeText: '+$mins MENIT',
+                duration: const Duration(seconds: 6),
+              ));
+            } else {
+              final mins = additionalMinutes < 0 ? additionalMinutes.abs() : (additionalSeconds.abs() / 60).ceil();
+              _showNotificationBanner(_InExamBannerData(
+                type: ExamNotificationBannerType.timeReduced,
+                title: 'WAKTU UJIAN DIKURANGI',
+                message: 'Pengawas mengurangi $mins menit waktu pengerjaan.',
+                badgeText: '-$mins MENIT',
+                duration: const Duration(seconds: 6),
+              ));
+            }
           }
         });
 
@@ -287,20 +310,70 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
           }
 
           notifier.resetWarnings();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-                  SizedBox(width: 8),
-                  Text('Peringatan pelanggaran telah direset ke 0 oleh pengawas.'),
-                ],
-              ),
-              backgroundColor: Colors.teal,
-              duration: Duration(seconds: 4),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          _showNotificationBanner(const _InExamBannerData(
+            type: ExamNotificationBannerType.strikeReset,
+            title: 'RESET POIN PELANGGARAN',
+            message: 'Poin pelanggaran ujian Anda telah direset ke 0 oleh pengawas.',
+            badgeText: '0 STRIKE',
+            duration: Duration(seconds: 6),
+          ));
+        });
+
+        // Real-time warnings adjusted listener (targeted to specific session / student)
+        socket.setOnWarningsAdjusted((data) {
+          if (!mounted) return;
+          final targetSessionId = data['sessionId']?.toString();
+          final targetUserId = data['studentUserId']?.toString();
+          if (targetSessionId != null && targetSessionId.isNotEmpty && targetSessionId != widget.sessionId) {
+            return;
+          }
+          if (targetUserId != null && targetUserId.isNotEmpty && authState.userId != null && targetUserId != authState.userId) {
+            return;
+          }
+
+          final newCount = data['warningCount'] as int? ?? 0;
+          final delta = data['delta'] as int? ?? 0;
+          notifier.setWarningCount(newCount);
+
+          if (delta < 0) {
+            _showNotificationBanner(_InExamBannerData(
+              type: ExamNotificationBannerType.strikeMercy,
+              title: 'KERINGANAN STRIKE',
+              message: 'Pengawas memberikan keringanan ($delta strike). Poin pelanggaran kini: $newCount.',
+              badgeText: '$delta STRIKE',
+              duration: const Duration(seconds: 6),
+            ));
+          } else if (delta > 0) {
+            _showNotificationBanner(_InExamBannerData(
+              type: ExamNotificationBannerType.strikePenalty,
+              title: 'SANKSI PELANGGARAN',
+              message: 'Poin pelanggaran Anda bertambah (+$delta) oleh pengawas. Poin pelanggaran kini: $newCount.',
+              badgeText: '+$delta STRIKE',
+              duration: const Duration(seconds: 6),
+            ));
+          }
+        });
+
+        // Real-time session unlocked listener (targeted to specific session / student)
+        socket.setOnSessionUnlocked((data) {
+          if (!mounted) return;
+          final targetSessionId = data['sessionId']?.toString();
+          final targetUserId = data['studentUserId']?.toString();
+          if (targetSessionId != null && targetSessionId.isNotEmpty && targetSessionId != widget.sessionId) {
+            return;
+          }
+          if (targetUserId != null && targetUserId.isNotEmpty && authState.userId != null && targetUserId != authState.userId) {
+            return;
+          }
+
+          ref.read(examProvider.notifier).acknowledgeFocusViolation();
+          _showNotificationBanner(const _InExamBannerData(
+            type: ExamNotificationBannerType.deviceUnlocked,
+            title: 'KUNCI PERANGKAT DIBUKA',
+            message: 'Pengawas telah membuka kunci sesi / perangkat ujian Anda.',
+            badgeText: 'PULIH',
+            duration: Duration(seconds: 6),
+          ));
         });
       }
 
@@ -469,16 +542,17 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                               )
                             : Column(
                                 children: [
-                                  if (_activeBroadcast != null)
-                                    ExamBroadcastBanner(
-                                      message: _activeBroadcast!['message'] as String? ?? '',
-                                      urgency: _activeBroadcast!['urgency'] as String? ?? 'low',
-                                      isPersonal: _activeBroadcast!['isPersonal'] as bool? ?? false,
+                                  if (_activeBanner != null)
+                                    ExamNotificationBanner(
+                                      type: _activeBanner!.type,
+                                      title: _activeBanner!.title,
+                                      message: _activeBanner!.message,
+                                      badgeText: _activeBanner!.badgeText,
+                                      autoDismissDuration: _activeBanner!.duration,
                                       onDismiss: () {
-                                        setState(() {
-                                          _broadcastTimer?.cancel();
-                                          _activeBroadcast = null;
-                                        });
+                                        if (mounted) {
+                                          setState(() => _activeBanner = null);
+                                        }
                                       },
                                     ),
                                   Expanded(

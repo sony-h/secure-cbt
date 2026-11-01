@@ -3,12 +3,12 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.7.4` (Mobile Android Build: `1.7.4+18`)  
+**Current Version:** `v1.7.5` (Mobile Android Build: `1.7.5+19`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 34 - Student Credentials Management & Exam Controls (Release v1.7.4+18)  
+**Current Phase:** Phase 35 - Proctor Mission Control, Strike Steppers & Unified In-Exam Notification Banners (Release v1.7.5+19)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
-**Last Updated:** 2026-10-18
+**Last Updated:** 2026-10-30
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -1435,6 +1435,44 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 ### 7. Student Credentials Export Dialog & Dual-Template PDF
 - **Spreadsheet Export:** Generates clean Excel (`.xlsx`) files formatted with headers, borders, and student accounts via `ExcelJS`.
 - **Dual-Template PDF Print Portal:** Supports one-click switching between **Daftar Tabel (Tabular List)** with signature columns and **Kartu Peserta (Cut-out Login Cards)** with dashed cut-out borders, optimized for A4 printing via browser print stylesheet.
+
+---
+
+## Phase 35 Completion Summary (v1.7.5+19)
+
+**Version:** `v1.7.5` (Mobile Android Build: `1.7.5+19`)  
+**Date:** 2026-10-30  
+
+### 1. Proctor Mission Control Strike Steppers & Management
+- **Warning Strike Adjustments:** Added `POST /sessions/:id/adjust-warnings` with `delta` parameter allowing proctors to add strikes (+1), forgive strikes (-1), or reset strikes (0) with immutable audit logging in `session_logs`.
+- **Auto-Submit on Strike Limit Threshold:** When a positive strike adjustment (+1) reaches or exceeds `exam.warning_limit` with `auto_submit_enabled: true`, the session is cleanly and automatically submitted.
+- **Real-Time Socket Event:** Emits `SESSION_WARNINGS_ADJUSTED` with `{ sessionId, examId, studentId, studentUserId, studentName, warningCount, delta }`.
+
+### 2. Bidirectional Time Adjustments with Boundary Safeguards
+- **Two-Way Extension & Reduction:** Supported negative minutes (`additional_minutes < 0`) in `extendTime` (`-5m`, `-10m`, `-15m`, `-30m`) alongside positive extensions (`+5m`, `+10m`, `+15m`, `+30m`).
+- **Zero-Time Clamping:** Safely clamps remaining seconds between 0 and total exam limit, preventing negative time overflows.
+- **Dashboard UI Split:** Categorized time actions into distinct green "+ Tambah" and amber "- Kurangi" action button grids inside `StudentActionDialog`.
+
+### 3. Socket Dispatch Deduplication Elimination
+- **Targeted Room Routing:** Updated `MonitoringGateway.notifyStudentAction` and `broadcastToExam` to emit targeted student events exclusively to the student room (`student:${studentUserId}`) and the proctor room (`exam:${examId}:proctors`), omitting the raw `socketId` emit which previously caused doubled receive events (e.g. +10m registering as +20m on mobile devices).
+
+### 4. Case-Insensitive vs Case-Sensitive Short-Answer Grading
+- **Schema & Database:** Added `case_sensitive Boolean @default(false)` to `Question` Prisma model, shared validation schemas, and migration `20261030000000_add_question_case_sensitive`.
+- **Flexible Auto-Grading Engine:** When `case_sensitive: false` (default), student answers and accepted keys are normalized via `.trim().toLowerCase()`; when `case_sensitive: true`, exact case match is strictly enforced.
+- **Question Studio Checkbox:** Added "Abaikan huruf besar / kecil (Accept all cases)" checkbox (default checked) in Question Studio with descriptive preview copy.
+
+### 5. Unified In-Exam Notification Banner System on Mobile
+- **Elimination of Standard SnackBars:** Replaced standard system SnackBars with custom animated top banners (`ExamNotificationBanner`) featuring 8 tailored visual themes:
+  - `timeAdded`: Emerald green theme with `KOMPENSASI` / `+X MENIT` badge.
+  - `timeReduced`: Amber orange theme with `PENALTI` / `-X MENIT` badge.
+  - `strikePenalty`: Crimson rose theme with `+X STRIKE` badge.
+  - `strikeMercy`: Cobalt blue theme with `-X STRIKE` badge.
+  - `strikeReset`: Teal theme with `0 STRIKE` badge.
+  - `deviceUnlocked`: Cyan theme with `PULIH` badge.
+  - `personalMessage`: Dark slate theme with `PRIBADI` badge.
+  - `roomBroadcast`: Rose theme with `SEMUA SISWA` / `PENTING` badge.
+- **Non-Intrusive Layout:** Positioned cleanly below the exam app bar with smooth slide & fade entrance, timer auto-dismiss (6s default, 15–30s for broadcasts), and explicit close button.
+- **Full Socket Listener Wiring:** Connected `session.warnings_adjusted`, `session.warnings_reset`, `session.time_extended`, `session.unlocked`, and `session.force_submit` in `exam_screen.dart`.
 
 ---
 

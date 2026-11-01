@@ -214,6 +214,8 @@ export const reportApi = {
 export const sessionApi = {
   forceSubmit: (sessionId: string) => api.post(`/sessions/${sessionId}/force-submit`),
   resetWarnings: (sessionId: string) => api.post(`/sessions/${sessionId}/reset-warnings`),
+  adjustWarnings: (sessionId: string, delta: number) =>
+    api.post(`/sessions/${sessionId}/adjust-warnings`, { delta }),
   extendTime: (sessionId: string, additionalMinutes: number) =>
     api.post(`/sessions/${sessionId}/extend-time`, { additional_minutes: additionalMinutes }),
   unlock: (sessionId: string) => api.post(`/sessions/${sessionId}/unlock`),

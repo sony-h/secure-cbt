@@ -16,6 +16,7 @@ export const createQuestionSchema = z.object({
   audio_play_limit: z.number().int({ message: 'Batas pemutaran harus berupa bilangan bulat' }).min(1, { message: 'Batas pemutaran minimal 1' }).max(10, { message: 'Batas pemutaran maksimal 10' }).optional().nullable(),
   difficulty: z.nativeEnum(DifficultyLevel, { errorMap: () => ({ message: 'Tingkat kesulitan tidak valid' }) }),
   explanation: z.string().max(5000, { message: 'Penjelasan maksimal 5000 karakter' }).optional().nullable(),
+  case_sensitive: z.boolean().optional().default(false),
   options: z.array(optionSchema).default([]),
   tags: z.array(z.string().max(50, { message: 'Tag maksimal 50 karakter' })).max(20, { message: 'Maksimal 20 tag' }).optional(),
 }).superRefine((data, ctx) => {
@@ -53,6 +54,7 @@ export const updateQuestionSchema = z.object({
   audio_play_limit: z.number().int({ message: 'Batas pemutaran harus berupa bilangan bulat' }).min(1, { message: 'Batas pemutaran minimal 1' }).max(10, { message: 'Batas pemutaran maksimal 10' }).optional().nullable(),
   difficulty: z.nativeEnum(DifficultyLevel, { errorMap: () => ({ message: 'Tingkat kesulitan tidak valid' }) }).optional(),
   explanation: z.string().max(5000, { message: 'Penjelasan maksimal 5000 karakter' }).optional().nullable(),
+  case_sensitive: z.boolean().optional(),
   options: z.array(updateOptionSchema).optional(),
   tags: z.array(z.string().max(50, { message: 'Tag maksimal 50 karakter' })).max(20, { message: 'Maksimal 20 tag' }).optional(),
 });

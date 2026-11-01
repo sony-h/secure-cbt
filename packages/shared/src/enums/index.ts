@@ -86,6 +86,7 @@ export enum SocketEvent {
   EXAM_BROADCAST = 'exam.broadcast',
   SESSION_FORCE_SUBMIT = 'session.force_submit',
   SESSION_WARNINGS_RESET = 'session.warnings_reset',
+  SESSION_WARNINGS_ADJUSTED = 'session.warnings_adjusted',
   SESSION_TIME_EXTENDED = 'session.time_extended',
   SESSION_UNLOCKED = 'session.unlocked',
   // Internal EventEmitter events

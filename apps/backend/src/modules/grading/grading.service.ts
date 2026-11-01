@@ -201,10 +201,17 @@ export class GradingService {
           const qOptions = await tx.questionOption.findMany({
             where: { question_id: answer.question_id },
           });
-          const normalizedStudent = (answer.answer_text || '').trim().toLowerCase();
-          isCorrect = normalizedStudent.length > 0 && qOptions.some(
-            (opt) => opt.content.trim().toLowerCase() === normalizedStudent,
-          );
+          const isCaseSensitive = Boolean((answer.question as any).case_sensitive);
+          const rawStudent = (answer.answer_text || '').trim();
+          const normalizedStudent = isCaseSensitive ? rawStudent : rawStudent.toLowerCase();
+
+          isCorrect =
+            normalizedStudent.length > 0 &&
+            qOptions.some((opt) => {
+              const rawKey = (opt.content || '').trim();
+              const normalizedKey = isCaseSensitive ? rawKey : rawKey.toLowerCase();
+              return normalizedKey === normalizedStudent;
+            });
           score = isCorrect ? 100 : 0;
         } else if (answer.question.type === QuestionType.MATCHING) {
           const qOptions = await tx.questionOption.findMany({

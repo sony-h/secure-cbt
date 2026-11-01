@@ -126,9 +126,19 @@ class ExamNotifier extends StateNotifier<ExamState> {
 
   void extendTime(int additionalSeconds) {
     if (state.isSubmitted) return;
-    final newRemaining = state.remainingSeconds + additionalSeconds;
+    final newRemaining = (state.remainingSeconds + additionalSeconds).clamp(0, 999999);
     state = state.copyWith(remainingSeconds: newRemaining);
-    AppLogger.info('Timer extended by $additionalSeconds seconds. New remaining: $newRemaining');
+    AppLogger.info('Timer adjusted by $additionalSeconds seconds. New remaining: $newRemaining');
+  }
+
+  void setWarningCount(int count) {
+    final clamped = count < 0 ? 0 : count;
+    state = state.copyWith(warningCount: clamped);
+    AppLogger.info('Warning count updated to: $clamped');
+
+    if (state.warningLimit > 0 && clamped >= state.warningLimit) {
+      _onForceSubmit?.call();
+    }
   }
 
   void resetWarnings() {

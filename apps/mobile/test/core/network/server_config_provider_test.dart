@@ -105,7 +105,7 @@ void main() {
       when(() => mockStorage.read(key: ServerConfigNotifier.storageKey))
           .thenAnswer((_) async => 'http://192.168.1.99:3000');
 
-      final notifier = ServerConfigNotifier(mockStorage);
+      ServerConfigNotifier(mockStorage);
       await pumpEventQueue();
 
       expect(resolveMediaUrl('/uploads/image.png'), 'http://192.168.1.99:3000/uploads/image.png');

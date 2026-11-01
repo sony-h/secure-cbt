@@ -251,6 +251,7 @@ model Question {
   audio_url        String?        @db.Text
   audio_play_limit Int?           @default(2)
   difficulty       DifficultyLevel @default(MEDIUM)
+  case_sensitive   Boolean          @default(false)
   explanation      String?         @db.Text
   created_at       DateTime       @default(now())
   updated_at       DateTime       @updatedAt

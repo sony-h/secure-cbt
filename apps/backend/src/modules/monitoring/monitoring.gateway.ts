@@ -235,10 +235,8 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
     },
   ): void {
     if (payload.studentUserId) {
-      const socketId = this.studentSockets.get(payload.studentUserId);
-      if (socketId) {
-        this.server.to(socketId).emit('exam.broadcast', payload);
-      }
+      // Emit exclusively to the targeted student room (which the student's active socket has joined)
+      // and the proctors monitoring room. Never emit to socketId directly to avoid duplicate delivery!
       this.server.to(`student:${payload.studentUserId}`).emit('exam.broadcast', payload);
       this.server.to(`exam:${examId}:proctors`).emit('exam.broadcast', payload);
     } else {
@@ -248,14 +246,8 @@ export class MonitoringGateway implements OnGatewayConnection, OnGatewayDisconne
 
   notifyStudentAction(studentUserId: string, examId: string, event: string, payload: any): void {
     const actionPayload = { studentUserId, ...payload };
-    const socketId = this.studentSockets.get(studentUserId);
-    if (socketId) {
-      this.server.to(socketId).emit(event, actionPayload);
-    }
-    // Also emit to targeted student room
+    // Emit exclusively to targeted student room and proctor room to prevent double event delivery
     this.server.to(`student:${studentUserId}`).emit(event, actionPayload);
-
-    // Notify only teachers / proctors monitoring this exam room
     this.server.to(`exam:${examId}:proctors`).emit(event, actionPayload);
   }
 }

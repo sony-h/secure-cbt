@@ -93,6 +93,25 @@ export class MonitoringListener {
     });
   }
 
+  @OnEvent(SocketEvent.SESSION_WARNINGS_ADJUSTED)
+  async handleSessionWarningsAdjusted(payload: {
+    sessionId: string;
+    examId: string;
+    studentId: string;
+    studentUserId: string;
+    studentName?: string;
+    warningCount: number;
+    delta: number;
+  }) {
+    this.logger.log(`Session warnings adjusted: ${payload.sessionId} (delta: ${payload.delta}, total: ${payload.warningCount})`);
+    this.gateway.notifyStudentAction(payload.studentUserId, payload.examId, SocketEvent.SESSION_WARNINGS_ADJUSTED, {
+      sessionId: payload.sessionId,
+      examId: payload.examId,
+      warningCount: payload.warningCount,
+      delta: payload.delta,
+    });
+  }
+
   @OnEvent(SocketEvent.SESSION_TIME_EXTENDED)
   async handleSessionTimeExtended(payload: {
     sessionId: string;

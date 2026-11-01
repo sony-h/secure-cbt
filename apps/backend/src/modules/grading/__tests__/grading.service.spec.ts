@@ -180,7 +180,7 @@ describe('GradingService', () => {
         answers: [{
           id: UUID(), question_id: questionId, answer_text: '  Nusantara  ',
           score: null, is_correct: null,
-          question: { type: QuestionType.SHORT_ANSWER },
+          question: { type: QuestionType.SHORT_ANSWER, case_sensitive: false },
         }],
         exam: { exam_questions: [{ id: UUID(), package_id: null }] },
       });
@@ -199,6 +199,68 @@ describe('GradingService', () => {
       expect(result.total_score).toBe(100);
       expect(result.correct_count).toBe(1);
       expect(result.wrong_count).toBe(0);
+    });
+
+    it('should fail SHORT_ANSWER when case_sensitive is true and casing differs', async () => {
+      const tx = {
+        examSession: { findUnique: vi.fn() },
+        questionOption: { findMany: vi.fn() },
+        answer: { update: vi.fn() },
+      };
+      const questionId = UUID();
+      tx.examSession.findUnique.mockResolvedValue({
+        id: UUID(), package_id: null,
+        answers: [{
+          id: UUID(), question_id: questionId, answer_text: 'nusantara',
+          score: null, is_correct: null,
+          question: { type: QuestionType.SHORT_ANSWER, case_sensitive: true },
+        }],
+        exam: { exam_questions: [{ id: UUID(), package_id: null }] },
+      });
+      tx.questionOption.findMany.mockResolvedValue([
+        { id: 'opt-1', content: 'Nusantara' },
+      ]);
+      tx.answer.update.mockResolvedValue({});
+
+      const result = await service.calculateTotalScore(tx as any, UUID());
+
+      expect(tx.answer.update).toHaveBeenCalledWith({
+        where: { id: expect.any(String) },
+        data: { is_correct: false, score: 0 },
+      });
+      expect(result.total_score).toBe(0);
+      expect(result.wrong_count).toBe(1);
+    });
+
+    it('should pass SHORT_ANSWER when case_sensitive is true and casing matches exactly', async () => {
+      const tx = {
+        examSession: { findUnique: vi.fn() },
+        questionOption: { findMany: vi.fn() },
+        answer: { update: vi.fn() },
+      };
+      const questionId = UUID();
+      tx.examSession.findUnique.mockResolvedValue({
+        id: UUID(), package_id: null,
+        answers: [{
+          id: UUID(), question_id: questionId, answer_text: '  NaCl  ',
+          score: null, is_correct: null,
+          question: { type: QuestionType.SHORT_ANSWER, case_sensitive: true },
+        }],
+        exam: { exam_questions: [{ id: UUID(), package_id: null }] },
+      });
+      tx.questionOption.findMany.mockResolvedValue([
+        { id: 'opt-1', content: 'NaCl' },
+      ]);
+      tx.answer.update.mockResolvedValue({});
+
+      const result = await service.calculateTotalScore(tx as any, UUID());
+
+      expect(tx.answer.update).toHaveBeenCalledWith({
+        where: { id: expect.any(String) },
+        data: { is_correct: true, score: 100 },
+      });
+      expect(result.total_score).toBe(100);
+      expect(result.correct_count).toBe(1);
     });
 
     it('should auto-grade MATCHING questions with partial credit', async () => {
