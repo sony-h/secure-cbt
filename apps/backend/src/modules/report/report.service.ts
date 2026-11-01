@@ -40,26 +40,57 @@ export class ReportService {
         student: { include: { class: true } },
         score: true,
       },
+      orderBy: { attempt_number: 'asc' },
     });
 
     const settings = await this.prisma.setting.findFirst();
     const passingGrade = settings?.passing_grade ?? 70;
 
-    const students = sessions
-      .filter((s) => s.score)
-      .map((s) => ({
-        session_id: s.id,
-        student_id: s.student_id,
-        student_name: s.student.full_name,
-        nis: s.student.nis,
-        class_name: s.student.class.name,
-        score: s.score!.total_score,
-        correct_count: s.score!.correct_count,
-        wrong_count: s.score!.wrong_count,
-        essay_score: s.score!.essay_score,
-        total_questions: s.score!.total_questions,
-        status: (s.score!.total_score >= passingGrade ? 'passed' : 'failed') as 'passed' | 'failed',
-      }));
+    // Group sessions by student_id to handle dual-attempts (Attempt 1: Main, Attempt 2: Remedial)
+    const studentSessionMap = new Map<string, typeof sessions>();
+    for (const s of sessions) {
+      if (!s.score) continue;
+      const list = studentSessionMap.get(s.student_id) ?? [];
+      list.push(s);
+      studentSessionMap.set(s.student_id, list);
+    }
+
+    const students = Array.from(studentSessionMap.values()).map((studentSessions) => {
+      const attempt1 = studentSessions.find((s) => s.attempt_number === 1) ?? studentSessions[0];
+      const attempt2 = studentSessions.find((s) => s.attempt_number === 2);
+
+      const mainScore = attempt1?.score?.total_score ?? null;
+      const remedialScore = attempt2?.score?.total_score ?? null;
+      const isRemedialAllowed = attempt1?.is_remedial_allowed ?? false;
+      const attemptCount = attempt2 ? 2 : (attempt1 ? 1 : 0);
+
+      const baseSession = attempt1 ?? attempt2!;
+      const student = baseSession.student;
+
+      const hasPassed =
+        (mainScore !== null && mainScore >= passingGrade) ||
+        (remedialScore !== null && remedialScore >= passingGrade);
+
+      return {
+        session_id: baseSession.id,
+        attempt1_session_id: attempt1?.id ?? null,
+        attempt2_session_id: attempt2?.id ?? null,
+        student_id: student.id,
+        student_name: student.full_name,
+        nis: student.nis,
+        class_name: student.class?.name || '-',
+        score: mainScore ?? remedialScore ?? 0,
+        main_score: mainScore,
+        remedial_score: remedialScore,
+        is_remedial_allowed: isRemedialAllowed,
+        attempt_count: attemptCount,
+        correct_count: attempt1?.score?.correct_count ?? attempt2?.score?.correct_count ?? 0,
+        wrong_count: attempt1?.score?.wrong_count ?? attempt2?.score?.wrong_count ?? 0,
+        essay_score: attempt1?.score?.essay_score ?? attempt2?.score?.essay_score ?? null,
+        total_questions: attempt1?.score?.total_questions ?? attempt2?.score?.total_questions ?? 0,
+        status: (hasPassed ? 'passed' : 'failed') as 'passed' | 'failed',
+      };
+    });
 
     const sorted = [...students];
     if (sortBy) {
@@ -360,26 +391,56 @@ export class ReportService {
         student: { include: { class: true } },
         score: true,
       },
+      orderBy: { attempt_number: 'asc' },
     });
 
     const settings = await this.prisma.setting.findFirst();
     const passingGrade = settings?.passing_grade ?? 70;
 
-    const students = sessions
-      .filter((s) => s.score)
-      .map((s) => ({
-        session_id: s.id,
-        student_id: s.student_id,
-        student_name: s.student.full_name,
-        nis: s.student.nis,
-        class_name: s.student.class?.name || '-',
-        score: s.score!.total_score,
-        correct_count: s.score!.correct_count,
-        wrong_count: s.score!.wrong_count,
-        essay_score: s.score!.essay_score,
-        total_questions: s.score!.total_questions,
-        status: (s.score!.total_score >= passingGrade ? 'LULUS' : 'REMEDIAL') as 'LULUS' | 'REMEDIAL',
-      }))
+    // Group sessions by student_id to handle dual-attempts (Attempt 1: Main, Attempt 2: Remedial)
+    const studentSessionMap = new Map<string, typeof sessions>();
+    for (const s of sessions) {
+      if (!s.score) continue;
+      const list = studentSessionMap.get(s.student_id) ?? [];
+      list.push(s);
+      studentSessionMap.set(s.student_id, list);
+    }
+
+    const students = Array.from(studentSessionMap.values())
+      .map((studentSessions) => {
+        const attempt1 = studentSessions.find((s) => s.attempt_number === 1) ?? studentSessions[0];
+        const attempt2 = studentSessions.find((s) => s.attempt_number === 2);
+
+        const mainScore = attempt1?.score?.total_score ?? null;
+        const remedialScore = attempt2?.score?.total_score ?? null;
+        const isRemedialAllowed = attempt1?.is_remedial_allowed ?? false;
+
+        const baseSession = attempt1 ?? attempt2!;
+        const student = baseSession.student;
+
+        let statusLabel: 'LULUS' | 'REMEDIAL' | 'TUNTAS (REMEDIAL)' = 'REMEDIAL';
+        if (mainScore !== null && mainScore >= passingGrade) {
+          statusLabel = 'LULUS';
+        } else if (remedialScore !== null && remedialScore >= passingGrade) {
+          statusLabel = 'TUNTAS (REMEDIAL)';
+        }
+
+        return {
+          session_id: baseSession.id,
+          student_id: student.id,
+          student_name: student.full_name,
+          nis: student.nis,
+          class_name: student.class?.name || '-',
+          main_score: mainScore,
+          remedial_score: remedialScore,
+          is_remedial_allowed: isRemedialAllowed,
+          correct_count: attempt1?.score?.correct_count ?? attempt2?.score?.correct_count ?? 0,
+          wrong_count: attempt1?.score?.wrong_count ?? attempt2?.score?.wrong_count ?? 0,
+          essay_score: attempt1?.score?.essay_score ?? attempt2?.score?.essay_score ?? null,
+          total_questions: attempt1?.score?.total_questions ?? attempt2?.score?.total_questions ?? 0,
+          status: statusLabel,
+        };
+      })
       .sort((a, b) => a.student_name.localeCompare(b.student_name));
 
     const workbook = new ExcelJS.Workbook();
@@ -401,12 +462,13 @@ export class ReportService {
       { key: 'benar', width: 12 },
       { key: 'salah', width: 12 },
       { key: 'esai', width: 12 },
-      { key: 'nilai', width: 16 },
-      { key: 'status', width: 16 },
+      { key: 'nilai_utama', width: 16 },
+      { key: 'nilai_remedial', width: 16 },
+      { key: 'status', width: 22 },
     ];
 
     // School Header Band (#1E3A8A)
-    sheet.mergeCells('A2:I2');
+    sheet.mergeCells('A2:J2');
     const titleCell = sheet.getCell('A2');
     titleCell.value = 'LAPORAN HASIL EVALUASI NILAI UJIAN SISWA';
     titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFF' } };
@@ -414,7 +476,7 @@ export class ReportService {
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
     sheet.getRow(2).height = 30;
 
-    sheet.mergeCells('A3:I3');
+    sheet.mergeCells('A3:J3');
     const subtitleCell = sheet.getCell('A3');
     subtitleCell.value = 'ASSESSIA CBT ACADEMIC ASSESSMENT SYSTEM';
     subtitleCell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'DBEAFE' } };
@@ -471,7 +533,8 @@ export class ReportService {
       'BENAR',
       'SALAH',
       'ESAI',
-      'NILAI TOTAL',
+      'NILAI UTAMA',
+      'NILAI REMEDIAL',
       'STATUS',
     ];
     tableHeaderRow.values = headers;
@@ -497,13 +560,13 @@ export class ReportService {
     };
 
     if (students.length === 0) {
-      sheet.mergeCells(`A${startRow}:I${startRow}`);
+      sheet.mergeCells(`A${startRow}:J${startRow}`);
       const emptyCell = sheet.getCell(`A${startRow}`);
       emptyCell.value = 'Belum ada data nilai siswa untuk ujian ini.';
       emptyCell.font = { name: 'Arial', size: 10, italic: true, color: { argb: '64748B' } };
       emptyCell.alignment = { vertical: 'middle', horizontal: 'center' };
       sheet.getRow(startRow).height = 30;
-      for (let c = 1; c <= 9; c++) {
+      for (let c = 1; c <= 10; c++) {
         sheet.getRow(startRow).getCell(c).border = borderThin;
       }
     } else {
@@ -515,6 +578,9 @@ export class ReportService {
         const isEven = idx % 2 === 1;
         const bgArgb = isEven ? 'F8FAFC' : 'FFFFFF';
 
+        const mainScoreVal = s.main_score !== null ? Number(s.main_score.toFixed(1)) : '-';
+        const remedialScoreVal = s.remedial_score !== null ? Number(s.remedial_score.toFixed(1)) : '-';
+
         row.values = [
           idx + 1,
           s.nis || '-',
@@ -523,11 +589,12 @@ export class ReportService {
           s.correct_count,
           s.wrong_count,
           s.essay_score !== null ? Number(s.essay_score.toFixed(1)) : '-',
-          Number(s.score.toFixed(1)),
+          mainScoreVal,
+          remedialScoreVal,
           s.status,
         ];
 
-        for (let c = 1; c <= 9; c++) {
+        for (let c = 1; c <= 10; c++) {
           const cell = row.getCell(c);
           cell.font = { name: 'Arial', size: 10, color: { argb: '1E293B' } };
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgArgb } };
@@ -548,10 +615,14 @@ export class ReportService {
           } else if (c === 8) {
             cell.alignment = { vertical: 'middle', horizontal: 'right' };
             cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: '0F172A' } };
-            cell.numFmt = '0.0';
+            if (typeof mainScoreVal === 'number') cell.numFmt = '0.0';
           } else if (c === 9) {
+            cell.alignment = { vertical: 'middle', horizontal: 'right' };
+            cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: '4338CA' } };
+            if (typeof remedialScoreVal === 'number') cell.numFmt = '0.0';
+          } else if (c === 10) {
             cell.alignment = { vertical: 'middle', horizontal: 'center' };
-            const isPassed = s.status === 'LULUS';
+            const isPassed = s.status === 'LULUS' || s.status === 'TUNTAS (REMEDIAL)';
             cell.font = {
               name: 'Arial',
               size: 10,
@@ -631,6 +702,8 @@ export class ReportService {
         unitCell.alignment = { vertical: 'middle', horizontal: 'center' };
         unitCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
         unitCell.border = borderThin;
+
+        sheet.getCell(`J${rNum}`).border = borderThin;
       });
     }
 

@@ -309,12 +309,12 @@ describe('ReportService', () => {
       // Student 1 (Anisa Putri, alphabetically first)
       const row10 = sheet?.getRow(10);
       expect(row10?.getCell(3).value).toBe('Anisa Putri');
-      expect(row10?.getCell(9).value).toBe('REMEDIAL');
+      expect(row10?.getCell(10).value).toBe('REMEDIAL');
 
       // Student 2 (Budi Raharjo, alphabetically second)
       const row11 = sheet?.getRow(11);
       expect(row11?.getCell(3).value).toBe('Budi Raharjo');
-      expect(row11?.getCell(9).value).toBe('LULUS');
+      expect(row11?.getCell(10).value).toBe('LULUS');
 
       // Verify stats formulas (at row 13 = endDataRow 11 + 2)
       const averageRow = sheet?.getRow(13);
