@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:secure_cbt_mobile/app/route_names.dart';
+import 'package:secure_cbt_mobile/core/network/socket_client.dart';
 import 'package:secure_cbt_mobile/core/theme/subject_theme.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
@@ -12,6 +13,7 @@ import 'package:secure_cbt_mobile/core/widgets/exhausted_attempts_dialog.dart';
 import 'package:secure_cbt_mobile/core/widgets/shimmer.dart';
 import 'package:secure_cbt_mobile/core/widgets/status_pill.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
+import 'package:secure_cbt_mobile/features/history/providers/history_provider.dart';
 import 'package:secure_cbt_mobile/features/home/providers/home_provider.dart';
 import 'package:secure_cbt_mobile/features/exams/providers/exams_provider.dart';
 
@@ -59,6 +61,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     _quote = _quotes[Random().nextInt(_quotes.length)];
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final socket = ref.read(monitoringSocketProvider);
+      socket.setOnAttemptGranted((data) {
+        if (!mounted) return;
+        ref.invalidate(homeDataProvider);
+        ref.invalidate(examsDataProvider);
+        ref.invalidate(historyDataProvider);
+
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.stars_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Pengawas memberikan +1 kuota percobaan untuk ujian Anda!',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF7C3AED),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      });
+    });
   }
 
   void _handlePopInvoked(bool didPop) {

@@ -457,6 +457,13 @@ export class SessionService {
         .map((s) => s.exam_id),
     );
 
+    const sessionsByExam = new Map<string, typeof sessions>();
+    for (const s of sessions) {
+      const list = sessionsByExam.get(s.exam_id) ?? [];
+      list.push(s);
+      sessionsByExam.set(s.exam_id, list);
+    }
+
     return sessions.map((s) => {
       const isFinished = s.exam.status === ExamStatus.FINISHED || now > new Date(s.exam.end_at);
       const isRemedialLocked =
@@ -464,12 +471,24 @@ export class SessionService {
         (s.attempt_number ?? 1) === 1 &&
         !submittedAttempt2ExamIds.has(s.exam_id);
 
+      const examSessions = sessionsByExam.get(s.exam_id) ?? [];
+      const scores = examSessions
+        .map((es) => es.score?.total_score)
+        .filter((sc): sc is number => typeof sc === 'number');
+      const bestScore = scores.length > 0 ? Math.max(...scores) : s.score!.total_score;
+      const isBestAttempt = s.score!.total_score === bestScore;
+      const attemptsCount = examSessions.length;
+
       return {
         id: s.id,
         exam_id: s.exam_id,
         exam_title: s.exam.title,
         subject_name: s.exam.subject.name,
         total_score: s.score!.total_score,
+        best_score: bestScore,
+        is_best_attempt: isBestAttempt,
+        attempts_count: attemptsCount,
+        max_attempts: s.exam.max_attempts,
         raw_points_earned: s.score?.raw_points_earned ?? 0,
         raw_points_possible: s.score?.raw_points_possible ?? 0,
         correct_count: s.score!.correct_count,

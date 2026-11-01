@@ -211,7 +211,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
-                                          if ((h['attempt_number'] ?? 1) == 2 || h['is_remedial'] == true) ...[
+                                          if (h['is_remedial'] == true ||
+                                              ((h['attempt_number'] ?? 1) == 2 && h['is_remedial_allowed'] == true)) ...[
                                             const SizedBox(width: 6),
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
@@ -229,6 +230,51 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                                 ),
                                               ),
                                             ),
+                                          ] else if ((h['attempts_count'] ?? 1) > 1 ||
+                                              (h['max_attempts'] != null && h['max_attempts'] > 1)) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.surfaceSubtle,
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: AppColors.border),
+                                              ),
+                                              child: Text(
+                                                'Percobaan #${h['attempt_number'] ?? 1}',
+                                                style: const TextStyle(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.textSecondary,
+                                                ),
+                                              ),
+                                            ),
+                                            if (h['is_best_attempt'] == true && ((h['attempts_count'] ?? 1) > 1)) ...[
+                                              const SizedBox(width: 4),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFEFF6FF),
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                                                ),
+                                                child: const Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(Icons.stars_rounded, size: 10, color: Color(0xFF2563EB)),
+                                                    SizedBox(width: 2),
+                                                    Text(
+                                                      'Nilai Terbaik',
+                                                      style: TextStyle(
+                                                        fontSize: 9.5,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: Color(0xFF1D4ED8),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           ],
                                         ],
                                       ),

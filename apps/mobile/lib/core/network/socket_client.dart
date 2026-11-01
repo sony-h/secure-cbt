@@ -23,6 +23,7 @@ class MonitoringSocket {
   void Function(Map<String, dynamic> data)? _onWarningsAdjusted;
   void Function(Map<String, dynamic> data)? _onSessionUnlocked;
   void Function(Map<String, dynamic> data)? _onSessionReopened;
+  void Function(Map<String, dynamic> data)? _onAttemptGranted;
 
   bool get isConnected => _socket?.connected ?? false;
 
@@ -52,6 +53,10 @@ class MonitoringSocket {
 
   void setOnSessionReopened(void Function(Map<String, dynamic> data)? callback) {
     _onSessionReopened = callback;
+  }
+
+  void setOnAttemptGranted(void Function(Map<String, dynamic> data)? callback) {
+    _onAttemptGranted = callback;
   }
 
   Future<void> connect(String userId, String examId, {String? studentName}) async {
@@ -134,6 +139,15 @@ class MonitoringSocket {
         _onSessionReopened?.call(Map<String, dynamic>.from(data));
       } else {
         _onSessionReopened?.call({});
+      }
+    });
+
+    _socket?.on('session.attempt_granted', (data) {
+      AppLogger.info('Monitoring socket received session attempt granted: $data');
+      if (data is Map) {
+        _onAttemptGranted?.call(Map<String, dynamic>.from(data));
+      } else {
+        _onAttemptGranted?.call({});
       }
     });
 
