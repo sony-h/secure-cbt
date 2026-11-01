@@ -185,4 +185,27 @@ export class MonitoringListener {
       proctorName: payload.proctorName,
     });
   }
+
+  @OnEvent(SocketEvent.SESSION_ATTEMPT_GRANTED)
+  async handleSessionAttemptGranted(payload: {
+    sessionId: string;
+    examId: string;
+    studentId: string;
+    studentUserId: string;
+    studentName?: string;
+    proctorName?: string;
+    message?: string;
+    reason?: string;
+  }) {
+    this.logger.log(`Session extra attempt granted for student ${payload.studentUserId} on exam ${payload.examId}`);
+    this.gateway.notifyStudentAction(payload.studentUserId, payload.examId, SocketEvent.SESSION_ATTEMPT_GRANTED, {
+      sessionId: payload.sessionId,
+      examId: payload.examId,
+      studentId: payload.studentId,
+      studentUserId: payload.studentUserId,
+      message: payload.message || 'Pengawas telah memberikan +1 kuota percobaan untuk ujian ini',
+      proctorName: payload.proctorName,
+      reason: payload.reason,
+    });
+  }
 }

@@ -8,7 +8,7 @@ import {
   ReopenSessionInput, BulkAuthorizeRemedialInput,
   startSessionSchema, resumeSessionSchema, syncTimeSchema, submitSessionSchema,
   reopenSessionSchema, bulkAuthorizeRemedialSchema,
-  SessionStatus, SessionType, ExamStatus, SocketEvent, shuffle, UserRole,
+  SessionStatus, SessionType, ExamStatus, SocketEvent, ViolationEvent, shuffle, UserRole,
 } from '@secure-cbt/shared';
 import { resolveStudentId } from '../../common/helpers/user-resolver.helper';
 import { sampleQuestionPool } from './session-sampler';
@@ -1268,6 +1268,98 @@ export class SessionService {
     });
 
     return updated;
+  }
+
+  async grantExtraAttempt(
+    examId: string,
+    studentId: string,
+    proctorUserId: string,
+    reason?: string,
+    userRole?: string,
+  ) {
+    const exam = await this.prisma.exam.findUnique({
+      where: { id: examId },
+      select: { id: true, subject_id: true, title: true },
+    });
+    if (!exam) throw new NotFoundException('Exam not found');
+
+    if (userRole === UserRole.TEACHER && proctorUserId) {
+      const scope = await getTeacherScope(this.prisma, proctorUserId);
+      assertTeacherMonitorAccess(
+        scope,
+        exam.subject_id,
+        'Anda tidak memiliki izin mengelola sesi ujian ini',
+      );
+    }
+
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      include: { user: true },
+    });
+    if (!student) throw new NotFoundException('Siswa tidak ditemukan');
+
+    const proctorName = await this.resolveProctorName(proctorUserId);
+
+    const latestSession = await this.prisma.examSession.findFirst({
+      where: { exam_id: examId, student_id: studentId },
+      orderBy: { attempt_number: 'desc' },
+    });
+
+    if (latestSession) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.examSession.update({
+          where: { id: latestSession.id },
+          data: { extra_attempts_allowed: { increment: 1 } },
+        });
+
+        await tx.sessionLog.create({
+          data: {
+            exam_session_id: latestSession.id,
+            event: ViolationEvent.EXTRA_ATTEMPT_GRANTED,
+            description: `Pengawas ${proctorName} memberikan +1 kuota percobaan${reason ? `: ${reason}` : ''}`,
+          },
+        });
+      });
+    }
+
+    const payload = {
+      sessionId: latestSession?.id || '',
+      examId,
+      studentId,
+      studentUserId: student.user_id,
+      studentName: student.full_name || student.nis,
+      proctorName,
+      message: `Pengawas telah memberikan +1 kuota percobaan untuk ujian ${exam.title}`,
+      reason,
+    };
+
+    this.eventEmitter.emit(SocketEvent.SESSION_ATTEMPT_GRANTED, payload);
+
+    return {
+      success: true,
+      ...payload,
+    };
+  }
+
+  async grantExtraAttemptBySessionId(
+    sessionId: string,
+    proctorUserId: string,
+    reason?: string,
+    userRole?: string,
+  ) {
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      select: { exam_id: true, student_id: true },
+    });
+    if (!session) throw new NotFoundException('Sesi tidak ditemukan');
+
+    return this.grantExtraAttempt(
+      session.exam_id,
+      session.student_id,
+      proctorUserId,
+      reason,
+      userRole,
+    );
   }
 
   @Cron(CronExpression.EVERY_MINUTE)

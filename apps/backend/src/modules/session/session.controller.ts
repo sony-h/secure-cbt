@@ -149,4 +149,40 @@ export class SessionController {
     const data = await this.sessionService.bulkAuthorizeRemedial(examId, req.user.sub, body, req.user.role);
     return { success: true, message: 'Bulk remedial authorized successfully', data };
   }
+
+  @Post(':id/grant-attempt')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Grant an extra attempt to a student session' })
+  async grantAttemptBySession(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') sessionId: string,
+    @Body() body: { reason?: string },
+  ) {
+    const data = await this.sessionService.grantExtraAttemptBySessionId(
+      sessionId,
+      req.user.sub,
+      body?.reason,
+      req.user.role,
+    );
+    return { success: true, message: 'Extra attempt granted successfully', data };
+  }
+
+  @Post('exam/:examId/students/:studentId/grant-attempt')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Grant an extra attempt to a student on an exam' })
+  async grantAttemptByExamAndStudent(
+    @Req() req: AuthenticatedRequest,
+    @Param('examId') examId: string,
+    @Param('studentId') studentId: string,
+    @Body() body: { reason?: string },
+  ) {
+    const data = await this.sessionService.grantExtraAttempt(
+      examId,
+      studentId,
+      req.user.sub,
+      body?.reason,
+      req.user.role,
+    );
+    return { success: true, message: 'Extra attempt granted successfully', data };
+  }
 }

@@ -215,7 +215,8 @@ describe('ExamService', () => {
       expect(mockPrisma.exam.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            id: { notIn: [] },
+            deleted_at: null,
+            status: { in: [ExamStatus.PUBLISHED, ExamStatus.ONGOING] },
           }),
         }),
       );
