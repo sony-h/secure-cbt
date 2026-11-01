@@ -337,32 +337,66 @@ export class ExamService {
 
     const now = new Date();
 
-    // Exams the student has already completed
-    const completedIds = (
-      await this.prisma.examSession.findMany({
-        where: {
-          student_id: student.id,
-          status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.EXPIRED] },
-        },
-        select: { exam_id: true },
-      })
-    ).map((s) => s.exam_id);
+    // Sessions the student has completed
+    const completedSessions = await this.prisma.examSession.findMany({
+      where: {
+        student_id: student.id,
+        status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.EXPIRED] },
+      },
+      select: { exam_id: true, attempt_number: true, is_remedial_allowed: true },
+    });
+
+    const completedByExam = new Map<
+      string,
+      { hasCompletedAttempt2: boolean; hasAttempt1WithRemedial: boolean; hasCompletedAttempt1: boolean }
+    >();
+
+    for (const s of completedSessions) {
+      const entry = completedByExam.get(s.exam_id) ?? {
+        hasCompletedAttempt2: false,
+        hasAttempt1WithRemedial: false,
+        hasCompletedAttempt1: false,
+      };
+      if (s.attempt_number >= 2) {
+        entry.hasCompletedAttempt2 = true;
+      } else if (s.attempt_number === 1) {
+        entry.hasCompletedAttempt1 = true;
+        if (s.is_remedial_allowed) {
+          entry.hasAttempt1WithRemedial = true;
+        }
+      }
+      completedByExam.set(s.exam_id, entry);
+    }
+
+    const barredExamIds: string[] = [];
+    for (const [examId, entry] of completedByExam.entries()) {
+      if (entry.hasCompletedAttempt2) {
+        barredExamIds.push(examId);
+      } else if (entry.hasCompletedAttempt1 && !entry.hasAttempt1WithRemedial) {
+        barredExamIds.push(examId);
+      }
+    }
 
     const exams = await this.prisma.exam.findMany({
       where: {
         deleted_at: null,
         status: { in: [ExamStatus.PUBLISHED, ExamStatus.ONGOING] },
         end_at: { gte: now },
-        id: { notIn: completedIds },
+        id: { notIn: barredExamIds },
         exam_classes: { some: { class_id: student.class_id } },
       },
       include: { subject: true, _count: { select: { exam_questions: true } } },
       orderBy: { start_at: 'asc' },
     });
 
-    return exams.map((exam) => ({
-      ...exam,
-      status: now >= exam.start_at ? ExamStatus.ONGOING : exam.status,
-    }));
+    return exams.map((exam) => {
+      const entry = completedByExam.get(exam.id);
+      const isRemedial = !!(entry?.hasAttempt1WithRemedial && !entry?.hasCompletedAttempt2);
+      return {
+        ...exam,
+        is_remedial: isRemedial,
+        status: now >= exam.start_at ? ExamStatus.ONGOING : exam.status,
+      };
+    });
   }
 }

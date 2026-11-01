@@ -167,4 +167,22 @@ export class MonitoringListener {
       message: 'Sesi ujian Anda telah dibuka kembali oleh pengawas',
     });
   }
+
+  @OnEvent(SocketEvent.SESSION_REMEDIAL_AUTHORIZED)
+  async handleSessionRemedialAuthorized(payload: {
+    sessionId: string;
+    examId: string;
+    studentId: string;
+    studentUserId: string;
+    studentName?: string;
+    proctorName?: string;
+  }) {
+    this.logger.log(`Session remedial authorized: ${payload.sessionId} for student ${payload.studentUserId}`);
+    this.gateway.notifyStudentAction(payload.studentUserId, payload.examId, SocketEvent.SESSION_REMEDIAL_AUTHORIZED, {
+      sessionId: payload.sessionId,
+      examId: payload.examId,
+      message: 'Anda telah diizinkan untuk mengikuti ujian remedial',
+      proctorName: payload.proctorName,
+    });
+  }
 }

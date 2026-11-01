@@ -189,6 +189,37 @@ describe('ExamService', () => {
       expect(result).toHaveLength(1);
       expect(result[0]?.title).toBe('Available Exam');
     });
+
+    it('should include exam if student completed attempt 1 and is_remedial_allowed is true', async () => {
+      const studentId = UUID();
+      const examId = UUID();
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId, class_id: UUID() });
+      mockPrisma.examSession.findMany.mockResolvedValue([
+        { exam_id: examId, attempt_number: 1, is_remedial_allowed: true },
+      ]);
+      mockPrisma.exam.findMany.mockResolvedValue([
+        {
+          id: examId,
+          title: 'Remedial Math Exam',
+          status: ExamStatus.PUBLISHED,
+          start_at: new Date(),
+          end_at: new Date(Date.now() + 3600000),
+          subject: { name: 'Math' },
+          _count: { exam_questions: 10 },
+        },
+      ]);
+
+      const result = await service.getExamsForStudent('user-1');
+      expect(result).toHaveLength(1);
+      expect(result[0]?.is_remedial).toBe(true);
+      expect(mockPrisma.exam.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: { notIn: [] },
+          }),
+        }),
+      );
+    });
   });
 
   describe('generateToken()', () => {

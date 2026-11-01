@@ -129,4 +129,24 @@ export class SessionController {
     );
     return { success: true, message: 'Session reopened successfully', data };
   }
+
+  @Post(':id/authorize-remedial')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Authorize remedial attempt for a student session' })
+  async authorizeRemedial(@Req() req: AuthenticatedRequest, @Param('id') sessionId: string) {
+    const data = await this.sessionService.authorizeRemedial(sessionId, req.user.sub, req.user.role);
+    return { success: true, message: 'Remedial authorized successfully', data };
+  }
+
+  @Post('exam/:examId/bulk-authorize-remedial')
+  @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: 'Bulk authorize remedial attempts for students below KKM' })
+  async bulkAuthorizeRemedial(
+    @Req() req: AuthenticatedRequest,
+    @Param('examId') examId: string,
+    @Body() body: { student_ids: string[] },
+  ) {
+    const data = await this.sessionService.bulkAuthorizeRemedial(examId, req.user.sub, body, req.user.role);
+    return { success: true, message: 'Bulk remedial authorized successfully', data };
+  }
 }

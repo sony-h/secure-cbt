@@ -5,10 +5,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { GradingService } from '../grading/grading.service';
 import {
   StartSessionInput, ResumeSessionInput, SyncTimeInput, SubmitSessionInput,
-  ReopenSessionInput,
+  ReopenSessionInput, BulkAuthorizeRemedialInput,
   startSessionSchema, resumeSessionSchema, syncTimeSchema, submitSessionSchema,
-  reopenSessionSchema,
-  SessionStatus, ExamStatus, SocketEvent, shuffle, UserRole,
+  reopenSessionSchema, bulkAuthorizeRemedialSchema,
+  SessionStatus, SessionType, ExamStatus, SocketEvent, shuffle, UserRole,
 } from '@secure-cbt/shared';
 import { resolveStudentId } from '../../common/helpers/user-resolver.helper';
 import { sampleQuestionPool } from './session-sampler';
@@ -78,9 +78,34 @@ export class SessionService {
         student_id: student.id,
         status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.EXPIRED] },
       },
+      orderBy: { attempt_number: 'desc' },
     });
+
+    let attemptNumber = 1;
+    let sessionType = SessionType.MAIN;
+
     if (completed) {
-      throw new BadRequestException('Anda sudah menyelesaikan ujian ini');
+      if (completed.attempt_number >= 2) {
+        throw new BadRequestException('Anda sudah menyelesaikan ujian remedial ini');
+      }
+
+      if (!completed.is_remedial_allowed) {
+        throw new BadRequestException('Anda sudah menyelesaikan ujian ini');
+      }
+
+      // Check if attempt 2 already exists
+      const existingAttempt2 = await this.prisma.examSession.findFirst({
+        where: { exam_id: exam.id, student_id: student.id, attempt_number: 2 },
+      });
+      if (existingAttempt2) {
+        if (existingAttempt2.status === SessionStatus.ACTIVE || existingAttempt2.status === SessionStatus.PAUSED) {
+          return this.resume({ session_id: existingAttempt2.id }, userId);
+        }
+        throw new BadRequestException('Anda sudah menyelesaikan ujian remedial ini');
+      }
+
+      attemptNumber = 2;
+      sessionType = SessionType.REMEDIAL;
     }
 
     // Assign a random package
@@ -103,6 +128,8 @@ export class SessionService {
         student_id: student.id,
         package_id: assignedPackage?.id,
         status: SessionStatus.ACTIVE,
+        attempt_number: attemptNumber,
+        session_type: sessionType,
         remaining_time_seconds: remainingSeconds,
         device_id,
       },
@@ -360,8 +387,21 @@ export class SessionService {
 
       await tx.score.upsert({
         where: { exam_session_id: session_id },
-        create: { exam_session_id: session_id, ...scoreData, passing_grade_at_score: settings?.passing_grade ?? null, graded_at: new Date() },
-        update: { ...scoreData, passing_grade_at_score: settings?.passing_grade ?? null, graded_at: new Date() },
+        create: {
+          exam_session_id: session_id,
+          attempt_number: session.attempt_number ?? 1,
+          session_type: session.session_type ?? SessionType.MAIN,
+          ...scoreData,
+          passing_grade_at_score: settings?.passing_grade ?? null,
+          graded_at: new Date(),
+        },
+        update: {
+          attempt_number: session.attempt_number ?? 1,
+          session_type: session.session_type ?? SessionType.MAIN,
+          ...scoreData,
+          passing_grade_at_score: settings?.passing_grade ?? null,
+          graded_at: new Date(),
+        },
       });
 
       return updatedSession;
@@ -467,6 +507,26 @@ export class SessionService {
       );
     }
 
+    if (session.attempt_number === 1 && session.is_remedial_allowed) {
+      const attempt2 = await this.prisma.examSession.findFirst({
+        where: {
+          exam_id: session.exam_id,
+          student_id: session.student_id,
+          attempt_number: 2,
+        },
+      });
+
+      if (
+        !attempt2 ||
+        (attempt2.status !== SessionStatus.SUBMITTED &&
+          attempt2.status !== SessionStatus.AUTO_SUBMITTED)
+      ) {
+        throw new ForbiddenException(
+          'Pembahasan soal terkunci karena Anda terdaftar untuk mengikuti ujian remedial. Pembahasan akan terbuka setelah Anda menyelesaikan remedial.',
+        );
+      }
+    }
+
     // Filter by package if session has a package
     const filteredQuestions = session.exam.exam_questions.filter(
       (eq) => !eq.package_id || eq.package_id === session.package_id,
@@ -550,8 +610,21 @@ export class SessionService {
 
       await tx.score.upsert({
         where: { exam_session_id: sessionId },
-        create: { exam_session_id: sessionId, ...scoreData, passing_grade_at_score: settings?.passing_grade ?? null, graded_at: new Date() },
-        update: { ...scoreData, passing_grade_at_score: settings?.passing_grade ?? null, graded_at: new Date() },
+        create: {
+          exam_session_id: sessionId,
+          attempt_number: session.attempt_number ?? 1,
+          session_type: session.session_type ?? SessionType.MAIN,
+          ...scoreData,
+          passing_grade_at_score: settings?.passing_grade ?? null,
+          graded_at: new Date(),
+        },
+        update: {
+          attempt_number: session.attempt_number ?? 1,
+          session_type: session.session_type ?? SessionType.MAIN,
+          ...scoreData,
+          passing_grade_at_score: settings?.passing_grade ?? null,
+          graded_at: new Date(),
+        },
       });
 
       return updatedSession;
@@ -640,11 +713,15 @@ export class SessionService {
         where: { exam_session_id: sessionId },
         create: {
           exam_session_id: sessionId,
+          attempt_number: session.attempt_number ?? 1,
+          session_type: session.session_type ?? SessionType.MAIN,
           ...scoreData,
           passing_grade_at_score: settings?.passing_grade ?? null,
           graded_at: new Date(),
         },
         update: {
+          attempt_number: session.attempt_number ?? 1,
+          session_type: session.session_type ?? SessionType.MAIN,
           ...scoreData,
           passing_grade_at_score: settings?.passing_grade ?? null,
           graded_at: new Date(),
@@ -956,7 +1033,7 @@ export class SessionService {
   async reopenSession(
     sessionId: string,
     proctorUserId: string,
-    dto: ReopenSessionInput,
+    dto: { additional_minutes?: number; reset_strikes?: boolean },
     userRole?: string,
   ) {
     const { additional_minutes, reset_strikes } = reopenSessionSchema.parse({
@@ -1041,6 +1118,120 @@ export class SessionService {
       remainingTimeSeconds: restoredRemainingTime,
       warningCount: updatedWarningCount,
       reopenedBy: proctorName,
+    });
+
+    return updated;
+  }
+
+  async authorizeRemedial(sessionId: string, proctorUserId: string, userRole?: string) {
+    const session = await this.prisma.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { id: true, full_name: true, user_id: true } },
+        exam: { select: { id: true, subject_id: true } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    if (userRole === UserRole.TEACHER && proctorUserId) {
+      const scope = await getTeacherScope(this.prisma, proctorUserId);
+      assertTeacherMonitorAccess(
+        scope,
+        session.exam.subject_id,
+        'Anda tidak memiliki izin mengelola sesi ujian ini',
+      );
+    }
+
+    if (
+      session.status !== SessionStatus.SUBMITTED &&
+      session.status !== SessionStatus.AUTO_SUBMITTED &&
+      session.status !== SessionStatus.EXPIRED
+    ) {
+      throw new BadRequestException('Remedial hanya dapat diotorisasi untuk sesi ujian yang telah selesai');
+    }
+
+    if (session.attempt_number > 1) {
+      throw new BadRequestException('Otorisasi remedial hanya dapat diberikan untuk ujian utama (Attempt 1)');
+    }
+
+    const attempt2 = await this.prisma.examSession.findFirst({
+      where: {
+        exam_id: session.exam_id,
+        student_id: session.student_id,
+        attempt_number: 2,
+      },
+    });
+    if (
+      attempt2 &&
+      (attempt2.status === SessionStatus.SUBMITTED ||
+        attempt2.status === SessionStatus.AUTO_SUBMITTED ||
+        attempt2.status === SessionStatus.EXPIRED)
+    ) {
+      throw new BadRequestException('Siswa telah menyelesaikan ujian remedial untuk mata pelajaran ini');
+    }
+
+    const proctorName = await this.resolveProctorName(proctorUserId);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedSession = await tx.examSession.update({
+        where: { id: sessionId },
+        data: { is_remedial_allowed: true },
+      });
+
+      await tx.sessionLog.create({
+        data: {
+          exam_session_id: sessionId,
+          event: 'REMEDIAL_AUTHORIZED',
+          description: `Remedial diizinkan oleh pengawas/guru (${proctorName})`,
+        },
+      });
+
+      return updatedSession;
+    });
+
+    this.eventEmitter.emit(SocketEvent.SESSION_REMEDIAL_AUTHORIZED, {
+      sessionId: session.id,
+      examId: session.exam_id,
+      studentId: session.student_id,
+      studentUserId: session.student.user_id,
+      studentName: session.student.full_name,
+      proctorName,
+    });
+
+    return updated;
+  }
+
+  async bulkAuthorizeRemedial(
+    examId: string,
+    proctorUserId: string,
+    dto: BulkAuthorizeRemedialInput,
+    userRole?: string,
+  ) {
+    const { student_ids } = bulkAuthorizeRemedialSchema.parse(dto);
+
+    if (userRole === UserRole.TEACHER && proctorUserId) {
+      const exam = await this.prisma.exam.findUnique({
+        where: { id: examId },
+        select: { subject_id: true },
+      });
+      if (!exam) throw new NotFoundException('Exam not found');
+
+      const scope = await getTeacherScope(this.prisma, proctorUserId);
+      assertTeacherMonitorAccess(
+        scope,
+        exam.subject_id,
+        'Anda tidak memiliki izin mengelola ujian ini',
+      );
+    }
+
+    const updated = await this.prisma.examSession.updateMany({
+      where: {
+        exam_id: examId,
+        student_id: { in: student_ids },
+        attempt_number: 1,
+        status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.EXPIRED] },
+      },
+      data: { is_remedial_allowed: true },
     });
 
     return updated;
@@ -1141,11 +1332,15 @@ export class SessionService {
             where: { exam_session_id: session.id },
             create: {
               exam_session_id: session.id,
+              attempt_number: session.attempt_number ?? 1,
+              session_type: session.session_type ?? SessionType.MAIN,
               ...scoreData,
               passing_grade_at_score: settings?.passing_grade ?? null,
               graded_at: now,
             },
             update: {
+              attempt_number: session.attempt_number ?? 1,
+              session_type: session.session_type ?? SessionType.MAIN,
               ...scoreData,
               passing_grade_at_score: settings?.passing_grade ?? null,
               graded_at: now,
