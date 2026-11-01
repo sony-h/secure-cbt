@@ -3,12 +3,12 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.7.5` (Mobile Android Build: `1.7.5+19`)  
+**Current Version:** `v1.8.0` (Mobile Android Build: `1.8.0+20`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 35 - Proctor Mission Control, Strike Steppers & Unified In-Exam Notification Banners (Release v1.7.5+19)  
+**Current Phase:** Phase 36 - Accidental Submission Recovery, Remedial Re-Attempts, Option C Dual-Score Reporting & Tactile Slide-to-Submit (Release v1.8.0+20)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
-**Last Updated:** 2026-10-30
+**Last Updated:** 2026-11-01
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -1473,6 +1473,37 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
   - `roomBroadcast`: Rose theme with `SEMUA SISWA` / `PENTING` badge.
 - **Non-Intrusive Layout:** Positioned cleanly below the exam app bar with smooth slide & fade entrance, timer auto-dismiss (6s default, 15–30s for broadcasts), and explicit close button.
 - **Full Socket Listener Wiring:** Connected `session.warnings_adjusted`, `session.warnings_reset`, `session.time_extended`, `session.unlocked`, and `session.force_submit` in `exam_screen.dart`.
+
+---
+
+## Phase 36 Completion Summary (v1.8.0+20)
+
+**Version:** `v1.8.0` (Mobile Android Build: `1.8.0+20`)  
+**Date:** 2026-11-01  
+
+### 1. Accidental Submission Recovery & Session Reopen
+- **Backend API & Reopen Engine:** Implemented `POST /sessions/:id/reopen` with authorization for proctors, teachers, operators, and admins. Sessions in `SUBMITTED` or `AUTO_SUBMITTED` states are safely restored to `ACTIVE` provided the exam is still within schedule (`now <= exam.end_at`).
+- **Strike Reset & Timer Restoral:** Reopening auto-submitted sessions automatically resets strikes to 0 to prevent immediate auto-submit recursion upon student reconnection, deletes premature scores, restores remaining timer seconds, and records an immutable audit log entry in `session_logs`.
+- **Real-Time Notification & Sync:** Emits `session.reopened` (`SocketEvent.SESSION_REOPENED`) over WebSocket namespace `/monitoring` targeted to the student and proctors room.
+- **Mobile Live Re-Arming:** In `exam_screen.dart`, incoming reopen events automatically dismiss transition dialogs, restore `isSubmitted: false`, re-arm screen security (`FLAG_SECURE`), restore `SystemUiMode.immersiveSticky`, re-enable violation listeners, and display an in-exam recovery banner.
+
+### 2. Remedial Re-Attempt Authorization & Lifecycle (Attempt #2)
+- **Database & Domain Support:** Extended `exam_sessions` with `attempt_number` (`Int @default(1)`), `session_type` (`SessionType: REGULAR | REMEDIAL`), `is_remedial` (`Boolean @default(false)`), `is_remedial_allowed` (`Boolean @default(false)`), and `remedial_authorized_by` (`String?`).
+- **Targeted Authorization:** Added `POST /sessions/:id/authorize-remedial` in `SessionController` / `SessionService`, allowing proctors to grant Attempt #2 authorization for eligible students.
+- **Bulk Remedial Action:** Added `POST /reports/exams/:examId/bulk-authorize-remedial` authorizing Attempt #2 in bulk for all students scoring below the passing grade ($KKM$).
+- **Fresh Randomization Lifecycle:** When students enter the token for an authorized remedial exam, `SessionService.start()` generates a fresh question subset from random pools and newly shuffled option cards, strictly segregated under `attempt_number: 2` and `session_type: REMEDIAL`.
+- **Anti-Cheat Review Lockout:** Both `GET /sessions/:id/review` and student mobile history lock discussion access for Attempt #1 whenever `is_remedial_allowed == true` and Attempt #2 has not yet been submitted.
+
+### 3. Dual-Score Reporting (Option C) & Export
+- **Independent Score Tracking:** Retains both "Nilai Utama" (Attempt #1) and "Nilai Remedial" (Attempt #2) independently without automated composite distortion.
+- **Dashboard Reports UI:** Upgraded `/dashboard/reports` data table with side-by-side Nilai Utama and Nilai Remedial columns, dynamic badges (`Remedial Diizinkan`, `Sedang Remedial`, `Lulus Remedial`, `Perlu Remedial`), and a bulk remedial launcher button with counter.
+- **Formal Excel Dual-Score Export:** Extended workbook generation (`GET /reports/exams/:examId/excel`) with dedicated columns for Nilai Utama, Nilai Remedial, Status Akhir, and summary statistics (*Rata-Rata*, *Nilai Terendah*, *Nilai Tertinggi*).
+
+### 4. Tactile Slide-to-Submit with Unanswered Question Alerts
+- **Accidental Submit Prevention:** Replaced standard tap submit button with an interactive horizontal slider (`SlideToSubmit`) requiring a deliberate swipe across $\ge 85\%$ of the track.
+- **Unanswered Soal Alert Card:** Prominently displays unanswered question counts with a direct quick-link to the question palette (`Buka Palet Soal`) when students attempt to submit an incomplete exam.
+- **Haptic Feedback & Spring Physics:** Features tactile haptic clicks upon threshold arrival and smooth spring physics snap-back if released prematurely (< 85%).
+- **Mobile UI Status Integration:** Added `Tersedia (Remedial)` status pills and `REMEDIAL BERLANGSUNG` tags in student home and exams screens.
 
 ---
 
