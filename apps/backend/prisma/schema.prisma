@@ -328,6 +328,7 @@ model Exam {
   points_medium                    Int        @default(2)
   points_hard                      Int        @default(3)
   show_results                     Boolean    @default(true)
+  max_attempts                     Int?       @default(1)
   violation_vibration_enabled      Boolean    @default(true)
   violation_alarm_enabled          Boolean    @default(true)
   violation_alarm_duration_seconds Int        @default(3)
@@ -427,6 +428,7 @@ model ExamSession {
   attempt_number         Int           @default(1)
   session_type           SessionType   @default(MAIN)
   is_remedial_allowed    Boolean       @default(false)
+  extra_attempts_allowed Int           @default(0)
   reopened_at            DateTime?
   reopened_by            String?       @db.Uuid
   started_at             DateTime      @default(now())

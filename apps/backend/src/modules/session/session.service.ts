@@ -461,7 +461,7 @@ export class SessionService {
         is_exam_finished: isFinished,
         show_results: s.exam.show_results ?? true,
         attempt_number: s.attempt_number ?? 1,
-        is_remedial: s.is_remedial ?? false,
+        is_remedial: s.session_type === SessionType.REMEDIAL,
         is_remedial_allowed: s.is_remedial_allowed ?? false,
         is_remedial_locked: isRemedialLocked,
       };
