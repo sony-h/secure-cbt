@@ -46,10 +46,20 @@ interface GradeResult {
   student_id: string;
   student: { nis: string; full_name: string; class_name: string };
   total_score: number;
-  main_score: number;
+  best_score: number;
+  main_score: number | null;
   remedial_score: number | null;
   is_remedial_allowed: boolean;
   attempt_count: number;
+  attempts_count: number;
+  attempts?: Array<{
+    attempt_number: number;
+    session_id: string;
+    score: number | null;
+    correct_count: number;
+    wrong_count: number;
+    submitted_at: string | null;
+  }>;
   correct_count: number;
   wrong_count: number;
   essay_score: number | null;
@@ -139,34 +149,45 @@ function ReportsPageContent() {
     enabled: !!selectedExam,
   });
 
-  const { data: results, isLoading } = useQuery({
+  const { data: reportData, isLoading } = useQuery({
     queryKey: ['results', selectedExam, selectedClass],
     queryFn: async () => {
-      if (!selectedExam) return [];
+      if (!selectedExam) return null;
       const params: any = {};
       if (selectedClass) params.class_id = selectedClass;
       const { data } = await reportApi.getExamReport(selectedExam, params);
       const raw = data.data;
-      return ((raw?.students || []) as any[]).map((s: any) => ({
+      const mappedStudents = ((raw?.students || []) as any[]).map((s: any) => ({
         session_id: s.session_id || s.student_id,
         attempt1_session_id: s.attempt1_session_id ?? s.session_id ?? null,
         attempt2_session_id: s.attempt2_session_id ?? null,
         student_id: s.student_id,
         student: { nis: s.nis, full_name: s.student_name, class_name: s.class_name },
         total_score: s.score,
+        best_score: s.best_score ?? s.score,
         main_score: s.main_score ?? s.score,
         remedial_score: s.remedial_score ?? null,
         is_remedial_allowed: !!s.is_remedial_allowed,
-        attempt_count: s.attempt_count ?? 1,
+        attempt_count: s.attempt_count ?? s.attempts_count ?? 1,
+        attempts_count: s.attempts_count ?? s.attempt_count ?? 1,
+        attempts: s.attempts || [],
         correct_count: s.correct_count,
         wrong_count: s.wrong_count,
         essay_score: s.essay_score ?? null,
         total_questions: s.total_questions ?? 0,
         status: s.status,
       })) as GradeResult[];
+      return {
+        ...raw,
+        is_multi_attempt: !!raw?.is_multi_attempt,
+        students: mappedStudents,
+      };
     },
     enabled: !!selectedExam,
   });
+
+  const isMultiAttempt = reportData?.is_multi_attempt ?? false;
+  const results: GradeResult[] = reportData?.students ?? [];
 
   const { data: settings } = useQuery({
     queryKey: ['settings'],
@@ -180,13 +201,14 @@ function ReportsPageContent() {
   const passedCount = results?.filter((r) => r.status === 'passed').length || 0;
 
   const eligibleForRemedial = useMemo(() => {
+    if (isMultiAttempt) return [];
     return (results ?? []).filter(
       (r) =>
-        (r.main_score < passingGrade || r.status !== 'passed') &&
+        (r.main_score === null || r.main_score < passingGrade || r.status !== 'passed') &&
         !r.is_remedial_allowed &&
         r.remedial_score === null,
     );
-  }, [results, passingGrade]);
+  }, [results, passingGrade, isMultiAttempt]);
 
   const handleAuthorizeRemedial = async (sessionId: string) => {
     try {
@@ -213,112 +235,148 @@ function ReportsPageContent() {
     }
   };
 
-  const reportColumns: ColumnDef<GradeResult>[] = [
-    { accessorKey: 'student.nis', header: 'NIS', cell: ({ row }: any) => <span className="font-medium">{row.original.student?.nis}</span> },
-    { accessorKey: 'student.full_name', header: 'Nama', enableSorting: true, cell: ({ row }: any) => row.original.student?.full_name },
-    { accessorKey: 'student.class_name', header: 'Kelas', cell: ({ row }: any) => row.original.student?.class_name },
-    { accessorKey: 'correct_count', header: 'Benar', enableSorting: true, cell: ({ row }: any) => <span className="text-green-600 font-medium">{row.original.correct_count}</span> },
-    { accessorKey: 'wrong_count', header: 'Salah', cell: ({ row }: any) => <span className="text-red-600">{row.original.wrong_count}</span> },
-    { accessorKey: 'essay_score', header: 'Esai', cell: ({ row }: any) => row.original.essay_score !== null ? row.original.essay_score.toFixed(1) : '—' },
-    {
-      id: 'unanswered', header: 'Tidak Dijawab',
-      cell: ({ row }: any) => <span className="text-muted-foreground">{Math.max(0, row.original.total_questions - row.original.correct_count - row.original.wrong_count)}</span>,
-    },
-    {
-      accessorKey: 'main_score',
-      header: 'Nilai Utama',
-      enableSorting: true,
-      cell: ({ row }: any) => (
-        <span className="font-bold text-slate-800 dark:text-slate-100">
-          {(row.original.main_score ?? row.original.total_score).toFixed(1)}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'remedial_score',
-      header: 'Nilai Remedial',
-      enableSorting: true,
-      cell: ({ row }: any) => (
-        <span
-          className={cn(
-            'font-bold',
-            row.original.remedial_score !== null
-              ? 'text-indigo-600 dark:text-indigo-400'
-              : 'text-muted-foreground',
-          )}
-        >
-          {row.original.remedial_score !== null && row.original.remedial_score !== undefined
-            ? row.original.remedial_score.toFixed(1)
-            : '—'}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }: any) => {
-        const isPassed = row.original.status === 'passed';
-        if (isPassed) {
-          return <Badge variant="success">Lulus</Badge>;
-        }
-        if (row.original.is_remedial_allowed && row.original.remedial_score === null) {
-          return (
-            <Badge variant="outline" className="text-indigo-600 border-indigo-400 dark:text-indigo-400">
-              Remedial Diizinkan
-            </Badge>
-          );
-        }
-        return <Badge variant="destructive">Remedial</Badge>;
+  const reportColumns: ColumnDef<GradeResult>[] = useMemo(() => {
+    const cols: ColumnDef<GradeResult>[] = [
+      { accessorKey: 'student.nis', header: 'NIS', cell: ({ row }: any) => <span className="font-medium">{row.original.student?.nis}</span> },
+      { accessorKey: 'student.full_name', header: 'Nama', enableSorting: true, cell: ({ row }: any) => row.original.student?.full_name },
+      { accessorKey: 'student.class_name', header: 'Kelas', cell: ({ row }: any) => row.original.student?.class_name },
+      { accessorKey: 'correct_count', header: 'Benar', enableSorting: true, cell: ({ row }: any) => <span className="text-green-600 font-medium">{row.original.correct_count}</span> },
+      { accessorKey: 'wrong_count', header: 'Salah', cell: ({ row }: any) => <span className="text-red-600">{row.original.wrong_count}</span> },
+      { accessorKey: 'essay_score', header: 'Esai', cell: ({ row }: any) => row.original.essay_score !== null ? row.original.essay_score.toFixed(1) : '—' },
+      {
+        id: 'unanswered', header: 'Tidak Dijawab',
+        cell: ({ row }: any) => <span className="text-muted-foreground">{Math.max(0, row.original.total_questions - row.original.correct_count - row.original.wrong_count)}</span>,
       },
-    },
-    {
-      id: 'actions',
-      header: 'Aksi',
-      cell: ({ row }: any) => {
-        const canAuthorizeRemedial =
-          row.original.status !== 'passed' &&
-          !row.original.is_remedial_allowed &&
-          row.original.remedial_score === null;
+    ];
 
-        return (
-          <div className="flex items-center gap-1.5">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 text-xs font-medium"
-              onClick={() => {
-                setSelectedReviewSession({
-                  sessionId: row.original.session_id,
-                  studentName: row.original.student?.full_name,
-                  nis: row.original.student?.nis,
-                });
-              }}
-              title="Lihat detail evaluasi lembar jawaban dan pembahasan"
+    if (isMultiAttempt) {
+      cols.push(
+        {
+          accessorKey: 'attempts_count',
+          header: 'Percobaan',
+          enableSorting: true,
+          cell: ({ row }: any) => (
+            <Badge variant="outline" className="font-mono text-xs font-bold border-violet-500/40 text-violet-700 dark:text-violet-300 bg-violet-500/10">
+              {row.original.attempts_count}x
+            </Badge>
+          ),
+        },
+        {
+          accessorKey: 'best_score',
+          header: 'Nilai Terbaik',
+          enableSorting: true,
+          cell: ({ row }: any) => (
+            <span className="font-extrabold text-blue-600 dark:text-blue-400 text-sm">
+              {row.original.best_score.toFixed(1)}
+            </span>
+          ),
+        },
+      );
+    } else {
+      cols.push(
+        {
+          accessorKey: 'main_score',
+          header: 'Nilai Utama',
+          enableSorting: true,
+          cell: ({ row }: any) => (
+            <span className="font-bold text-slate-800 dark:text-slate-100">
+              {(row.original.main_score ?? row.original.total_score).toFixed(1)}
+            </span>
+          ),
+        },
+        {
+          accessorKey: 'remedial_score',
+          header: 'Nilai Remedial',
+          enableSorting: true,
+          cell: ({ row }: any) => (
+            <span
+              className={cn(
+                'font-bold',
+                row.original.remedial_score !== null
+                  ? 'text-indigo-600 dark:text-indigo-400'
+                  : 'text-muted-foreground',
+              )}
             >
-              <Eye className="w-3.5 h-3.5 text-primary" />
-              Lihat Detail
-            </Button>
-            {canAuthorizeRemedial && (
+              {row.original.remedial_score !== null && row.original.remedial_score !== undefined
+                ? row.original.remedial_score.toFixed(1)
+                : '—'}
+            </span>
+          ),
+        },
+      );
+    }
+
+    cols.push(
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row }: any) => {
+          const isPassed = row.original.status === 'passed';
+          if (isPassed) {
+            return <Badge variant="success">Lulus</Badge>;
+          }
+          if (!isMultiAttempt && row.original.is_remedial_allowed && row.original.remedial_score === null) {
+            return (
+              <Badge variant="outline" className="text-indigo-600 border-indigo-400 dark:text-indigo-400">
+                Remedial Diizinkan
+              </Badge>
+            );
+          }
+          return <Badge variant="destructive">{isMultiAttempt ? 'Belum Tuntas' : 'Remedial'}</Badge>;
+        },
+      },
+      {
+        id: 'actions',
+        header: 'Aksi',
+        cell: ({ row }: any) => {
+          const canAuthorizeRemedial =
+            !isMultiAttempt &&
+            row.original.status !== 'passed' &&
+            !row.original.is_remedial_allowed &&
+            row.original.remedial_score === null;
+
+          return (
+            <div className="flex items-center gap-1.5">
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 gap-1.5 text-xs font-semibold text-indigo-600 border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                onClick={() =>
-                  handleAuthorizeRemedial(
-                    row.original.attempt1_session_id || row.original.session_id,
-                  )
-                }
-                title="Izinkan siswa mengerjakan remedial (Attempt #2)"
+                className="h-8 gap-1.5 text-xs font-medium"
+                onClick={() => {
+                  setSelectedReviewSession({
+                    sessionId: row.original.session_id,
+                    studentName: row.original.student?.full_name,
+                    nis: row.original.student?.nis,
+                  });
+                }}
+                title="Lihat detail evaluasi lembar jawaban dan pembahasan"
               >
-                <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                Izinkan Remedial
+                <Eye className="w-3.5 h-3.5 text-primary" />
+                Lihat Detail
               </Button>
-            )}
-          </div>
-        );
+              {canAuthorizeRemedial && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs font-semibold text-indigo-600 border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                  onClick={() =>
+                    handleAuthorizeRemedial(
+                      row.original.attempt1_session_id || row.original.session_id,
+                    )
+                  }
+                  title="Izinkan siswa mengerjakan remedial (Attempt #2)"
+                >
+                  <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+                  Izinkan Remedial
+                </Button>
+              )}
+            </div>
+          );
+        },
       },
-    },
-  ];
+    );
+
+    return cols;
+  }, [isMultiAttempt]);
 
   const handleExportCSV = () => {
     if (!sortedResults.length) return;
@@ -465,7 +523,7 @@ function ReportsPageContent() {
               </Select>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {canRegrade && (
+              {canRegrade && !isMultiAttempt && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
