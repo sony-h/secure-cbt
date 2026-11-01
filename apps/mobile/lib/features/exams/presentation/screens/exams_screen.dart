@@ -399,7 +399,10 @@ class _SubjectExamCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            StatusPill.fromExamStatus(exam['status'] ?? 'PUBLISHED'),
+                            StatusPill.fromExamStatus(
+                              exam['status'] ?? 'PUBLISHED',
+                              isRemedial: exam['is_remedial_pending'] == true || exam['active_session']?['is_remedial'] == true,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 12),

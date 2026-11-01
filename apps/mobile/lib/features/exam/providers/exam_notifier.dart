@@ -360,6 +360,24 @@ class ExamNotifier extends StateNotifier<ExamState> {
     exitFullscreen();
   }
 
+  void reopenSession({required int remainingSeconds, int warningCount = 0}) {
+    state = state.copyWith(
+      isSubmitted: false,
+      remainingSeconds: remainingSeconds,
+      warningCount: warningCount,
+      violations: [],
+      isFullscreen: true,
+      isWarningOverlayActive: false,
+      isFocusLostBlocked: false,
+      isDualScreenBlocked: false,
+      isFocusViolationAckPending: false,
+    );
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    _startTimer();
+    _startAutosave();
+    AppLogger.info('Session reopened: remaining=$remainingSeconds, warnings=$warningCount');
+  }
+
   void _startTimer() {
     _timer?.cancel();
     _timerPaused = false;

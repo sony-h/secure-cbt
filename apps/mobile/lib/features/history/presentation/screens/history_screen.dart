@@ -80,6 +80,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                             : '-';
 
                         final isExamFinished = h['is_exam_finished'] == true;
+                        final isRemedialLocked = h['is_remedial_locked'] == true;
+                        final canReview = isExamFinished && !isRemedialLocked;
                         final showResults = h['show_results'] as bool? ?? true;
                         final sessionId = h['id']?.toString() ?? '';
                         final endAtStr = h['end_at'] as String?;
@@ -108,6 +110,29 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                         Expanded(
                                           child: Text(
                                             'Nilai dan pembahasan belum dirilis oleh guru pengampu.',
+                                            style: TextStyle(fontSize: 12.5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: AppColors.textPrimary,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                );
+                                return;
+                              }
+                              if (h['is_remedial_locked'] == true) {
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Row(
+                                      children: [
+                                        Icon(Icons.lock_rounded, size: 16, color: Colors.white),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Pembahasan terkunci karena Anda memiliki jadwal remedial yang belum diselesaikan.',
                                             style: TextStyle(fontSize: 12.5),
                                           ),
                                         ),
@@ -171,16 +196,41 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        examTitle,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14,
-                                          letterSpacing: -0.2,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              examTitle,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14,
+                                                letterSpacing: -0.2,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if ((h['attempt_number'] ?? 1) == 2 || h['is_remedial'] == true) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.warningContainer,
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                                              ),
+                                              child: const Text(
+                                                'Remedial',
+                                                style: TextStyle(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.warning,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                       const SizedBox(height: 3),
                                       Text(
@@ -274,10 +324,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: isExamFinished ? AppColors.primaryContainer : AppColors.surfaceSubtle,
+                                            color: canReview ? AppColors.primaryContainer : AppColors.surfaceSubtle,
                                             borderRadius: BorderRadius.circular(6),
                                             border: Border.all(
-                                              color: isExamFinished
+                                              color: canReview
                                                   ? AppColors.primary.withValues(alpha: 0.3)
                                                   : AppColors.border,
                                             ),
@@ -286,17 +336,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
-                                                isExamFinished ? Icons.menu_book_rounded : Icons.lock_outline_rounded,
+                                                canReview ? Icons.menu_book_rounded : Icons.lock_outline_rounded,
                                                 size: 10,
-                                                color: isExamFinished ? AppColors.primary : AppColors.textMuted,
+                                                color: canReview ? AppColors.primary : AppColors.textMuted,
                                               ),
                                               const SizedBox(width: 3),
                                               Text(
-                                                isExamFinished ? 'Solusi' : 'Terkunci',
+                                                canReview ? 'Solusi' : 'Terkunci',
                                                 style: TextStyle(
                                                   fontSize: 9.5,
                                                   fontWeight: FontWeight.w700,
-                                                  color: isExamFinished ? AppColors.primary : AppColors.textMuted,
+                                                  color: canReview ? AppColors.primary : AppColors.textMuted,
                                                 ),
                                               ),
                                             ],

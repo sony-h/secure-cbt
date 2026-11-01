@@ -433,8 +433,19 @@ export class SessionService {
     });
 
     const now = new Date();
+    const submittedAttempt2ExamIds = new Set(
+      sessions
+        .filter((s) => (s.attempt_number ?? 1) === 2)
+        .map((s) => s.exam_id),
+    );
+
     return sessions.map((s) => {
       const isFinished = s.exam.status === ExamStatus.FINISHED || now > new Date(s.exam.end_at);
+      const isRemedialLocked =
+        s.is_remedial_allowed === true &&
+        (s.attempt_number ?? 1) === 1 &&
+        !submittedAttempt2ExamIds.has(s.exam_id);
+
       return {
         id: s.id,
         exam_id: s.exam_id,
@@ -449,6 +460,10 @@ export class SessionService {
         end_at: s.exam.end_at.toISOString(),
         is_exam_finished: isFinished,
         show_results: s.exam.show_results ?? true,
+        attempt_number: s.attempt_number ?? 1,
+        is_remedial: s.is_remedial ?? false,
+        is_remedial_allowed: s.is_remedial_allowed ?? false,
+        is_remedial_locked: isRemedialLocked,
       };
     });
   }

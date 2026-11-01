@@ -23,7 +23,14 @@ class StatusPill extends StatelessWidget {
     this.isCompact = false,
   });
 
-  factory StatusPill.fromExamStatus(String status) {
+  factory StatusPill.fromExamStatus(String status, {bool isRemedial = false}) {
+    if (isRemedial) {
+      return const StatusPill(
+        label: 'Tersedia (Remedial)',
+        icon: Icons.replay_rounded,
+        type: StatusPillType.warning,
+      );
+    }
     switch (status.toUpperCase()) {
       case 'ONGOING':
       case 'AKTIF':

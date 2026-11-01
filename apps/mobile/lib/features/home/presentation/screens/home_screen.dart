@@ -633,9 +633,11 @@ class _ActiveExamHeroBanner extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      const Text(
-                        'SEDANG BERLANGSUNG',
-                        style: TextStyle(
+                      Text(
+                        (exam['active_session']?['is_remedial'] == true || exam['is_remedial_pending'] == true)
+                            ? 'REMEDIAL BERLANGSUNG'
+                            : 'SEDANG BERLANGSUNG',
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.5,
@@ -845,7 +847,10 @@ class _SubjectThemedExamCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          StatusPill.fromExamStatus(exam['status'] ?? 'PUBLISHED'),
+                          StatusPill.fromExamStatus(
+                            exam['status'] ?? 'PUBLISHED',
+                            isRemedial: exam['is_remedial_pending'] == true || exam['active_session']?['is_remedial'] == true,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),

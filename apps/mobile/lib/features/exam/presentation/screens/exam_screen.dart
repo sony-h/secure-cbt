@@ -105,6 +105,7 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
     socket.setOnWarningsReset(null);
     socket.setOnWarningsAdjusted(null);
     socket.setOnSessionUnlocked(null);
+    socket.setOnSessionReopened(null);
     socket.disconnect();
     ScreenSecurity.disable();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -373,6 +374,46 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
             message: 'Pengawas telah membuka kunci sesi / perangkat ujian Anda.',
             badgeText: 'PULIH',
             duration: Duration(seconds: 6),
+          ));
+        });
+
+        // Real-time session reopened listener (targeted to specific session / student)
+        socket.setOnSessionReopened((data) {
+          if (!mounted) return;
+          final targetSessionId = data['sessionId']?.toString();
+          final targetUserId = data['studentUserId']?.toString();
+          if (targetSessionId != null && targetSessionId.isNotEmpty && targetSessionId != widget.sessionId) {
+            return;
+          }
+          if (targetUserId != null && targetUserId.isNotEmpty && authState.userId != null && targetUserId != authState.userId) {
+            return;
+          }
+
+          final remainingSeconds = data['remainingTimeSeconds'] as int? ?? 1800;
+          final warningCount = data['warningCount'] as int? ?? 0;
+
+          // Reopen session in notifier
+          ref.read(examProvider.notifier).reopenSession(
+            remainingSeconds: remainingSeconds,
+            warningCount: warningCount,
+          );
+
+          // Re-arm violation handler and screen security
+          _violationHandler?.enable();
+          ScreenSecurity.enable();
+          SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+          // Close any open submission transition or submit dialogs if still on screen
+          if (Navigator.of(context, rootNavigator: true).canPop()) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
+
+          _showNotificationBanner(const _InExamBannerData(
+            type: ExamNotificationBannerType.deviceUnlocked,
+            title: 'SESI UJIAN DIBUKA KEMBALI',
+            message: 'Pengawas telah membuka kembali sesi ujian Anda. Silakan lanjutkan pengerjaan.',
+            badgeText: 'PULIH',
+            duration: Duration(seconds: 8),
           ));
         });
       }

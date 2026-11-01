@@ -22,6 +22,7 @@ class MonitoringSocket {
   void Function(Map<String, dynamic> data)? _onWarningsReset;
   void Function(Map<String, dynamic> data)? _onWarningsAdjusted;
   void Function(Map<String, dynamic> data)? _onSessionUnlocked;
+  void Function(Map<String, dynamic> data)? _onSessionReopened;
 
   bool get isConnected => _socket?.connected ?? false;
 
@@ -47,6 +48,10 @@ class MonitoringSocket {
 
   void setOnSessionUnlocked(void Function(Map<String, dynamic> data)? callback) {
     _onSessionUnlocked = callback;
+  }
+
+  void setOnSessionReopened(void Function(Map<String, dynamic> data)? callback) {
+    _onSessionReopened = callback;
   }
 
   Future<void> connect(String userId, String examId, {String? studentName}) async {
@@ -120,6 +125,15 @@ class MonitoringSocket {
         _onSessionUnlocked?.call(Map<String, dynamic>.from(data));
       } else {
         _onSessionUnlocked?.call({});
+      }
+    });
+
+    _socket?.on('session.reopened', (data) {
+      AppLogger.info('Monitoring socket received session reopened: $data');
+      if (data is Map) {
+        _onSessionReopened?.call(Map<String, dynamic>.from(data));
+      } else {
+        _onSessionReopened?.call({});
       }
     });
 
