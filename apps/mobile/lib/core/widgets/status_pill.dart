@@ -51,6 +51,50 @@ class StatusPill extends StatelessWidget {
     }
   }
 
+  factory StatusPill.fromExamAttempts({
+    required String status,
+    required int completedAttempts,
+    int? maxAttempts,
+    bool isRemedial = false,
+  }) {
+    if (isRemedial) {
+      return const StatusPill(
+        label: 'Tersedia (Remedial)',
+        icon: Icons.replay_rounded,
+        type: StatusPillType.warning,
+      );
+    }
+
+    final isUnlimited = maxAttempts == null || maxAttempts == 0;
+
+    if (!isUnlimited && completedAttempts >= maxAttempts) {
+      return const StatusPill(
+        label: 'Selesai (Batas Habis)',
+        icon: Icons.check_circle_rounded,
+        type: StatusPillType.neutral,
+      );
+    }
+
+    if (completedAttempts > 0) {
+      if (!isUnlimited) {
+        final remaining = maxAttempts - completedAttempts;
+        return StatusPill(
+          label: 'Tersedia (Sisa ${remaining}x)',
+          icon: Icons.replay_rounded,
+          type: StatusPillType.warning,
+        );
+      } else {
+        return StatusPill(
+          label: 'Tersedia (${completedAttempts}x Selesai)',
+          icon: Icons.replay_rounded,
+          type: StatusPillType.info,
+        );
+      }
+    }
+
+    return StatusPill.fromExamStatus(status);
+  }
+
   factory StatusPill.passOrFail({required bool passed, bool compact = false}) {
     if (passed) {
       return StatusPill(

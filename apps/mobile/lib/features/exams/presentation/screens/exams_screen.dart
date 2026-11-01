@@ -7,6 +7,7 @@ import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/utils/date_utils.dart';
 import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 import 'package:secure_cbt_mobile/core/widgets/empty_state.dart';
+import 'package:secure_cbt_mobile/core/widgets/exhausted_attempts_dialog.dart';
 import 'package:secure_cbt_mobile/core/widgets/status_pill.dart';
 import 'package:secure_cbt_mobile/features/exams/providers/exams_provider.dart';
 import 'package:secure_cbt_mobile/features/home/providers/home_provider.dart';
@@ -227,7 +228,11 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
   }
 
   void _openDetail(BuildContext context, Map<String, dynamic> exam) {
-    context.pushNamed(RouteNames.examDetail, extra: exam);
+    if (exam['is_exhausted'] == true) {
+      showExhaustedAttemptsDialog(context: context, exam: exam);
+    } else {
+      context.pushNamed(RouteNames.examDetail, extra: exam);
+    }
   }
 }
 
@@ -399,9 +404,13 @@ class _SubjectExamCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            StatusPill.fromExamStatus(
-                              exam['status'] ?? 'PUBLISHED',
-                              isRemedial: exam['is_remedial_pending'] == true || exam['active_session']?['is_remedial'] == true,
+                            StatusPill.fromExamAttempts(
+                              status: exam['status'] ?? 'PUBLISHED',
+                              completedAttempts: exam['completed_attempts'] ?? 0,
+                              maxAttempts: exam['effective_max_attempts'] ?? exam['max_attempts'],
+                              isRemedial: exam['is_remedial'] == true ||
+                                  exam['is_remedial_pending'] == true ||
+                                  exam['active_session']?['is_remedial'] == true,
                             ),
                           ],
                         ),

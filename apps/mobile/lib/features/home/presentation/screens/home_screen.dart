@@ -8,6 +8,7 @@ import 'package:secure_cbt_mobile/core/theme/subject_theme.dart';
 import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/widgets/app_card.dart';
 import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
+import 'package:secure_cbt_mobile/core/widgets/exhausted_attempts_dialog.dart';
 import 'package:secure_cbt_mobile/core/widgets/shimmer.dart';
 import 'package:secure_cbt_mobile/core/widgets/status_pill.dart';
 import 'package:secure_cbt_mobile/features/auth/providers/auth_provider.dart';
@@ -100,16 +101,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final averageScore = scores.isEmpty ? 0.0 : scores.reduce((a, b) => a + b) / scores.length;
 
     final ongoingExams = allExams
-        .where((e) => e['status'] == 'ONGOING')
+        .where((e) => e['status'] == 'ONGOING' && e['is_exhausted'] != true)
         .map((e) => e as Map<String, dynamic>)
         .toList();
 
     final upcomingExams = allExams
         .where((e) {
-          final startAt = DateTime.tryParse(e['start_at'] ?? '');
-          return e['status'] == 'PUBLISHED' && startAt != null && startAt.isAfter(DateTime.now());
+          if (e['status'] == 'ONGOING' && e['is_exhausted'] != true) return false;
+          return true;
         })
-        .take(3)
+        .take(5)
         .map((e) => e as Map<String, dynamic>)
         .toList();
 
@@ -355,7 +356,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: _SubjectThemedExamCard(
                       exam: exam,
                       theme: sTheme,
-                      onTap: () => context.pushNamed(RouteNames.examDetail, extra: exam),
+                      onTap: () {
+                        if (exam['is_exhausted'] == true) {
+                          showExhaustedAttemptsDialog(context: context, exam: exam);
+                        } else {
+                          context.pushNamed(RouteNames.examDetail, extra: exam);
+                        }
+                      },
                     ),
                   );
                 }),
@@ -847,9 +854,13 @@ class _SubjectThemedExamCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          StatusPill.fromExamStatus(
-                            exam['status'] ?? 'PUBLISHED',
-                            isRemedial: exam['is_remedial_pending'] == true || exam['active_session']?['is_remedial'] == true,
+                          StatusPill.fromExamAttempts(
+                            status: exam['status'] ?? 'PUBLISHED',
+                            completedAttempts: exam['completed_attempts'] ?? 0,
+                            maxAttempts: exam['effective_max_attempts'] ?? exam['max_attempts'],
+                            isRemedial: exam['is_remedial'] == true ||
+                                exam['is_remedial_pending'] == true ||
+                                exam['active_session']?['is_remedial'] == true,
                           ),
                         ],
                       ),
