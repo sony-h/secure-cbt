@@ -27,6 +27,7 @@ describe('ViolationDeterrenceCard', () => {
     points_medium: 2,
     points_hard: 3,
     show_results: true,
+    max_attempts: 1,
     violation_vibration_enabled: true,
     violation_alarm_enabled: true,
     violation_alarm_duration_seconds: 3,

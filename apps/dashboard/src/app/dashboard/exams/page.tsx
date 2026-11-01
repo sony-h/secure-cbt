@@ -171,6 +171,7 @@ function ExamsPageContent() {
       ...form,
       pool_question_count: form.is_random_pool ? form.pool_question_count : null,
       show_results: form.show_results ?? true,
+      max_attempts: form.max_attempts === 0 ? null : (form.max_attempts ?? 1),
       start_at: wibToUTC(form.start_at),
       end_at: wibToUTC(form.end_at),
     };
@@ -205,6 +206,7 @@ function ExamsPageContent() {
         points_medium: full.points_medium ?? 2,
         points_hard: full.points_hard ?? 3,
         show_results: full.show_results ?? true,
+        max_attempts: full.max_attempts ?? 1,
         violation_vibration_enabled: full.violation_vibration_enabled ?? true,
         violation_alarm_enabled: full.violation_alarm_enabled ?? true,
         violation_alarm_duration_seconds: full.violation_alarm_duration_seconds ?? 3,

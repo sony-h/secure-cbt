@@ -225,6 +225,10 @@ export const sessionApi = {
     api.post(`/sessions/${sessionId}/authorize-remedial`),
   bulkAuthorizeRemedial: (examId: string, data: { student_ids: string[] }) =>
     api.post(`/sessions/exam/${examId}/bulk-authorize-remedial`, data),
+  grantExtraAttempt: (sessionId: string, data?: { reason?: string }) =>
+    api.post(`/sessions/${sessionId}/grant-attempt`, data ?? {}),
+  grantExtraAttemptForStudent: (examId: string, studentId: string, data?: { reason?: string }) =>
+    api.post(`/sessions/exam/${examId}/students/${studentId}/grant-attempt`, data ?? {}),
 };
 
 export const monitoringApi = {

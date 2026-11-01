@@ -2,7 +2,16 @@
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+import { RotateCcw } from 'lucide-react';
 import { RandomPoolCard } from '../random-pool-card';
 import { ViolationDeterrenceCard } from '../violation-deterrence-card';
 import type { ExamFormData } from '../create-exam-modal';
@@ -33,6 +42,52 @@ export function SettingsStep({ form, setForm }: Props) {
         form={form}
         setForm={setForm}
       />
+
+      {/* Multiple Attempts Configuration */}
+      <div className="p-4 rounded-xl border border-border/80 bg-card space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-bold flex items-center gap-1.5">
+              <RotateCcw className="h-4 w-4 text-primary" /> Batas Kesempatan Ujian (Attempts)
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Tentukan berapa kali siswa diperbolehkan mengerjakan ujian ini.
+            </p>
+          </div>
+          <Badge variant="outline" className="text-xs font-semibold text-primary border-primary/30">
+            Nilai Terbaik (Best Score)
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Batas Maksimal Percobaan</Label>
+            <Select
+              value={form.max_attempts === null || form.max_attempts === 0 ? 'unlimited' : String(form.max_attempts)}
+              onValueChange={(val) => {
+                setForm({
+                  ...form,
+                  max_attempts: val === 'unlimited' ? null : Number(val),
+                });
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Pilih batas percobaan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 Kali (Standar Ujian Resmi)</SelectItem>
+                <SelectItem value="2">2 Kali (Ujian + 1x Pengulangan)</SelectItem>
+                <SelectItem value="3">3 Kali Percobaan</SelectItem>
+                <SelectItem value="5">5 Kali Percobaan</SelectItem>
+                <SelectItem value="unlimited">Tanpa Batas (Bebas Latihan)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="text-xs text-muted-foreground flex items-center bg-muted/40 p-2.5 rounded-lg border border-border/60">
+            Nilai resmi di rapor/laporan otomatis diambil dari Nilai Tertinggi (Best Score) dari seluruh percobaan siswa.
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">

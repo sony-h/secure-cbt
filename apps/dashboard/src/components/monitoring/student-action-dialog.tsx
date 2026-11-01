@@ -178,6 +178,22 @@ export function StudentActionDialog({
     }
   };
 
+  const handleGrantExtraAttempt = async () => {
+    try {
+      setLoadingAction('grant-attempt');
+      await sessionApi.grantExtraAttempt(session.id, {
+        reason: 'Dispensasi kuota percobaan dari pengawas',
+      });
+      toast.success(`Berhasil memberikan +1 kuota percobaan untuk ${session.student.full_name}`);
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menambahkan kuota percobaan');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   return (
     <Dialog
       open={open}
@@ -343,6 +359,35 @@ export function StudentActionDialog({
               )}
             </div>
           )}
+
+          {/* Action: Extra Attempt Grant (Dispensasi Kuota Ujian) */}
+          <div className="p-3.5 rounded-xl border border-violet-500/40 bg-violet-500/5 space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-violet-700 dark:text-violet-400 flex items-center gap-1.5">
+                  <GraduationCap className="h-3.5 w-3.5" /> Kuota Percobaan Tambahan
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Beri dispensasi 1 kali kesempatan ujian ulang untuk siswa ini dengan kebijakan Nilai Terbaik.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={loadingAction !== null}
+              onClick={handleGrantExtraAttempt}
+              className="w-full rounded-xl text-xs font-bold border-violet-500/40 text-violet-600 dark:text-violet-400 hover:bg-violet-600 hover:text-white transition-all"
+            >
+              {loadingAction === 'grant-attempt' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              ) : (
+                <GraduationCap className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              +1 Kuota Percobaan
+            </Button>
+          </div>
 
           {/* Action 1: Adjust Time Buttons (+ and -) */}
           <div className="space-y-2">
