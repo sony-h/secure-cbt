@@ -4,7 +4,7 @@ import { useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth.store';
-import { examApi, academicApi, reportApi, settingsApi, gradingApi } from '@/lib/api-service';
+import { examApi, academicApi, reportApi, settingsApi, gradingApi, sessionApi } from '@/lib/api-service';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { UserRole } from '@secure-cbt/shared';
@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { BarChart3, FileText, Download, Printer, FileSpreadsheet, Eye, RotateCcw } from 'lucide-react';
+import { BarChart3, FileText, Download, Printer, FileSpreadsheet, Eye, RotateCcw, UserCheck, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { StudentSessionReviewModal } from '@/components/reports/student-session-review-modal';
@@ -41,9 +41,20 @@ interface Exam { id: string; title: string; subject?: { name: string }; status: 
 interface ClassItem { id: string; name: string; major?: { name: string }; }
 interface GradeResult {
   session_id: string;
+  attempt1_session_id?: string | null;
+  attempt2_session_id?: string | null;
+  student_id: string;
   student: { nis: string; full_name: string; class_name: string };
-  total_score: number; correct_count: number; wrong_count: number;
-  essay_score: number | null; total_questions: number; status: string;
+  total_score: number;
+  main_score: number;
+  remedial_score: number | null;
+  is_remedial_allowed: boolean;
+  attempt_count: number;
+  correct_count: number;
+  wrong_count: number;
+  essay_score: number | null;
+  total_questions: number;
+  status: string;
 }
 
 function ReportsPageContent() {
@@ -67,6 +78,7 @@ function ReportsPageContent() {
   const [isFormalReportOpen, setIsFormalReportOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'students' | 'item-analysis'>('students');
   const [isExportingExcel, setIsExportingExcel] = useState(false);
+  const [isBulkRemedialLoading, setIsBulkRemedialLoading] = useState(false);
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const isTeacher = user?.role === UserRole.TEACHER;
@@ -137,10 +149,20 @@ function ReportsPageContent() {
       const raw = data.data;
       return ((raw?.students || []) as any[]).map((s: any) => ({
         session_id: s.session_id || s.student_id,
+        attempt1_session_id: s.attempt1_session_id ?? s.session_id ?? null,
+        attempt2_session_id: s.attempt2_session_id ?? null,
+        student_id: s.student_id,
         student: { nis: s.nis, full_name: s.student_name, class_name: s.class_name },
-        total_score: s.score, correct_count: s.correct_count,
-        wrong_count: s.wrong_count, essay_score: s.essay_score ?? null,
-        total_questions: s.total_questions ?? 0, status: s.status,
+        total_score: s.score,
+        main_score: s.main_score ?? s.score,
+        remedial_score: s.remedial_score ?? null,
+        is_remedial_allowed: !!s.is_remedial_allowed,
+        attempt_count: s.attempt_count ?? 1,
+        correct_count: s.correct_count,
+        wrong_count: s.wrong_count,
+        essay_score: s.essay_score ?? null,
+        total_questions: s.total_questions ?? 0,
+        status: s.status,
       })) as GradeResult[];
     },
     enabled: !!selectedExam,
@@ -151,9 +173,45 @@ function ReportsPageContent() {
     queryFn: async () => { const { data } = await settingsApi.get(); return data.data; },
   });
 
+  const passingGrade = settings?.passing_grade ?? 75;
+
   const sortedResults = useMemo(() => results ?? [], [results]);
   const averageScore = results?.length ? (results.reduce((sum, r) => sum + r.total_score, 0) / results.length).toFixed(1) : '0';
   const passedCount = results?.filter((r) => r.status === 'passed').length || 0;
+
+  const eligibleForRemedial = useMemo(() => {
+    return (results ?? []).filter(
+      (r) =>
+        (r.main_score < passingGrade || r.status !== 'passed') &&
+        !r.is_remedial_allowed &&
+        r.remedial_score === null,
+    );
+  }, [results, passingGrade]);
+
+  const handleAuthorizeRemedial = async (sessionId: string) => {
+    try {
+      await sessionApi.authorizeRemedial(sessionId);
+      toast.success('Ujian remedial berhasil diizinkan');
+      queryClient.invalidateQueries({ queryKey: ['results', selectedExam] });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mengizinkan remedial');
+    }
+  };
+
+  const handleBulkAuthorizeRemedial = async () => {
+    if (!selectedExam || eligibleForRemedial.length === 0) return;
+    try {
+      setIsBulkRemedialLoading(true);
+      const studentIds = eligibleForRemedial.map((s) => s.student_id).filter(Boolean);
+      const res = await sessionApi.bulkAuthorizeRemedial(selectedExam, { student_ids: studentIds });
+      toast.success(`Berhasil mengizinkan remedial untuk ${res.data?.count ?? studentIds.length} siswa`);
+      queryClient.invalidateQueries({ queryKey: ['results', selectedExam] });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mengizinkan remedial massal');
+    } finally {
+      setIsBulkRemedialLoading(false);
+    }
+  };
 
   const reportColumns: ColumnDef<GradeResult>[] = [
     { accessorKey: 'student.nis', header: 'NIS', cell: ({ row }: any) => <span className="font-medium">{row.original.student?.nis}</span> },
@@ -166,50 +224,129 @@ function ReportsPageContent() {
       id: 'unanswered', header: 'Tidak Dijawab',
       cell: ({ row }: any) => <span className="text-muted-foreground">{Math.max(0, row.original.total_questions - row.original.correct_count - row.original.wrong_count)}</span>,
     },
-    { accessorKey: 'total_score', header: 'Nilai', enableSorting: true, cell: ({ row }: any) => <span className="font-bold">{row.original.total_score.toFixed(1)}</span> },
     {
-      accessorKey: 'status', header: 'Status',
+      accessorKey: 'main_score',
+      header: 'Nilai Utama',
+      enableSorting: true,
       cell: ({ row }: any) => (
-        <Badge variant={row.original.status === 'passed' ? 'success' : 'destructive'}>
-          {row.original.status === 'passed' ? 'Lulus' : 'Remedial'}
-        </Badge>
+        <span className="font-bold text-slate-800 dark:text-slate-100">
+          {(row.original.main_score ?? row.original.total_score).toFixed(1)}
+        </span>
       ),
+    },
+    {
+      accessorKey: 'remedial_score',
+      header: 'Nilai Remedial',
+      enableSorting: true,
+      cell: ({ row }: any) => (
+        <span
+          className={cn(
+            'font-bold',
+            row.original.remedial_score !== null
+              ? 'text-indigo-600 dark:text-indigo-400'
+              : 'text-muted-foreground',
+          )}
+        >
+          {row.original.remedial_score !== null && row.original.remedial_score !== undefined
+            ? row.original.remedial_score.toFixed(1)
+            : '—'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }: any) => {
+        const isPassed = row.original.status === 'passed';
+        if (isPassed) {
+          return <Badge variant="success">Lulus</Badge>;
+        }
+        if (row.original.is_remedial_allowed && row.original.remedial_score === null) {
+          return (
+            <Badge variant="outline" className="text-indigo-600 border-indigo-400 dark:text-indigo-400">
+              Remedial Diizinkan
+            </Badge>
+          );
+        }
+        return <Badge variant="destructive">Remedial</Badge>;
+      },
     },
     {
       id: 'actions',
       header: 'Aksi',
-      cell: ({ row }: any) => (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 text-xs font-medium"
-          onClick={() => {
-            setSelectedReviewSession({
-              sessionId: row.original.session_id,
-              studentName: row.original.student?.full_name,
-              nis: row.original.student?.nis,
-            });
-          }}
-          title="Lihat detail evaluasi lembar jawaban dan pembahasan"
-        >
-          <Eye className="w-3.5 h-3.5 text-primary" />
-          Lihat Detail
-        </Button>
-      ),
+      cell: ({ row }: any) => {
+        const canAuthorizeRemedial =
+          row.original.status !== 'passed' &&
+          !row.original.is_remedial_allowed &&
+          row.original.remedial_score === null;
+
+        return (
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs font-medium"
+              onClick={() => {
+                setSelectedReviewSession({
+                  sessionId: row.original.session_id,
+                  studentName: row.original.student?.full_name,
+                  nis: row.original.student?.nis,
+                });
+              }}
+              title="Lihat detail evaluasi lembar jawaban dan pembahasan"
+            >
+              <Eye className="w-3.5 h-3.5 text-primary" />
+              Lihat Detail
+            </Button>
+            {canAuthorizeRemedial && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-xs font-semibold text-indigo-600 border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                onClick={() =>
+                  handleAuthorizeRemedial(
+                    row.original.attempt1_session_id || row.original.session_id,
+                  )
+                }
+                title="Izinkan siswa mengerjakan remedial (Attempt #2)"
+              >
+                <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+                Izinkan Remedial
+              </Button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
   const handleExportCSV = () => {
     if (!sortedResults.length) return;
-    const headers = ['NIS', 'Nama Siswa', 'Kelas', 'Jawaban Benar', 'Jawaban Salah', 'Nilai Esai', 'Nilai Total', 'Status'];
+    const headers = [
+      'NIS',
+      'Nama Siswa',
+      'Kelas',
+      'Jawaban Benar',
+      'Jawaban Salah',
+      'Nilai Esai',
+      'Nilai Utama',
+      'Nilai Remedial',
+      'Nilai Total',
+      'Status',
+    ];
     const csvRows = [headers.join(',')];
     for (const r of sortedResults) {
       csvRows.push([
         r.student?.nis || '',
         `"${r.student?.full_name?.replace(/"/g, '""') || ''}"`,
         r.student?.class_name || '',
-        r.correct_count, r.wrong_count,
+        r.correct_count,
+        r.wrong_count,
         r.essay_score !== null ? r.essay_score.toFixed(1) : '—',
+        (r.main_score ?? r.total_score).toFixed(1),
+        r.remedial_score !== null && r.remedial_score !== undefined
+          ? r.remedial_score.toFixed(1)
+          : '—',
         r.total_score.toFixed(1),
         r.status === 'passed' ? 'Lulus' : 'Remedial',
       ].join(','));
@@ -328,6 +465,44 @@ function ReportsPageContent() {
               </Select>
             </div>
             <div className="flex gap-2 flex-wrap">
+              {canRegrade && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="text-indigo-600 border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-950/30 gap-1.5"
+                      disabled={!selectedExam || !eligibleForRemedial.length || isBulkRemedialLoading}
+                    >
+                      <UserCheck className="h-4 w-4" />
+                      Izinkan Remedial Semua Siswa &lt; KKM ({eligibleForRemedial.length})
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Otorisasi Remedial Massal</AlertDialogTitle>
+                      <AlertDialogDescription className="space-y-2 text-sm text-left">
+                        <span>
+                          Izinkan {eligibleForRemedial.length} siswa dengan nilai di bawah KKM ({passingGrade}) untuk mengikuti ujian remedial (Attempt #2)?
+                        </span>
+                        <br /><br />
+                        <span className="font-semibold text-foreground">
+                          Siswa yang diizinkan dapat langsung login kembali menggunakan token ujian untuk memulai pengerjaan remedial dengan pengacakan soal baru.
+                        </span>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleBulkAuthorizeRemedial}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                      >
+                        {isBulkRemedialLoading ? 'Memproses...' : 'Ya, Izinkan Remedial Massal'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+
               {canRegrade && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
