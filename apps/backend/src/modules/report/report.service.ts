@@ -55,6 +55,9 @@ export class ReportService {
       studentSessionMap.set(s.student_id, list);
     }
 
+    const rawMax = exam.max_attempts === undefined ? 1 : exam.max_attempts;
+    const isMultiAttempt = rawMax === null || rawMax === 0 || rawMax > 1;
+
     const students = Array.from(studentSessionMap.values()).map((studentSessions) => {
       const attempt1 = studentSessions.find((s) => s.attempt_number === 1) ?? studentSessions[0];
       const attempt2 = studentSessions.find((s) => s.attempt_number === 2);
@@ -62,14 +65,33 @@ export class ReportService {
       const mainScore = attempt1?.score?.total_score ?? null;
       const remedialScore = attempt2?.score?.total_score ?? null;
       const isRemedialAllowed = attempt1?.is_remedial_allowed ?? false;
-      const attemptCount = attempt2 ? 2 : (attempt1 ? 1 : 0);
+      const attemptCount = studentSessions.length;
 
-      const baseSession = attempt1 ?? attempt2!;
+      const validScores = studentSessions
+        .map((s) => s.score?.total_score)
+        .filter((sc): sc is number => typeof sc === 'number');
+      const bestScore = validScores.length > 0 ? Math.max(...validScores) : 0;
+
+      const bestSession =
+        studentSessions.find((s) => s.score?.total_score === bestScore) ??
+        studentSessions[studentSessions.length - 1]!;
+
+      const baseSession = (isMultiAttempt ? bestSession : (attempt1 ?? attempt2))!;
       const student = baseSession.student;
 
-      const hasPassed =
-        (mainScore !== null && mainScore >= passingGrade) ||
-        (remedialScore !== null && remedialScore >= passingGrade);
+      const hasPassed = isMultiAttempt
+        ? bestScore >= passingGrade
+        : (mainScore !== null && mainScore >= passingGrade) ||
+          (remedialScore !== null && remedialScore >= passingGrade);
+
+      const attemptsBreakdown = studentSessions.map((s) => ({
+        attempt_number: s.attempt_number,
+        session_id: s.id,
+        score: s.score?.total_score ?? null,
+        correct_count: s.score?.correct_count ?? 0,
+        wrong_count: s.score?.wrong_count ?? 0,
+        submitted_at: s.submitted_at?.toISOString() ?? null,
+      }));
 
       return {
         session_id: baseSession.id,
@@ -79,15 +101,18 @@ export class ReportService {
         student_name: student.full_name,
         nis: student.nis,
         class_name: student.class?.name || '-',
-        score: mainScore ?? remedialScore ?? 0,
+        score: isMultiAttempt ? bestScore : (mainScore ?? remedialScore ?? 0),
+        best_score: bestScore,
         main_score: mainScore,
         remedial_score: remedialScore,
         is_remedial_allowed: isRemedialAllowed,
         attempt_count: attemptCount,
-        correct_count: attempt1?.score?.correct_count ?? attempt2?.score?.correct_count ?? 0,
-        wrong_count: attempt1?.score?.wrong_count ?? attempt2?.score?.wrong_count ?? 0,
-        essay_score: attempt1?.score?.essay_score ?? attempt2?.score?.essay_score ?? null,
-        total_questions: attempt1?.score?.total_questions ?? attempt2?.score?.total_questions ?? 0,
+        attempts_count: attemptCount,
+        attempts: attemptsBreakdown,
+        correct_count: baseSession.score?.correct_count ?? 0,
+        wrong_count: baseSession.score?.wrong_count ?? 0,
+        essay_score: baseSession.score?.essay_score ?? null,
+        total_questions: baseSession.score?.total_questions ?? 0,
         status: (hasPassed ? 'passed' : 'failed') as 'passed' | 'failed',
       };
     });
@@ -107,6 +132,8 @@ export class ReportService {
       exam_id: exam.id,
       exam_title: exam.title,
       subject_name: exam.subject.name,
+      max_attempts: exam.max_attempts,
+      is_multi_attempt: isMultiAttempt,
       total_students: students.length,
       average_score: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
       highest_score: scores.length > 0 ? Math.max(...scores) : 0,
@@ -406,6 +433,9 @@ export class ReportService {
       studentSessionMap.set(s.student_id, list);
     }
 
+    const rawMax = exam.max_attempts === undefined ? 1 : exam.max_attempts;
+    const isMultiAttempt = rawMax === null || rawMax === 0 || rawMax > 1;
+
     const students = Array.from(studentSessionMap.values())
       .map((studentSessions) => {
         const attempt1 = studentSessions.find((s) => s.attempt_number === 1) ?? studentSessions[0];
@@ -415,14 +445,27 @@ export class ReportService {
         const remedialScore = attempt2?.score?.total_score ?? null;
         const isRemedialAllowed = attempt1?.is_remedial_allowed ?? false;
 
-        const baseSession = attempt1 ?? attempt2!;
+        const validScores = studentSessions
+          .map((s) => s.score?.total_score)
+          .filter((sc): sc is number => typeof sc === 'number');
+        const bestScore = validScores.length > 0 ? Math.max(...validScores) : 0;
+
+        const bestSession =
+          studentSessions.find((s) => s.score?.total_score === bestScore) ??
+          studentSessions[studentSessions.length - 1]!;
+
+        const baseSession = (isMultiAttempt ? bestSession : (attempt1 ?? attempt2))!;
         const student = baseSession.student;
 
-        let statusLabel: 'LULUS' | 'REMEDIAL' | 'TUNTAS (REMEDIAL)' = 'REMEDIAL';
-        if (mainScore !== null && mainScore >= passingGrade) {
-          statusLabel = 'LULUS';
-        } else if (remedialScore !== null && remedialScore >= passingGrade) {
-          statusLabel = 'TUNTAS (REMEDIAL)';
+        let statusLabel: 'LULUS' | 'REMEDIAL' | 'TUNTAS (REMEDIAL)' | 'BELUM TUNTAS' = 'REMEDIAL';
+        if (isMultiAttempt) {
+          statusLabel = bestScore >= passingGrade ? 'LULUS' : 'BELUM TUNTAS';
+        } else {
+          if (mainScore !== null && mainScore >= passingGrade) {
+            statusLabel = 'LULUS';
+          } else if (remedialScore !== null && remedialScore >= passingGrade) {
+            statusLabel = 'TUNTAS (REMEDIAL)';
+          }
         }
 
         return {
@@ -433,11 +476,13 @@ export class ReportService {
           class_name: student.class?.name || '-',
           main_score: mainScore,
           remedial_score: remedialScore,
+          best_score: bestScore,
+          attempts_count: studentSessions.length,
           is_remedial_allowed: isRemedialAllowed,
-          correct_count: attempt1?.score?.correct_count ?? attempt2?.score?.correct_count ?? 0,
-          wrong_count: attempt1?.score?.wrong_count ?? attempt2?.score?.wrong_count ?? 0,
-          essay_score: attempt1?.score?.essay_score ?? attempt2?.score?.essay_score ?? null,
-          total_questions: attempt1?.score?.total_questions ?? attempt2?.score?.total_questions ?? 0,
+          correct_count: baseSession.score?.correct_count ?? 0,
+          wrong_count: baseSession.score?.wrong_count ?? 0,
+          essay_score: baseSession.score?.essay_score ?? null,
+          total_questions: baseSession.score?.total_questions ?? 0,
           status: statusLabel,
         };
       })
@@ -462,8 +507,8 @@ export class ReportService {
       { key: 'benar', width: 12 },
       { key: 'salah', width: 12 },
       { key: 'esai', width: 12 },
-      { key: 'nilai_utama', width: 16 },
-      { key: 'nilai_remedial', width: 16 },
+      { key: isMultiAttempt ? 'percobaan' : 'nilai_utama', width: 16 },
+      { key: isMultiAttempt ? 'nilai_terbaik' : 'nilai_remedial', width: 16 },
       { key: 'status', width: 22 },
     ];
 
@@ -525,18 +570,31 @@ export class ReportService {
     // Table Headers
     const tableHeaderRow = sheet.getRow(9);
     tableHeaderRow.height = 26;
-    const headers = [
-      'NO',
-      'NIS',
-      'NAMA SISWA',
-      'KELAS',
-      'BENAR',
-      'SALAH',
-      'ESAI',
-      'NILAI UTAMA',
-      'NILAI REMEDIAL',
-      'STATUS',
-    ];
+    const headers = isMultiAttempt
+      ? [
+          'NO',
+          'NIS',
+          'NAMA SISWA',
+          'KELAS',
+          'BENAR',
+          'SALAH',
+          'ESAI',
+          'PERCOBAAN',
+          'NILAI TERBAIK',
+          'STATUS',
+        ]
+      : [
+          'NO',
+          'NIS',
+          'NAMA SISWA',
+          'KELAS',
+          'BENAR',
+          'SALAH',
+          'ESAI',
+          'NILAI UTAMA',
+          'NILAI REMEDIAL',
+          'STATUS',
+        ];
     tableHeaderRow.values = headers;
     tableHeaderRow.eachCell((cell) => {
       cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFF' } };
@@ -580,19 +638,33 @@ export class ReportService {
 
         const mainScoreVal = s.main_score !== null ? Number(s.main_score.toFixed(1)) : '-';
         const remedialScoreVal = s.remedial_score !== null ? Number(s.remedial_score.toFixed(1)) : '-';
+        const bestScoreVal = Number(s.best_score.toFixed(1));
 
-        row.values = [
-          idx + 1,
-          s.nis || '-',
-          s.student_name,
-          s.class_name,
-          s.correct_count,
-          s.wrong_count,
-          s.essay_score !== null ? Number(s.essay_score.toFixed(1)) : '-',
-          mainScoreVal,
-          remedialScoreVal,
-          s.status,
-        ];
+        row.values = isMultiAttempt
+          ? [
+              idx + 1,
+              s.nis || '-',
+              s.student_name,
+              s.class_name,
+              s.correct_count,
+              s.wrong_count,
+              s.essay_score !== null ? Number(s.essay_score.toFixed(1)) : '-',
+              `${s.attempts_count}x`,
+              bestScoreVal,
+              s.status,
+            ]
+          : [
+              idx + 1,
+              s.nis || '-',
+              s.student_name,
+              s.class_name,
+              s.correct_count,
+              s.wrong_count,
+              s.essay_score !== null ? Number(s.essay_score.toFixed(1)) : '-',
+              mainScoreVal,
+              remedialScoreVal,
+              s.status,
+            ];
 
         for (let c = 1; c <= 10; c++) {
           const cell = row.getCell(c);
@@ -613,13 +685,24 @@ export class ReportService {
           } else if (c === 7) {
             cell.alignment = { vertical: 'middle', horizontal: 'center' };
           } else if (c === 8) {
-            cell.alignment = { vertical: 'middle', horizontal: 'right' };
-            cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: '0F172A' } };
-            if (typeof mainScoreVal === 'number') cell.numFmt = '0.0';
+            if (isMultiAttempt) {
+              cell.alignment = { vertical: 'middle', horizontal: 'center' };
+              cell.font = { name: 'Arial', size: 10, color: { argb: '475569' } };
+            } else {
+              cell.alignment = { vertical: 'middle', horizontal: 'right' };
+              cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: '0F172A' } };
+              if (typeof mainScoreVal === 'number') cell.numFmt = '0.0';
+            }
           } else if (c === 9) {
-            cell.alignment = { vertical: 'middle', horizontal: 'right' };
-            cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: '4338CA' } };
-            if (typeof remedialScoreVal === 'number') cell.numFmt = '0.0';
+            if (isMultiAttempt) {
+              cell.alignment = { vertical: 'middle', horizontal: 'right' };
+              cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: '1E3A8A' } };
+              cell.numFmt = '0.0';
+            } else {
+              cell.alignment = { vertical: 'middle', horizontal: 'right' };
+              cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: '4338CA' } };
+              if (typeof remedialScoreVal === 'number') cell.numFmt = '0.0';
+            }
           } else if (c === 10) {
             cell.alignment = { vertical: 'middle', horizontal: 'center' };
             const isPassed = s.status === 'LULUS' || s.status === 'TUNTAS (REMEDIAL)';
@@ -644,30 +727,31 @@ export class ReportService {
     const statStartRow = endDataRow + 2;
 
     if (students.length > 0) {
+      const scoreCol = isMultiAttempt ? 'I' : 'H';
       const stats = [
         {
-          label: 'RATA-RATA NILAI',
-          formula: `AVERAGE(H${startRow}:H${endDataRow})`,
+          label: 'RATA-RATA NILAI' + (isMultiAttempt ? ' (NILAI TERBAIK)' : ''),
+          formula: `AVERAGE(${scoreCol}${startRow}:${scoreCol}${endDataRow})`,
           numFmt: '0.00',
         },
         {
           label: 'NILAI TERTINGGI',
-          formula: `MAX(H${startRow}:H${endDataRow})`,
+          formula: `MAX(${scoreCol}${startRow}:${scoreCol}${endDataRow})`,
           numFmt: '0.00',
         },
         {
           label: 'NILAI TERENDAH',
-          formula: `MIN(H${startRow}:H${endDataRow})`,
+          formula: `MIN(${scoreCol}${startRow}:${scoreCol}${endDataRow})`,
           numFmt: '0.00',
         },
         {
           label: 'JUMLAH SISWA LULUS (Nilai >= KKM)',
-          formula: `COUNTIF(H${startRow}:H${endDataRow}, ">=${passingGrade}")`,
+          formula: `COUNTIF(${scoreCol}${startRow}:${scoreCol}${endDataRow}, ">=${passingGrade}")`,
           numFmt: '0',
         },
         {
-          label: 'JUMLAH SISWA REMEDIAL (Nilai < KKM)',
-          formula: `COUNTIF(H${startRow}:H${endDataRow}, "<${passingGrade}")`,
+          label: isMultiAttempt ? 'JUMLAH SISWA BELUM TUNTAS (Nilai < KKM)' : 'JUMLAH SISWA REMEDIAL (Nilai < KKM)',
+          formula: `COUNTIF(${scoreCol}${startRow}:${scoreCol}${endDataRow}, "<${passingGrade}")`,
           numFmt: '0',
         },
       ];
