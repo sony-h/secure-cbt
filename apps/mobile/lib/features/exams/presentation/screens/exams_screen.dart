@@ -229,7 +229,11 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
 
   void _openDetail(BuildContext context, Map<String, dynamic> exam) {
     if (exam['is_exhausted'] == true) {
-      showExhaustedAttemptsDialog(context: context, exam: exam);
+      showExhaustedAttemptsDialog(
+        context: context,
+        exam: exam,
+        onViewHistory: () => context.goNamed(RouteNames.history),
+      );
     } else {
       context.pushNamed(RouteNames.examDetail, extra: exam);
     }

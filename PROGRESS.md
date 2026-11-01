@@ -1514,7 +1514,7 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 
 ### 1. Multiple Exam Attempts Configuration (`max_attempts`)
 - **Shared Validation & Schema Support:** Extended `Exam` with `max_attempts` (`Int? @default(1)`) supporting `1` (single attempt, default), `2`, `3`, `5`, or `null`/`0` (unlimited). Added `extra_attempts_allowed` (`Int @default(0)`) to `ExamSession` for proctor interventions.
-- **Prisma Migration:** Applied migration `20261101000000_add_exam_max_attempts` cleanly across database models and generated Prisma Client.
+- **Prisma Migration:** Applied migration `20261101010000_add_max_attempts_and_extra_attempts` cleanly across database models and generated Prisma Client.
 - **Dashboard Exam Builder:** Integrated attempt limit configuration in `GeneralStep` of `CreateExamModal` with quick presets (`1x (Standar)`, `2x`, `3x`, `5x`, `Tanpa Batas`) and custom number stepper.
 
 ### 2. Best Score Policy ("Nilai Terbaik") & Multi-Attempt Reporting

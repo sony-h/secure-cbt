@@ -392,7 +392,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       theme: sTheme,
                       onTap: () {
                         if (exam['is_exhausted'] == true) {
-                          showExhaustedAttemptsDialog(context: context, exam: exam);
+                          showExhaustedAttemptsDialog(
+                            context: context,
+                            exam: exam,
+                            onViewHistory: () => context.goNamed(RouteNames.history),
+                          );
                         } else {
                           context.pushNamed(RouteNames.examDetail, extra: exam);
                         }

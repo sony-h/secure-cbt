@@ -67,5 +67,46 @@ void main() {
 
     expect(find.text('Batas Percobaan Habis'), findsNothing);
   });
+
+  testWidgets('showExhaustedAttemptsDialog invokes onViewHistory on secondary button tap', (tester) async {
+    bool historyTapped = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () {
+                showExhaustedAttemptsDialog(
+                  context: context,
+                  exam: {
+                    'title': 'Ujian Akhir Semester Fisika',
+                    'completed_attempts': 3,
+                    'effective_max_attempts': 3,
+                    'best_score': 92.5,
+                  },
+                  onViewHistory: () {
+                    historyTapped = true;
+                  },
+                );
+              },
+              child: const Text('Open Dialog'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open Dialog'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lihat Riwayat'), findsOneWidget);
+
+    await tester.tap(find.text('Lihat Riwayat'));
+    await tester.pumpAndSettle();
+
+    expect(historyTapped, isTrue);
+    expect(find.text('Batas Percobaan Habis'), findsNothing);
+  });
 }
 

@@ -152,4 +152,97 @@ describe('StudentSessionReviewModal', () => {
     // Must NOT contain raw JSON UUID string
     expect(screen.queryByText(/opt-left-1/i)).toBeNull();
   });
+
+  it('renders multi-attempt switcher tabs and allows switching session reviews', async () => {
+    vi.mocked(apiService.reportApi.getSessionReview).mockImplementation(async (sessionId: string) => {
+      if (sessionId === 'sess-att-2') {
+        return {
+          data: {
+            success: true,
+            data: {
+              session_id: 'sess-att-2',
+              student_id: 'std-1',
+              student_name: 'Ahmad Siswa',
+              nis: '202501001',
+              class_name: 'XII RPL 1',
+              exam_id: 'exam-1',
+              exam_title: 'Tryout TKJ',
+              subject_name: 'TKJ',
+              score: 95,
+              correct_count: 9,
+              wrong_count: 1,
+              submitted_at: '2026-10-15T11:00:00Z',
+              questions: [
+                {
+                  id: 'q-2',
+                  type: 'MULTIPLE_CHOICE',
+                  content: 'Soal pada percobaan kedua',
+                  image_url: null,
+                  difficulty: 'MEDIUM',
+                  explanation: null,
+                  student_answer: 'B',
+                  is_correct: true,
+                  score: 100,
+                  feedback: null,
+                  options: [],
+                },
+              ],
+            },
+          },
+        } as any;
+      }
+      return {
+        data: {
+          success: true,
+          data: {
+            session_id: 'sess-att-1',
+            student_id: 'std-1',
+            student_name: 'Ahmad Siswa',
+            nis: '202501001',
+            class_name: 'XII RPL 1',
+            exam_id: 'exam-1',
+            exam_title: 'Tryout TKJ',
+            subject_name: 'TKJ',
+            score: 75,
+            correct_count: 7,
+            wrong_count: 3,
+            submitted_at: '2026-10-15T09:00:00Z',
+            questions: [
+              {
+                id: 'q-1',
+                type: 'MULTIPLE_CHOICE',
+                content: 'Soal pada percobaan pertama',
+                image_url: null,
+                difficulty: 'EASY',
+                explanation: null,
+                student_answer: 'A',
+                is_correct: false,
+                score: 0,
+                feedback: null,
+                options: [],
+              },
+            ],
+          },
+        },
+      } as any;
+    });
+
+    renderComponent({
+      open: true,
+      onClose: vi.fn(),
+      sessionId: 'sess-att-1',
+      studentName: 'Ahmad Siswa',
+      nis: '202501001',
+      attempts: [
+        { session_id: 'sess-att-1', attempt_number: 1, score: 75, is_best: false, submitted_at: '2026-10-15T09:00:00Z' },
+        { session_id: 'sess-att-2', attempt_number: 2, score: 95, is_best: true, submitted_at: '2026-10-15T11:00:00Z' },
+      ],
+    });
+
+    expect(await screen.findByText(/Pilih Percobaan:/i)).toBeTruthy();
+    expect(screen.getByText(/Percobaan #1/i)).toBeTruthy();
+    expect(screen.getByText(/Percobaan #2/i)).toBeTruthy();
+    expect(screen.getByText(/★ Terbaik/i)).toBeTruthy();
+    expect(await screen.findByText(/Soal pada percobaan pertama/i)).toBeTruthy();
+  });
 });

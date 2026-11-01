@@ -84,6 +84,13 @@ function ReportsPageContent() {
     sessionId: string;
     studentName?: string;
     nis?: string;
+    attempts?: Array<{
+      session_id: string;
+      attempt_number: number;
+      score: number;
+      is_best: boolean;
+      submitted_at: string | null;
+    }>;
   } | null>(null);
   const [isFormalReportOpen, setIsFormalReportOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'students' | 'item-analysis'>('students');
@@ -346,6 +353,7 @@ function ReportsPageContent() {
                     sessionId: row.original.session_id,
                     studentName: row.original.student?.full_name,
                     nis: row.original.student?.nis,
+                    attempts: row.original.attempts,
                   });
                 }}
                 title="Lihat detail evaluasi lembar jawaban dan pembahasan"
@@ -674,6 +682,7 @@ function ReportsPageContent() {
         sessionId={selectedReviewSession?.sessionId ?? null}
         studentName={selectedReviewSession?.studentName}
         nis={selectedReviewSession?.nis}
+        attempts={selectedReviewSession?.attempts}
       />
 
       <FormalReportModal

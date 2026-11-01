@@ -207,7 +207,7 @@ function ExamsPageContent() {
         points_medium: full.points_medium ?? 2,
         points_hard: full.points_hard ?? 3,
         show_results: full.show_results ?? true,
-        max_attempts: full.max_attempts ?? 1,
+        max_attempts: full.max_attempts !== undefined ? full.max_attempts : 1,
         violation_vibration_enabled: full.violation_vibration_enabled ?? true,
         violation_alarm_enabled: full.violation_alarm_enabled ?? true,
         violation_alarm_duration_seconds: full.violation_alarm_duration_seconds ?? 3,

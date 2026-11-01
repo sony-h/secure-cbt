@@ -22,12 +22,21 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+export interface ReviewAttemptOption {
+  session_id: string;
+  attempt_number: number;
+  score: number;
+  is_best: boolean;
+  submitted_at: string | null;
+}
+
 interface StudentSessionReviewModalProps {
   open: boolean;
   onClose: () => void;
   sessionId: string | null;
   studentName?: string;
   nis?: string;
+  attempts?: ReviewAttemptOption[];
 }
 
 export function StudentSessionReviewModal({
@@ -36,17 +45,26 @@ export function StudentSessionReviewModal({
   sessionId,
   studentName,
   nis,
+  attempts,
 }: StudentSessionReviewModalProps) {
   const [activeQuestionId, setActiveQuestionId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+
+  // Synchronize when modal opens or root sessionId changes
+  React.useEffect(() => {
+    setSelectedSessionId(null);
+  }, [sessionId, open]);
+
+  const activeSessionId = selectedSessionId || sessionId;
 
   const { data: reviewData, isLoading } = useQuery<SessionReviewData>({
-    queryKey: ['session-review', sessionId],
+    queryKey: ['session-review', activeSessionId],
     queryFn: async () => {
-      if (!sessionId) throw new Error('No session ID');
-      const res = await reportApi.getSessionReview(sessionId);
+      if (!activeSessionId) throw new Error('No session ID');
+      const res = await reportApi.getSessionReview(activeSessionId);
       return res.data.data;
     },
-    enabled: open && !!sessionId,
+    enabled: open && !!activeSessionId,
   });
 
   const questions = reviewData?.questions || [];
@@ -112,6 +130,46 @@ export function StudentSessionReviewModal({
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Multi-Attempt Switcher Tabs */}
+          {attempts && attempts.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2 p-2.5 bg-slate-100 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-800">
+              <span className="text-xs font-bold text-muted-foreground px-1.5">Pilih Percobaan:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {attempts.map((att) => {
+                  const isSelected = activeSessionId === att.session_id;
+                  return (
+                    <button
+                      key={att.session_id}
+                      type="button"
+                      onClick={() => setSelectedSessionId(att.session_id)}
+                      className={cn(
+                        'px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 border',
+                        isSelected
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm ring-2 ring-primary/20'
+                          : 'bg-background text-muted-foreground border-border hover:bg-muted/80',
+                      )}
+                    >
+                      <span>Percobaan #{att.attempt_number}</span>
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 rounded text-[11px] font-bold tabular-nums',
+                          isSelected ? 'bg-white/20 text-white' : 'bg-muted text-foreground',
+                        )}
+                      >
+                        {att.score !== null ? att.score.toFixed(1) : '—'}
+                      </span>
+                      {att.is_best && (
+                        <span className="text-[10px] font-black text-amber-500 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.2 rounded">
+                          ★ Terbaik
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Student & Session Overview Card */}
           <div className="p-4 rounded-xl border bg-muted/30 grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="flex items-start gap-2.5">

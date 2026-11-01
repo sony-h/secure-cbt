@@ -5,6 +5,7 @@ import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 Future<void> showExhaustedAttemptsDialog({
   required BuildContext context,
   required Map<String, dynamic> exam,
+  VoidCallback? onViewHistory,
 }) {
   final title = exam['title'] ?? 'Ujian';
   final completed = exam['completed_attempts'] ?? 1;
@@ -124,6 +125,37 @@ Future<void> showExhaustedAttemptsDialog({
                 ),
               ),
             ),
+            if (onViewHistory != null) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: BouncingButton(
+                  onTap: () {
+                    Navigator.of(dialogCtx).pop();
+                    onViewHistory();
+                  },
+                  child: Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'Lihat Riwayat',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
