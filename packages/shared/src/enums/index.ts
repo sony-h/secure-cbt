@@ -79,6 +79,7 @@ export enum ViolationEvent {
   SESSION_UNLOCKED = 'SESSION_UNLOCKED',
   SESSION_REOPENED = 'SESSION_REOPENED',
   REMEDIAL_AUTHORIZED = 'REMEDIAL_AUTHORIZED',
+  EXTRA_ATTEMPT_GRANTED = 'EXTRA_ATTEMPT_GRANTED',
 }
 
 /** Socket.io + internal event names */
@@ -99,6 +100,7 @@ export enum SocketEvent {
   SESSION_UNLOCKED = 'session.unlocked',
   SESSION_REOPENED = 'session.reopened',
   SESSION_REMEDIAL_AUTHORIZED = 'session.remedial_authorized',
+  SESSION_ATTEMPT_GRANTED = 'session.attempt_granted',
   // Internal EventEmitter events
   USER_LOGGED_IN = 'user.logged_in',
   USER_LOGGED_OUT = 'user.logged_out',
