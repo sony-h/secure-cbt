@@ -17,6 +17,7 @@ function createMockPrisma() {
     examSession: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
+      findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },

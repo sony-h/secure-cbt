@@ -71,40 +71,58 @@ export class SessionService {
       return this.resume({ session_id: existing.id }, userId);
     }
 
-    // Check for already completed session
-    const completed = await this.prisma.examSession.findFirst({
+    // Check for completed sessions and attempt limits
+    let completedSessions = await this.prisma.examSession.findMany({
       where: {
         exam_id: exam.id,
         student_id: student.id,
         status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.EXPIRED] },
       },
-      orderBy: { attempt_number: 'desc' },
+      orderBy: { attempt_number: 'asc' },
     });
 
-    let attemptNumber = 1;
+    if (!completedSessions || !Array.isArray(completedSessions)) {
+      const single = await this.prisma.examSession.findFirst({
+        where: {
+          exam_id: exam.id,
+          student_id: student.id,
+          status: { in: [SessionStatus.SUBMITTED, SessionStatus.AUTO_SUBMITTED, SessionStatus.EXPIRED] },
+        },
+        orderBy: { attempt_number: 'desc' },
+      });
+      completedSessions = single ? [single] : [];
+    }
+
+    const rawMax = exam.max_attempts === undefined ? 1 : exam.max_attempts;
+    const baseLimit = rawMax === null || rawMax === 0 ? Infinity : rawMax;
+
+    const extraAttempts = completedSessions.reduce(
+      (acc, s) => acc + (s.extra_attempts_allowed ?? 0),
+      0,
+    );
+
+    const hasRemedialBonus =
+      baseLimit === 1 && completedSessions.some((s) => s.is_remedial_allowed) ? 1 : 0;
+
+    const effectiveLimit =
+      baseLimit === Infinity ? Infinity : baseLimit + extraAttempts + hasRemedialBonus;
+
+    let attemptNumber = completedSessions.length + 1;
     let sessionType = SessionType.MAIN;
 
-    if (completed) {
-      if (completed.attempt_number >= 2) {
+    if (completedSessions.length >= effectiveLimit) {
+      if (baseLimit === 1 && hasRemedialBonus > 0) {
         throw new BadRequestException('Anda sudah menyelesaikan ujian remedial ini');
       }
-
-      if (!completed.is_remedial_allowed) {
+      if (baseLimit === 1 && hasRemedialBonus === 0) {
         throw new BadRequestException('Anda sudah menyelesaikan ujian ini');
       }
+      throw new BadRequestException(
+        `Batas kuota pengerjaan untuk ujian ini telah habis (${completedSessions.length}/${effectiveLimit} percobaan)`,
+      );
+    }
 
-      // Check if attempt 2 already exists
-      const existingAttempt2 = await this.prisma.examSession.findFirst({
-        where: { exam_id: exam.id, student_id: student.id, attempt_number: 2 },
-      });
-      if (existingAttempt2) {
-        if (existingAttempt2.status === SessionStatus.ACTIVE || existingAttempt2.status === SessionStatus.PAUSED) {
-          return this.resume({ session_id: existingAttempt2.id }, userId);
-        }
-        throw new BadRequestException('Anda sudah menyelesaikan ujian remedial ini');
-      }
-
-      attemptNumber = 2;
+    if (hasRemedialBonus > 0 && attemptNumber === 2 && baseLimit === 1) {
       sessionType = SessionType.REMEDIAL;
     }
 
