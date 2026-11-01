@@ -224,7 +224,21 @@ class _QuestionPaletteState extends State<QuestionPalette> {
           // Submit button from palette
           BouncingButton(
             onTap: () async {
-              final ok = await showSubmitDialog(context, answered: answeredCount, total: total);
+              final unanswered = <int>[];
+              for (int i = 0; i < widget.questions.length; i++) {
+                final q = widget.questions[i];
+                final id = q['id']?.toString() ?? '';
+                final ans = widget.answers[id];
+                if (ans == null || ans.trim().isEmpty) {
+                  unanswered.add(i + 1);
+                }
+              }
+              final ok = await showSubmitDialog(
+                context,
+                answered: answeredCount,
+                total: total,
+                unansweredQuestions: unanswered,
+              );
               if (ok == true) widget.onSubmit();
             },
             child: Container(

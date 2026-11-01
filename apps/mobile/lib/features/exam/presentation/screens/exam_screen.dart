@@ -589,9 +589,20 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                 answered: examState.answers.length,
                 showSaveIndicator: examState.showSaveIndicator,
                 onSubmit: () async {
-                  final ok = await showSubmitDialog(context,
+                  final unanswered = <int>[];
+                  for (int i = 0; i < examState.questions.length; i++) {
+                    final q = examState.questions[i];
+                    final id = q['id']?.toString() ?? '';
+                    final ans = examState.answers[id];
+                    if (ans == null || ans.trim().isEmpty) {
+                      unanswered.add(i + 1);
+                    }
+                  }
+                  final ok = await showSubmitDialog(
+                    context,
                     answered: examState.answers.length,
                     total: examState.questions.length,
+                    unansweredQuestions: unanswered,
                   );
                   if (ok == true && _submitHandler != null) {
                     final handler = _submitHandler!;
