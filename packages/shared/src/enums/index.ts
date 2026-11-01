@@ -38,6 +38,12 @@ export enum SessionStatus {
   EXPIRED = 'EXPIRED',
 }
 
+/** Session attempt type */
+export enum SessionType {
+  MAIN = 'MAIN',
+  REMEDIAL = 'REMEDIAL',
+}
+
 /** Student account status */
 export enum StudentStatus {
   ACTIVE = 'ACTIVE',
@@ -71,6 +77,8 @@ export enum ViolationEvent {
   WARNINGS_RESET = 'WARNINGS_RESET',
   TIME_EXTENDED = 'TIME_EXTENDED',
   SESSION_UNLOCKED = 'SESSION_UNLOCKED',
+  SESSION_REOPENED = 'SESSION_REOPENED',
+  REMEDIAL_AUTHORIZED = 'REMEDIAL_AUTHORIZED',
 }
 
 /** Socket.io + internal event names */
@@ -89,6 +97,8 @@ export enum SocketEvent {
   SESSION_WARNINGS_ADJUSTED = 'session.warnings_adjusted',
   SESSION_TIME_EXTENDED = 'session.time_extended',
   SESSION_UNLOCKED = 'session.unlocked',
+  SESSION_REOPENED = 'session.reopened',
+  SESSION_REMEDIAL_AUTHORIZED = 'session.remedial_authorized',
   // Internal EventEmitter events
   USER_LOGGED_IN = 'user.logged_in',
   USER_LOGGED_OUT = 'user.logged_out',
