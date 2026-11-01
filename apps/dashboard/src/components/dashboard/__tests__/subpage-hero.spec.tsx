@@ -26,7 +26,7 @@ describe('SubpageHero', () => {
         subtitle="Kelola dan pantau ujian"
         icon={ClipboardList}
         badges={[
-          { label: 'Assessia Engine v1.8.0', icon: Sparkles, variant: 'violet' },
+          { label: 'Assessia Engine v1.9.0', icon: Sparkles, variant: 'violet' },
           { label: '12 Ujian Aktif', variant: 'cyan' },
         ]}
         actions={
@@ -39,7 +39,7 @@ describe('SubpageHero', () => {
       />,
     );
 
-    expect(screen.getByText('Assessia Engine v1.8.0')).toBeTruthy();
+    expect(screen.getByText('Assessia Engine v1.9.0')).toBeTruthy();
     expect(screen.getByText('12 Ujian Aktif')).toBeTruthy();
     expect(screen.getByTestId('hero-action-btn')).toBeTruthy();
     expect(screen.getByText('Total Terjadwal')).toBeTruthy();

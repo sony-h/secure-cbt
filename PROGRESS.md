@@ -3,9 +3,9 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.8.0` (Mobile Android Build: `1.8.0+20`)  
+**Current Version:** `v1.9.0` (Mobile Android Build: `1.9.0+21`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 36 - Accidental Submission Recovery, Remedial Re-Attempts, Option C Dual-Score Reporting & Tactile Slide-to-Submit (Release v1.8.0+20)  
+**Current Phase:** Phase 37 - Multiple Exam Attempts, Best Score Policy ("Nilai Terbaik"), Anti-Leak Solution Lock & Proctor Controls (Release v1.9.0+21)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
 **Last Updated:** 2026-11-01
@@ -1504,6 +1504,39 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - **Unanswered Soal Alert Card:** Prominently displays unanswered question counts with a direct quick-link to the question palette (`Buka Palet Soal`) when students attempt to submit an incomplete exam.
 - **Haptic Feedback & Spring Physics:** Features tactile haptic clicks upon threshold arrival and smooth spring physics snap-back if released prematurely (< 85%).
 - **Mobile UI Status Integration:** Added `Tersedia (Remedial)` status pills and `REMEDIAL BERLANGSUNG` tags in student home and exams screens.
+
+---
+
+## Phase 37 Completion Summary (v1.9.0+21)
+
+**Version:** `v1.9.0` (Mobile Android Build: `1.9.0+21`)  
+**Date:** 2026-11-01  
+
+### 1. Multiple Exam Attempts Configuration (`max_attempts`)
+- **Shared Validation & Schema Support:** Extended `Exam` with `max_attempts` (`Int? @default(1)`) supporting `1` (single attempt, default), `2`, `3`, `5`, or `null`/`0` (unlimited). Added `extra_attempts_allowed` (`Int @default(0)`) to `ExamSession` for proctor interventions.
+- **Prisma Migration:** Applied migration `20261101000000_add_exam_max_attempts` cleanly across database models and generated Prisma Client.
+- **Dashboard Exam Builder:** Integrated attempt limit configuration in `GeneralStep` of `CreateExamModal` with quick presets (`1x (Standar)`, `2x`, `3x`, `5x`, `Tanpa Batas`) and custom number stepper.
+
+### 2. Best Score Policy ("Nilai Terbaik") & Multi-Attempt Reporting
+- **Gradebook Best Score Aggregation:** In `ReportService.getExamReport`, computed gradebook marks strictly adhere to $\max(\text{Attempt}_1, \dots, \text{Attempt}_N)$ for multi-attempt exams, preserving student achievement across repeated practice.
+- **Option C Dual-Score & Multi-Attempt View Switching:** Single-attempt exams (`max_attempts === 1`) seamlessly preserve Option C Nilai Utama & Nilai Remedial columns, while multi-attempt exams display Nilai Terbaik with collapsible attempt breakdown pills (`#1: 75`, `#2: 88 (Terbaik)`).
+- **Formal Excel Multi-Attempt Export:** Enhanced `GET /reports/exams/:examId/excel` with Nilai Terbaik columns, attempt counts, and summary statistics (*Rata-Rata*, *Nilai Terendah*, *Nilai Tertinggi*).
+
+### 3. Anti-Cheat Solution & Answer Key Lockout
+- **Strict Anti-Leak Schedule Guard:** In `SessionService.getReview`, solutions and answer keys remain strictly locked while `now <= exam.end_at` for all students, even if an individual student has exhausted their allotted attempts early—preventing optical and offline answer leaks to peers in the test room.
+- **Mobile History Solution Lock:** Student history displays a clear proctor lock snackbar (*"Pembahasan dan kunci jawaban baru dapat diakses setelah seluruh jadwal ujian selesai"*) when tapped before the scheduled end time.
+
+### 4. Persistent Mobile Exam Cards & Polite Exhaustion Alert
+- **Persistent Visibility:** Completed exams remain visible on mobile Home and Exams screens with dynamic status pills:
+  - `Tersedia (Sisa 2x)`: When attempts remain.
+  - `Tersedia (1x Selesai)`: For unlimited practice exams.
+  - `Selesai (Batas Habis)`: Neutral pill when all attempts are exhausted.
+- **Polite Exhaustion Dialog:** Tapping an exhausted exam card displays an informative dialog (`showExhaustedAttemptsDialog`) confirming all attempts have been completed and reassuring students that their highest score has been preserved in the gradebook.
+
+### 5. Proctor Live Mission Control Extra Attempt Injection
+- **Proctor "+1 Kuota Percobaan" Action:** Added `POST /sessions/:id/grant-attempt` and `StudentActionDialog` launcher in Mission Control allowing proctors to grant individual students an extra attempt with audit logging in `session_logs`.
+- **Real-Time WebSocket Sync:** Emits `session.attempt_granted` (`SocketEvent.SESSION_ATTEMPT_GRANTED`) over `/monitoring` namespace.
+- **Mobile Live Refresh & Banner:** Student mobile app listens for `session.attempt_granted`, invalidates queries, and displays a prominent purple notification banner informing the student of their newly granted attempt quota.
 
 ---
 

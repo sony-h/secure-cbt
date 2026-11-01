@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { CreateExamModal, emptyExamForm, type ExamFormData } from '@/components/exams/create-exam-modal';
 import { TokenModal } from '@/components/exams/token-modal';
 import { SubpageHero } from '@/components/dashboard/subpage-hero';
+import { APP_INFO } from '@/lib/constants/app-info';
 
 interface Exam {
   id: string;
@@ -342,7 +343,7 @@ function ExamsPageContent() {
         title="Jadwal & Sesi Ujian"
         subtitle="Rencanakan asesmen digital, kelola distribusi token keamanan, dan sinkronisasi butir soal."
         badges={[
-          { label: 'Assessia Engine v1.8.0', icon: Sparkles, variant: 'violet' },
+          { label: `Assessia Engine v${APP_INFO.version}`, icon: Sparkles, variant: 'violet' },
           ...(ongoingCount > 0
             ? [{ label: `${ongoingCount} Ujian Berlangsung`, variant: 'emerald' as const }]
             : []),
