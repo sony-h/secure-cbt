@@ -219,6 +219,12 @@ export const sessionApi = {
   extendTime: (sessionId: string, additionalMinutes: number) =>
     api.post(`/sessions/${sessionId}/extend-time`, { additional_minutes: additionalMinutes }),
   unlock: (sessionId: string) => api.post(`/sessions/${sessionId}/unlock`),
+  reopen: (sessionId: string, data?: { additional_minutes?: number; reset_strikes?: boolean }) =>
+    api.post(`/sessions/${sessionId}/reopen`, data ?? {}),
+  authorizeRemedial: (sessionId: string) =>
+    api.post(`/sessions/${sessionId}/authorize-remedial`),
+  bulkAuthorizeRemedial: (examId: string, data: { student_ids: string[] }) =>
+    api.post(`/sessions/exam/${examId}/bulk-authorize-remedial`, data),
 };
 
 export const monitoringApi = {

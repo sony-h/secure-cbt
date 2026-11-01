@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { sessionApi } from '@/lib/api-service';
 import { toast } from 'sonner';
 import {
@@ -23,6 +24,8 @@ import {
   UserCheck,
   CheckCircle,
   Megaphone,
+  RefreshCw,
+  GraduationCap,
 } from 'lucide-react';
 
 export interface ActionStudentSession {
@@ -36,6 +39,8 @@ export interface ActionStudentSession {
   status: string;
   warning_count: number;
   remaining_time_seconds: number | null;
+  attempt_number?: number;
+  is_remedial_allowed?: boolean;
 }
 
 interface StudentActionDialogProps {
@@ -55,6 +60,8 @@ export function StudentActionDialog({
 }: StudentActionDialogProps) {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [confirmForceSubmit, setConfirmForceSubmit] = useState(false);
+  const [reopenMinutes, setReopenMinutes] = useState<number>(5);
+  const [resetStrikesOnReopen, setResetStrikesOnReopen] = useState<boolean>(true);
 
   if (!session) return null;
 
@@ -140,6 +147,37 @@ export function StudentActionDialog({
     }
   };
 
+  const handleReopen = async () => {
+    try {
+      setLoadingAction('reopen');
+      await sessionApi.reopen(session.id, {
+        additional_minutes: reopenMinutes,
+        reset_strikes: resetStrikesOnReopen,
+      });
+      toast.success(`Sesi ${session.student.full_name} berhasil dibuka kembali (+${reopenMinutes}m)`);
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal membuka kembali sesi');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleAuthorizeRemedial = async () => {
+    try {
+      setLoadingAction('authorize-remedial');
+      await sessionApi.authorizeRemedial(session.id);
+      toast.success(`Ujian remedial berhasil diizinkan untuk ${session.student.full_name}`);
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal mengizinkan remedial');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   return (
     <Dialog
       open={open}
@@ -170,9 +208,16 @@ export function StudentActionDialog({
           <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border/60 text-xs">
             <div>
               <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Status Sesi</span>
-              <Badge variant={isCompleted ? 'default' : 'success'} className="mt-1">
-                {isCompleted ? 'Selesai' : 'Aktif Berjalan'}
-              </Badge>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Badge variant={isCompleted ? 'default' : 'success'}>
+                  {isCompleted ? 'Selesai' : 'Aktif Berjalan'}
+                </Badge>
+                {session.attempt_number === 2 && (
+                  <Badge variant="outline" className="text-indigo-600 border-indigo-500/30 font-bold">
+                    Remedial
+                  </Badge>
+                )}
+              </div>
             </div>
             <div className="text-right">
               <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Peringatan Strike</span>
@@ -181,6 +226,123 @@ export function StudentActionDialog({
               </span>
             </div>
           </div>
+
+          {/* Recovery Action: Reopen Session (Accidental Submit Recovery) */}
+          {(session.status === 'SUBMITTED' || session.status === 'AUTO_SUBMITTED') && (
+            <div className="p-3.5 rounded-xl border border-emerald-500/40 bg-emerald-500/5 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5" /> Buka Kembali Sesi (Pulihkan Submit)
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Pulihkan lembar pengerjaan siswa yang tidak sengaja terkumpul. Timer akan dilanjutkan dan jawaban sebelumnya tetap aman.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[11px] font-semibold text-muted-foreground">Tambahan Waktu:</span>
+                  <div className="flex gap-1">
+                    {[0, 5, 10, 15].map((mins) => (
+                      <Button
+                        key={mins}
+                        type="button"
+                        size="sm"
+                        variant={reopenMinutes === mins ? 'default' : 'outline'}
+                        onClick={() => setReopenMinutes(mins)}
+                        className={`h-7 px-2.5 rounded-lg text-xs font-bold ${
+                          reopenMinutes === mins
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : 'border-border/80 hover:bg-emerald-500/10'
+                        }`}
+                      >
+                        +{mins}m
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 pt-1">
+                  <Checkbox
+                    id="reset-strikes"
+                    checked={resetStrikesOnReopen}
+                    onCheckedChange={(checked) => setResetStrikesOnReopen(!!checked)}
+                  />
+                  <label
+                    htmlFor="reset-strikes"
+                    className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-muted-foreground"
+                  >
+                    Reset peringatan & pelanggaran strike ke 0
+                  </label>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                size="sm"
+                disabled={loadingAction !== null}
+                onClick={handleReopen}
+                className="w-full rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm mt-1"
+              >
+                {loadingAction === 'reopen' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Buka Kembali Sesi
+              </Button>
+            </div>
+          )}
+
+          {/* Remedial Authorization Action */}
+          {isCompleted && (
+            <div className="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-500/5 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5">
+                    <GraduationCap className="h-3.5 w-3.5" /> Otorisasi Ujian Remedial
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Izinkan siswa mengulang pengerjaan ujian dengan pengacakan soal baru (Attempt #2).
+                  </p>
+                </div>
+              </div>
+
+              {session.is_remedial_allowed ? (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-700 dark:text-indigo-300 font-medium">
+                  <CheckCircle className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <div>
+                    <span className="font-bold block">Remedial Diizinkan (Attempt #2)</span>
+                    <span className="text-[11px] text-muted-foreground block">
+                      Siswa dapat langsung login kembali menggunakan token ujian untuk memulai pengerjaan remedial.
+                    </span>
+                  </div>
+                </div>
+              ) : (session.attempt_number ?? 1) === 1 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={loadingAction !== null}
+                  onClick={handleAuthorizeRemedial}
+                  className="w-full rounded-xl text-xs font-bold border-indigo-500/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all"
+                >
+                  {loadingAction === 'authorize-remedial' ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  ) : (
+                    <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  Izinkan Remedial
+                </Button>
+              ) : (
+                <div className="text-[11px] text-muted-foreground italic p-2 bg-muted/40 rounded-lg border border-border/40">
+                  Siswa ini telah menyelesaikan sesi remedial (Attempt #2). Batas remedial adalah 1 kali per mata pelajaran.
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Action 1: Adjust Time Buttons (+ and -) */}
           <div className="space-y-2">
