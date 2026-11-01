@@ -42,6 +42,11 @@ enum SessionStatus {
   EXPIRED
 }
 
+enum SessionType {
+  MAIN
+  REMEDIAL
+}
+
 enum StudentStatus {
   ACTIVE
   INACTIVE
@@ -419,6 +424,11 @@ model ExamSession {
   student_id             String        @db.Uuid
   package_id             String?       @db.Uuid
   status                 SessionStatus @default(ACTIVE)
+  attempt_number         Int           @default(1)
+  session_type           SessionType   @default(MAIN)
+  is_remedial_allowed    Boolean       @default(false)
+  reopened_at            DateTime?
+  reopened_by            String?       @db.Uuid
   started_at             DateTime      @default(now())
   submitted_at           DateTime?
   remaining_time_seconds Int?
@@ -435,6 +445,7 @@ model ExamSession {
   answers       Answer[]
   score         Score?
 
+  @@unique([exam_id, student_id, attempt_number])
   @@index([exam_id])
   @@index([student_id])
   @@index([exam_id, student_id])
@@ -485,20 +496,22 @@ model Answer {
 // ── scores ───────────────────────────────────────────────────────
 
 model Score {
-  id                        String    @id @default(uuid()) @db.Uuid
-  exam_session_id           String    @unique @db.Uuid
-  total_score               Float     @default(0)
-  raw_points_earned         Float     @default(0)
-  raw_points_possible       Float     @default(0)
-  correct_count             Int       @default(0)
-  wrong_count               Int       @default(0)
+  id                        String       @id @default(uuid()) @db.Uuid
+  exam_session_id           String       @unique @db.Uuid
+  attempt_number            Int          @default(1)
+  session_type              SessionType  @default(MAIN)
+  total_score               Float        @default(0)
+  raw_points_earned         Float        @default(0)
+  raw_points_possible       Float        @default(0)
+  correct_count             Int          @default(0)
+  wrong_count               Int          @default(0)
   essay_score               Float?
-  total_questions           Int       @default(0)
+  total_questions           Int          @default(0)
   passing_grade_at_score    Int?
-  graded_by                 String?   @db.Uuid
+  graded_by                 String?      @db.Uuid
   graded_at                 DateTime?
-  created_at                DateTime  @default(now())
-  updated_at                DateTime  @updatedAt
+  created_at                DateTime     @default(now())
+  updated_at                DateTime     @updatedAt
 
   exam_session  ExamSession  @relation(fields: [exam_session_id], references: [id], onDelete: Restrict)
   grader        User?        @relation("GradedBy", fields: [graded_by], references: [id], onDelete: SetNull)
