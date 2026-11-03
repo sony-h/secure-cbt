@@ -62,6 +62,11 @@ describe('sync-version logic', () => {
       assert.equal(result.version, '1.9.5');
       assert.equal(result.buildNumber, 22);
     });
+
+    it('should reject invalid or non-positive build numbers', () => {
+      assert.throws(() => computeNextVersion('1.9.0', 21, 'patch', 'invalid'), /Invalid build number/);
+      assert.throws(() => computeNextVersion('1.9.0', 21, 'patch', -5), /Invalid build number/);
+    });
   });
 
   describe('verifyFileContent', () => {
@@ -76,6 +81,12 @@ describe('sync-version logic', () => {
       const original = 'name: mobile\nversion: 1.0.0+1\nenvironment:\n  sdk: ">=3.0.0"';
       const updated = verifyFileContent('pubspec.yaml', original, { version: '1.9.0', buildNumber: 21 });
       assert.match(updated, /version: 1\.9\.0\+21/);
+    });
+
+    it('should update pubspec.yaml with prerelease versions correctly', () => {
+      const original = 'name: mobile\nversion: 1.0.0-rc.1+1\nenvironment:\n  sdk: ">=3.0.0"';
+      const updated = verifyFileContent('pubspec.yaml', original, { version: '2.0.0-rc.2', buildNumber: 30 });
+      assert.match(updated, /version: 2\.0\.0-rc\.2\+30/);
     });
 
     it('should update app_info.dart version strings correctly', () => {

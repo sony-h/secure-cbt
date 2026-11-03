@@ -42,7 +42,17 @@ export function parseVersion(str) {
 export function computeNextVersion(currentVersion, currentBuildNumber, bumpType, specifiedBuildNumber) {
   const current = parseVersion(currentVersion);
   let nextVersion;
-  const nextBuild = specifiedBuildNumber !== undefined ? Number(specifiedBuildNumber) : (currentBuildNumber || 1) + 1;
+  let nextBuild;
+
+  if (specifiedBuildNumber !== undefined) {
+    const parsedBuild = Number(specifiedBuildNumber);
+    if (!Number.isInteger(parsedBuild) || parsedBuild <= 0) {
+      throw new Error(`Invalid build number: "${specifiedBuildNumber}". Must be a positive integer.`);
+    }
+    nextBuild = parsedBuild;
+  } else {
+    nextBuild = (currentBuildNumber || 1) + 1;
+  }
 
   if (bumpType === 'patch') {
     nextVersion = `${current.major}.${current.minor}.${current.patch + 1}`;
@@ -79,22 +89,22 @@ export function verifyFileContent(fileNameOrType, content, { version, buildNumbe
   }
 
   if (fileNameOrType.endsWith('pubspec.yaml')) {
-    return content.replace(/^version:\s*[\d.]+(?:\+\d+)?/m, `version: ${versionString}`);
+    return content.replace(/^version:\s*[^\r\n]+/m, `version: ${versionString}`);
   }
 
   if (fileNameOrType.endsWith('app_info.dart')) {
     let result = content;
     result = result.replace(
-      /(static\s+const\s+String\s+version\s*=\s*')[^']*(';)/,
-      `$1${version}$2`
+      /(static\s+const\s+String\s+version\s*=\s*)['"][^'"]*['"](;)/,
+      `$1'${version}'$2`
     );
     result = result.replace(
       /(static\s+const\s+int\s+buildNumber\s*=\s*)\d+(;)/,
       `$1${buildNumber}$2`
     );
     result = result.replace(
-      /(static\s+const\s+String\s+versionString\s*=\s*')[^']*(';)/,
-      `$1${versionString}$2`
+      /(static\s+const\s+String\s+versionString\s*=\s*)['"][^'"]*['"](;)/,
+      `$1'${versionString}'$2`
     );
     return result;
   }
@@ -141,7 +151,10 @@ export function checkTargets(rootPath, versionData) {
     const content = fs.readFileSync(fullPath, 'utf8');
     const expected = verifyFileContent(target.type, content, versionData);
 
-    if (content !== expected) {
+    const normalizedContent = content.replace(/\r\n/g, '\n');
+    const normalizedExpected = expected.replace(/\r\n/g, '\n');
+
+    if (normalizedContent !== normalizedExpected) {
       errors.push(`Out of sync: ${target.relativePath} does not match ${versionData.version} (build: ${versionData.buildNumber})`);
     }
   }
@@ -173,10 +186,17 @@ export function syncTargets(rootPath, versionData, { dryRun = false } = {}) {
     2
   ) + '\n';
 
-  if (!dryRun) {
-    fs.writeFileSync(versionJsonPath, canonicalJson, 'utf8');
+  let currentJson = '';
+  if (fs.existsSync(versionJsonPath)) {
+    currentJson = fs.readFileSync(versionJsonPath, 'utf8');
   }
-  updatedFiles.push('version.json');
+
+  if (currentJson.replace(/\r\n/g, '\n') !== canonicalJson.replace(/\r\n/g, '\n')) {
+    if (!dryRun) {
+      fs.writeFileSync(versionJsonPath, canonicalJson, 'utf8');
+    }
+    updatedFiles.push('version.json');
+  }
 
   // 2. Sync all targets
   for (const target of TARGET_FILES) {
@@ -193,7 +213,7 @@ export function syncTargets(rootPath, versionData, { dryRun = false } = {}) {
 
     const updatedContent = verifyFileContent(target.type, originalContent, versionData);
 
-    if (originalContent !== updatedContent) {
+    if (originalContent.replace(/\r\n/g, '\n') !== updatedContent.replace(/\r\n/g, '\n')) {
       if (!dryRun) {
         fs.mkdirSync(path.dirname(fullPath), { recursive: true });
         fs.writeFileSync(fullPath, updatedContent, 'utf8');
@@ -290,5 +310,6 @@ Usage:
   node scripts/sync-version.mjs bump <patch|minor|major> # Bump semver and increment build number
   node scripts/sync-version.mjs bump 1.9.1 [buildNumber] # Set explicit version and build number
 `);
-  process.exit(0);
+  const isHelp = ['--help', '-h', 'help'].includes(command);
+  process.exit(isHelp ? 0 : 1);
 }
