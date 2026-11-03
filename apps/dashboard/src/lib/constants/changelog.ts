@@ -10,7 +10,7 @@ export interface ChangelogEntry {
   releaseDate: string;
   title: string;
   isLatest?: boolean;
-  versionGroup: 'v1.7' | 'v1.6' | 'v1.5' | 'v1.0-v1.4';
+  versionGroup: 'v1.8-v1.9' | 'v1.7' | 'v1.6' | 'v1.5' | 'v1.0-v1.4';
   changes: ChangelogItem[];
 }
 
@@ -18,10 +18,94 @@ export const CHANGELOG_STORAGE_KEY = 'cbt_last_seen_changelog_version';
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    version: 'v1.9.0',
+    releaseDate: '1 November 2026',
+    title: 'Multiple Exam Attempts, Kebijakan Nilai Terbaik & Kunci Solusi Anti-Bocor',
+    isLatest: true,
+    versionGroup: 'v1.8-v1.9',
+    changes: [
+      {
+        category: 'feature',
+        text: 'Konfigurasi batas percobaan ujian (max_attempts: 1x, 2x, 3x, 5x, atau tanpa batas) pada pengaturan pembuatan dan edit ujian.',
+      },
+      {
+        category: 'improvement',
+        text: 'Kebijakan Nilai Terbaik ("Best Score"): agregasi otomatis nilai rapor mengambil nilai tertinggi dari seluruh percobaan ujian.',
+      },
+      {
+        category: 'security',
+        text: 'Anti-Leak Solution Lock: kunci jawaban dan pembahasan terkunci ketat hingga seluruh jadwal ujian sekolah berakhir untuk mencegah kebocoran ke siswa lain.',
+      },
+      {
+        category: 'feature',
+        text: 'Injeksi kuota percobaan (+1 Kuota) oleh pengawas langsung dari Mission Control untuk siswa tertentu dengan audit log transparan.',
+      },
+      {
+        category: 'improvement',
+        text: 'Kartu ujian mobile persisten dengan pill status adaptif (Tersedia Sisa Xx / Selesai Batas Habis) dan dialog konfirmasi santun saat kuota habis.',
+      },
+    ],
+  },
+  {
+    version: 'v1.8.0',
+    releaseDate: '31 Oktober 2026',
+    title: 'Pemulihan Sesi Tak Sengaja (Reopen), Remedial Attempt #2 & Slide to Submit',
+    versionGroup: 'v1.8-v1.9',
+    changes: [
+      {
+        category: 'feature',
+        text: 'Fitur Pembukaan Kembali Sesi Ujian (Reopen Session) dari dashboard pengawas untuk memulihkan sesi siswa yang tersubmit tidak sengaja.',
+      },
+      {
+        category: 'feature',
+        text: 'Siklus Ujian Remedial (Attempt #2) mandiri dengan otorisasi individual pengawas atau otorisasi massal siswa di bawah KKM.',
+      },
+      {
+        category: 'improvement',
+        text: 'Pelaporan Nilai Ganda (Option C) di dashboard dan ekspor Excel: menyandingkan Nilai Utama dan Nilai Remedial secara objektif.',
+      },
+      {
+        category: 'security',
+        text: 'Komponen interaktif Slide-to-Submit pada mobile dengan deteksi soal belum terisi untuk mengeliminasi klik submit keliru.',
+      },
+      {
+        category: 'improvement',
+        text: 'Sinkronisasi realtime socket SESSION_REOPENED untuk mengaktifkan kembali layar ujian siswa secara otomatis tanpa perlu login ulang.',
+      },
+    ],
+  },
+  {
+    version: 'v1.7.5',
+    releaseDate: '25 Oktober 2026',
+    title: 'Stepper Penalti Pengawas, Kompensasi Waktu 2 Arah & Banner Notifikasi Mobile',
+    versionGroup: 'v1.7',
+    changes: [
+      {
+        category: 'feature',
+        text: 'Stepper penalti pelanggaran (+1 Strike / -1 Forgive) di Mission Control pengawas dengan auto-submit saat batas strike terlampaui.',
+      },
+      {
+        category: 'improvement',
+        text: 'Penyesuaian sisa waktu 2 arah (penambahan kompensasi +5m/+30m maupun pengurangan waktu -5m/-30m) dengan perlindungan batas 0 detik.',
+      },
+      {
+        category: 'feature',
+        text: 'Sistem banner notifikasi in-exam animasi di mobile menggantikan Snackbar standar dengan 8 tema visual kontekstual.',
+      },
+      {
+        category: 'improvement',
+        text: 'Opsi sensitivitas huruf besar/kecil (case_sensitive) pada auto-grading soal Isian Singkat.',
+      },
+      {
+        category: 'fix',
+        text: 'Deduplikasi routing WebSocket pengawas untuk mencegah penerimaan event ganda pada perangkat siswa.',
+      },
+    ],
+  },
+  {
     version: 'v1.7.4',
     releaseDate: '18 Oktober 2026',
     title: 'Manajemen Kredensial Siswa, Port Kartu Cetak & Cron Auto-Submit',
-    isLatest: true,
     versionGroup: 'v1.7',
     changes: [
       {

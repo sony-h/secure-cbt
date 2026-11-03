@@ -74,4 +74,25 @@ describe('ChangelogModal', () => {
     fireEvent.click(v10Tab);
     expect(screen.getByText(/v1\.0\.0/i)).toBeTruthy();
   });
+
+  it('renders v1.9.0 as the latest release and filters by v1.8 - v1.9 tab', () => {
+    render(
+      <ChangelogModal
+        open={true}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Latest version should be v1.9.0
+    expect(screen.getAllByText(/v1\.9\.0/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Multiple Exam Attempts, Kebijakan Nilai Terbaik & Kunci Solusi Anti-Bocor/i)).toBeTruthy();
+
+    // Select v1.8 - v1.9 tab
+    const v18Tab = screen.getByRole('button', { name: /v1\.8\s*-\s*v1\.9/i });
+    expect(v18Tab).toBeTruthy();
+
+    fireEvent.click(v18Tab);
+    expect(screen.getAllByText(/v1\.9\.0/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/v1\.8\.0/i).length).toBeGreaterThan(0);
+  });
 });
