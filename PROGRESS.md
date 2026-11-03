@@ -8,7 +8,7 @@
 **Current Phase:** Phase 37 - Multiple Exam Attempts, Best Score Policy ("Nilai Terbaik"), Anti-Leak Solution Lock & Proctor Controls (Release v1.9.0+21)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
-**Last Updated:** 2026-11-01
+**Last Updated:** 2026-11-03
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -1537,6 +1537,35 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 - **Proctor "+1 Kuota Percobaan" Action:** Added `POST /sessions/:id/grant-attempt` and `StudentActionDialog` launcher in Mission Control allowing proctors to grant individual students an extra attempt with audit logging in `session_logs`.
 - **Real-Time WebSocket Sync:** Emits `session.attempt_granted` (`SocketEvent.SESSION_ATTEMPT_GRANTED`) over `/monitoring` namespace.
 - **Mobile Live Refresh & Banner:** Student mobile app listens for `session.attempt_granted`, invalidates queries, and displays a prominent purple notification banner informing the student of their newly granted attempt quota.
+
+---
+
+## Phase 38 Completion Summary (SSOT Versioning & Unified Changelog)
+
+**Version:** `v1.9.0` (Mobile Android Build: `1.9.0+21`)  
+**Standard:** Single Source of Truth (SSOT) Versioning & Release Automation  
+**Date:** 2026-11-03  
+
+### 1. Canonical Versioning Infrastructure (`version.json` & `sync-version.mjs`)
+- **Single Source of Truth:** Created `version.json` storing canonical SemVer (`version`), Android integer `buildNumber`, and `releaseDate`.
+- **Zero-Dependency Synchronization Script:** Created `scripts/sync-version.mjs` supporting:
+  - `pnpm version:bump <patch|minor|major|version> [buildNumber]`: Bumps SemVer, auto-increments Android build number, and syncs all 7 package manifests in one command.
+  - `pnpm version:check`: Fast CI verification tool confirming all manifests strictly match `version.json`.
+  - `pnpm version:sync`: Synchronizes all manifests to match `version.json`.
+- **7 Synchronized Targets:** Root `package.json`, `packages/shared/package.json`, `apps/backend/package.json`, `apps/dashboard/package.json`, `apps/mobile/pubspec.yaml`, `apps/mobile/lib/core/constants/app_info.dart`, and `packages/shared/src/constants/version.ts`.
+- **Unit Testing:** 14/14 passing tests in `scripts/__tests__/sync-version.spec.mjs` verifying SemVer parsing, bumps, and content verification.
+
+### 2. Shared Constants & Dashboard Dynamic App Info
+- **Shared Package Export:** Exported `APP_VERSION`, `APP_BUILD_NUMBER`, and `APP_VERSION_STRING` in `@secure-cbt/shared`.
+- **Dashboard Integration:** Updated `apps/dashboard/src/lib/constants/app-info.ts` to consume version constants directly from `@secure-cbt/shared`, eliminating hardcoded version numbers in the dashboard.
+
+### 3. Dashboard Changelog Updates & `v1.8-v1.9` Filter Group
+- **Changelog Releases:** Updated `apps/dashboard/src/lib/constants/changelog.ts` with comprehensive release notes for `v1.7.5` (Proctor Steppers & Mobile Banners), `v1.8.0` (Session Reopen & Remedial Attempt #2), and `v1.9.0` (Multiple Exam Attempts & Best Score Policy).
+- **Group Filter Navigation:** Added `'v1.8-v1.9'` tab to `ChangelogModal` with full search and category filtering.
+- **Unit Testing:** 5/5 passing tests in `changelog-modal.spec.tsx`.
+
+### 4. Release SOP Guidelines Overhaul
+- **Modernized Documentation:** Updated `docs/VERSIONING_AND_RELEASE_GUIDELINES.md` with single-command bump workflows, Android `buildNumber` (+N) integrity rules, and mandatory post-update checklists.
 
 ---
 
