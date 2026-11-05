@@ -75,7 +75,7 @@ describe('ChangelogModal', () => {
     expect(screen.getByText(/v1\.0\.0/i)).toBeTruthy();
   });
 
-  it('renders v1.9.0 as the latest release and filters by v1.8 - v1.9 tab', () => {
+  it('renders v1.10.0 as the latest release and filters by v1.8 - v1.10 tab', () => {
     render(
       <ChangelogModal
         open={true}
@@ -83,15 +83,16 @@ describe('ChangelogModal', () => {
       />,
     );
 
-    // Latest version should be v1.9.0
-    expect(screen.getAllByText(/v1\.9\.0/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Multiple Exam Attempts, Kebijakan Nilai Terbaik & Kunci Solusi Anti-Bocor/i)).toBeTruthy();
+    // Latest version should be v1.10.0
+    expect(screen.getAllByText(/v1\.10\.0/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Kontrol Visibilitas Pembahasan & Kunci Jawaban \(show_explanation\) Mandiri/i)).toBeTruthy();
 
-    // Select v1.8 - v1.9 tab
-    const v18Tab = screen.getByRole('button', { name: /v1\.8\s*-\s*v1\.9/i });
+    // Select v1.8 - v1.10 tab
+    const v18Tab = screen.getByRole('button', { name: /v1\.8\s*-\s*v1\.10/i });
     expect(v18Tab).toBeTruthy();
 
     fireEvent.click(v18Tab);
+    expect(screen.getAllByText(/v1\.10\.0/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/v1\.9\.0/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/v1\.8\.0/i).length).toBeGreaterThan(0);
   });

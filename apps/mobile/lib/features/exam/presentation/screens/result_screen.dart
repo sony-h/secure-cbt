@@ -388,6 +388,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
                                  // Exam Review Button (if finished) or Lock Warning
                                  (() {
+                                   final showExplanation = resultAsync.value?['show_explanation'] as bool? ?? showResults;
                                    if (!showResults) {
                                      return Container(
                                        padding: const EdgeInsets.all(14),
@@ -402,7 +403,29 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                            SizedBox(width: 10),
                                            Expanded(
                                              child: Text(
-                                               'Pembahasan dan rincian nilai belum dirilis oleh guru pengampu.',
+                                               'Rincian nilai belum dirilis oleh guru pengampu.',
+                                               style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, fontWeight: FontWeight.w500),
+                                             ),
+                                           ),
+                                         ],
+                                       ),
+                                     );
+                                   }
+                                   if (!showExplanation) {
+                                     return Container(
+                                       padding: const EdgeInsets.all(14),
+                                       decoration: BoxDecoration(
+                                         color: AppColors.surface,
+                                         borderRadius: BorderRadius.circular(14),
+                                         border: Border.all(color: AppColors.border),
+                                       ),
+                                       child: const Row(
+                                         children: [
+                                           Icon(Icons.lock_rounded, size: 18, color: AppColors.textMuted),
+                                           SizedBox(width: 10),
+                                           Expanded(
+                                             child: Text(
+                                               'Pembahasan soal tidak diaktifkan untuk ujian ini.',
                                                style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, fontWeight: FontWeight.w500),
                                              ),
                                            ),

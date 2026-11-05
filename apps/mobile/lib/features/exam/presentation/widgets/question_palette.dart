@@ -3,6 +3,33 @@ import 'package:secure_cbt_mobile/core/theme/theme.dart';
 import 'package:secure_cbt_mobile/core/widgets/bouncing_button.dart';
 import 'package:secure_cbt_mobile/features/exam/presentation/widgets/submit_dialog.dart';
 
+String resolveQuestionId(Map<String, dynamic> q) {
+  final nestedId = (q['question'] is Map) ? q['question']['id']?.toString() : null;
+  if (nestedId != null && nestedId.isNotEmpty) return nestedId;
+  return q['id']?.toString() ?? '';
+}
+
+bool isQuestionAnswered(Map<String, dynamic> q, Map<String, String> answers) {
+  final qId = resolveQuestionId(q);
+  if (qId.isEmpty) return false;
+  final ans = answers[qId]?.trim() ?? '';
+  if (ans.isEmpty || ans == '{}') return false;
+  return true;
+}
+
+List<int> computeUnansweredQuestionNumbers(
+  List<Map<String, dynamic>> questions,
+  Map<String, String> answers,
+) {
+  final unanswered = <int>[];
+  for (int i = 0; i < questions.length; i++) {
+    if (!isQuestionAnswered(questions[i], answers)) {
+      unanswered.add(i + 1);
+    }
+  }
+  return unanswered;
+}
+
 class QuestionPalette extends StatefulWidget {
   final List<Map<String, dynamic>> questions;
   final Map<String, String> answers;
@@ -44,7 +71,8 @@ class _QuestionPaletteState extends State<QuestionPalette> {
   @override
   Widget build(BuildContext context) {
     final total = widget.questions.length;
-    final answeredCount = widget.answers.length;
+    final unansweredList = computeUnansweredQuestionNumbers(widget.questions, widget.answers);
+    final answeredCount = total - unansweredList.length;
     final progress = total > 0 ? answeredCount / total : 0.0;
     final flaggedCount = widget.flagged.length;
 
@@ -158,8 +186,8 @@ class _QuestionPaletteState extends State<QuestionPalette> {
               itemCount: total,
               itemBuilder: (context, index) {
                 final q = widget.questions[index];
-                final qId = q['question']?['id'] ?? q['id'] ?? '';
-                final isAnswered = widget.answers.containsKey(qId);
+                final qId = resolveQuestionId(q);
+                final isAnswered = isQuestionAnswered(q, widget.answers);
                 final isCurrent = index == widget.currentIndex;
                 final isFlagged = widget.flagged.contains(qId);
 
@@ -224,18 +252,10 @@ class _QuestionPaletteState extends State<QuestionPalette> {
           // Submit button from palette
           BouncingButton(
             onTap: () async {
-              final unanswered = <int>[];
-              for (int i = 0; i < widget.questions.length; i++) {
-                final q = widget.questions[i];
-                final id = q['id']?.toString() ?? '';
-                final ans = widget.answers[id];
-                if (ans == null || ans.trim().isEmpty) {
-                  unanswered.add(i + 1);
-                }
-              }
+              final unanswered = computeUnansweredQuestionNumbers(widget.questions, widget.answers);
               final ok = await showSubmitDialog(
                 context,
-                answered: answeredCount,
+                answered: widget.questions.length - unanswered.length,
                 total: total,
                 unansweredQuestions: unanswered,
               );

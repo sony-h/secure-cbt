@@ -53,7 +53,7 @@ describe('StudentActionDialog', () => {
     expect(screen.getByText('-5m')).toBeDefined();
   });
 
-  it('should call adjustWarnings with delta 1 when +1 Strike is clicked', async () => {
+  it('should require confirmation before calling adjustWarnings with delta 1 when +1 Strike is clicked', async () => {
     render(
       <StudentActionDialog
         session={mockSession}
@@ -63,12 +63,17 @@ describe('StudentActionDialog', () => {
     );
 
     fireEvent.click(screen.getByText('+1 Strike'));
+    // Must not call API before confirmation
+    expect(apiService.sessionApi.adjustWarnings).not.toHaveBeenCalled();
+    expect(screen.getByTestId('proctor-action-confirm-box')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: /Ya, Konfirmasi/i }));
     await waitFor(() => {
       expect(apiService.sessionApi.adjustWarnings).toHaveBeenCalledWith('sess-123', 1);
     });
   });
 
-  it('should call adjustWarnings with delta -1 when -1 Strike is clicked', async () => {
+  it('should require confirmation before calling adjustWarnings with delta -1 when -1 Strike is clicked', async () => {
     render(
       <StudentActionDialog
         session={mockSession}
@@ -78,12 +83,35 @@ describe('StudentActionDialog', () => {
     );
 
     fireEvent.click(screen.getByText('-1 Strike'));
+    expect(apiService.sessionApi.adjustWarnings).not.toHaveBeenCalled();
+    expect(screen.getByTestId('proctor-action-confirm-box')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: /Ya, Konfirmasi/i }));
     await waitFor(() => {
       expect(apiService.sessionApi.adjustWarnings).toHaveBeenCalledWith('sess-123', -1);
     });
   });
 
-  it('should call extendTime with negative minutes when -5m is clicked', async () => {
+  it('should require confirmation before calling resetWarnings when Reset 0 is clicked', async () => {
+    render(
+      <StudentActionDialog
+        session={mockSession}
+        open={true}
+        onOpenChange={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Reset 0'));
+    expect(apiService.sessionApi.resetWarnings).not.toHaveBeenCalled();
+    expect(screen.getByTestId('proctor-action-confirm-box')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: /Ya, Konfirmasi/i }));
+    await waitFor(() => {
+      expect(apiService.sessionApi.resetWarnings).toHaveBeenCalledWith('sess-123');
+    });
+  });
+
+  it('should require confirmation before calling extendTime when -5m or +5m is clicked, and allow cancelling', async () => {
     render(
       <StudentActionDialog
         session={mockSession}
@@ -93,6 +121,17 @@ describe('StudentActionDialog', () => {
     );
 
     fireEvent.click(screen.getByText('-5m'));
+    expect(apiService.sessionApi.extendTime).not.toHaveBeenCalled();
+    expect(screen.getByTestId('proctor-action-confirm-box')).toBeDefined();
+
+    // Cancel first
+    fireEvent.click(screen.getByRole('button', { name: /Batal/i }));
+    expect(screen.queryByTestId('proctor-action-confirm-box')).toBeNull();
+    expect(apiService.sessionApi.extendTime).not.toHaveBeenCalled();
+
+    // Click again and confirm
+    fireEvent.click(screen.getByText('-5m'));
+    fireEvent.click(screen.getByRole('button', { name: /Ya, Konfirmasi/i }));
     await waitFor(() => {
       expect(apiService.sessionApi.extendTime).toHaveBeenCalledWith('sess-123', -5);
     });

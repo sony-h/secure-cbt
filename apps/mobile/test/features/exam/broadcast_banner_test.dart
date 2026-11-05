@@ -47,7 +47,7 @@ void main() {
     expect(find.text('Tolong jangan menoleh ke kanan'), findsOneWidget);
   });
 
-  testWidgets('ExamBroadcastBanner displays urgent personal warning', (tester) async {
+  testWidgets('ExamBroadcastBanner displays urgent personal warning with warning style', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -61,8 +61,9 @@ void main() {
       ),
     );
 
-    expect(find.text('PESAN PRIBADI PENGAWAS'), findsOneWidget);
-    expect(find.text('PRIBADI'), findsOneWidget);
+    expect(find.text('PERINGATAN PRIBADI PENGAWAS'), findsOneWidget);
+    expect(find.text('PERINGATAN'), findsOneWidget);
+    expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
     expect(find.text('Peringatan keras: Anda terdeteksi membuka tab lain!'), findsOneWidget);
   });
 }

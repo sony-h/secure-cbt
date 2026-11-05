@@ -174,6 +174,40 @@ describe('ExamService', () => {
 
       expect(capturedData.show_results).toBe(false);
     });
+
+    it('should persist show_explanation setting defaulting to false and allowing true', async () => {
+      mockPrisma.teacher.findUnique.mockResolvedValue(null);
+      let capturedData: any;
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = { ...mockPrisma };
+        tx.exam = {
+          create: vi.fn().mockImplementation((args: any) => {
+            capturedData = args.data;
+            return Promise.resolve({ id: UUID(), title: 'Explanation Exam' });
+          }),
+        };
+        tx.examClass = { createMany: vi.fn() };
+        tx.examPackage = { create: vi.fn().mockResolvedValue({ id: UUID() }) };
+        tx.examQuestion = { createMany: vi.fn() };
+        tx.exam.findUnique = vi.fn().mockResolvedValue({ id: UUID() });
+        return fn(tx);
+      });
+
+      // Default (omitted) -> false
+      await service.create({
+        ...makeCreateInput(),
+        title: 'Default Explanation Exam',
+      }, UUID());
+      expect(capturedData.show_explanation).toBe(false);
+
+      // Explicitly set true -> true
+      await service.create({
+        ...makeCreateInput(),
+        title: 'Enabled Explanation Exam',
+        show_explanation: true,
+      }, UUID());
+      expect(capturedData.show_explanation).toBe(true);
+    });
   });
 
   describe('getExamsForStudent()', () => {

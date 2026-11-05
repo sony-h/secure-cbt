@@ -221,15 +221,24 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
           final msg = data['message']?.toString() ?? '';
           final urgency = data['urgency']?.toString() ?? 'low';
           final isPersonal = targetUserId != null && targetUserId.isNotEmpty;
+          final isHigh = urgency == 'high';
 
           _showNotificationBanner(_InExamBannerData(
             type: isPersonal
-                ? ExamNotificationBannerType.personalMessage
-                : ExamNotificationBannerType.roomBroadcast,
-            title: isPersonal ? 'PESAN PRIBADI PENGAWAS' : 'PENGUMUMAN PENGAWAS',
+                ? (isHigh
+                    ? ExamNotificationBannerType.personalWarning
+                    : ExamNotificationBannerType.personalMessage)
+                : (isHigh
+                    ? ExamNotificationBannerType.roomBroadcast
+                    : ExamNotificationBannerType.roomInfo),
+            title: isPersonal
+                ? (isHigh ? 'PERINGATAN PRIBADI PENGAWAS' : 'PESAN PRIBADI PENGAWAS')
+                : (isHigh ? 'PERINGATAN PENGAWAS' : 'PENGUMUMAN PENGAWAS'),
             message: msg,
-            badgeText: isPersonal ? 'PRIBADI' : (urgency == 'high' ? 'PENTING' : 'SEMUA SISWA'),
-            duration: Duration(seconds: urgency == 'high' ? 30 : 15),
+            badgeText: isPersonal
+                ? (isHigh ? 'PERINGATAN' : 'PRIBADI')
+                : (isHigh ? 'PENTING' : 'SEMUA SISWA'),
+            duration: Duration(seconds: isHigh ? 30 : 15),
           ));
         });
 
@@ -605,6 +614,9 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
                                         question: examState.questions[index],
                                         examState: examState,
                                         index: index,
+                                        onDraftChanged: (qId, answer) {
+                                          ref.read(examProvider.notifier).updateAnswerDraft(qId, answer);
+                                        },
                                         onSaveAnswer: (qId, answer) {
                                           ref.read(examProvider.notifier).saveAnswer(
                                             questionId: qId, answer: answer, dio: _dio, onSaved: () {},
@@ -627,21 +639,15 @@ class _ExamScreenState extends ConsumerState<ExamScreen> with WidgetsBindingObse
             : ExamBottomBar(
                 total: examState.questions.length,
                 current: examState.currentIndex,
-                answered: examState.answers.length,
+                answered: examState.questions.length -
+                    computeUnansweredQuestionNumbers(examState.questions, examState.answers).length,
                 showSaveIndicator: examState.showSaveIndicator,
                 onSubmit: () async {
-                  final unanswered = <int>[];
-                  for (int i = 0; i < examState.questions.length; i++) {
-                    final q = examState.questions[i];
-                    final id = q['id']?.toString() ?? '';
-                    final ans = examState.answers[id];
-                    if (ans == null || ans.trim().isEmpty) {
-                      unanswered.add(i + 1);
-                    }
-                  }
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  final unanswered = computeUnansweredQuestionNumbers(examState.questions, examState.answers);
                   final ok = await showSubmitDialog(
                     context,
-                    answered: examState.answers.length,
+                    answered: examState.questions.length - unanswered.length,
                     total: examState.questions.length,
                     unansweredQuestions: unanswered,
                   );
@@ -1160,10 +1166,18 @@ class _ExamBroadcastBannerState extends State<ExamBroadcastBanner>
   Widget build(BuildContext context) {
     final isHigh = widget.urgency == 'high';
 
-    final bgColor = isHigh ? const Color(0xFF4C0519) : const Color(0xFF0F172A);
-    final borderColor = isHigh ? const Color(0xFFFB7185) : const Color(0xFF38BDF8);
-    final titleColor = isHigh ? const Color(0xFFFDA4AF) : const Color(0xFF7DD3FC);
-    final iconColor = isHigh ? const Color(0xFFFB7185) : const Color(0xFF38BDF8);
+    final bgColor = isHigh
+        ? (widget.isPersonal ? const Color(0xFF7C2D12) : const Color(0xFF4C0519))
+        : const Color(0xFF0F172A);
+    final borderColor = isHigh
+        ? (widget.isPersonal ? const Color(0xFFF59E0B) : const Color(0xFFFB7185))
+        : const Color(0xFF38BDF8);
+    final titleColor = isHigh
+        ? (widget.isPersonal ? const Color(0xFFFDE68A) : const Color(0xFFFDA4AF))
+        : const Color(0xFF7DD3FC);
+    final iconColor = isHigh
+        ? (widget.isPersonal ? const Color(0xFFFBBF24) : const Color(0xFFFB7185))
+        : const Color(0xFF38BDF8);
 
     return AnimatedBuilder(
       animation: _pulseAnim,
@@ -1204,7 +1218,9 @@ class _ExamBroadcastBannerState extends State<ExamBroadcastBanner>
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    isHigh ? Icons.campaign_rounded : Icons.info_outline_rounded,
+                    isHigh
+                        ? (widget.isPersonal ? Icons.warning_amber_rounded : Icons.campaign_rounded)
+                        : Icons.info_outline_rounded,
                     color: iconColor,
                     size: 20,
                   ),
@@ -1220,7 +1236,7 @@ class _ExamBroadcastBannerState extends State<ExamBroadcastBanner>
                       children: [
                         Text(
                           widget.isPersonal
-                              ? (isHigh ? 'PESAN PRIBADI PENGAWAS' : 'PESAN KHUSUS UNTUK ANDA')
+                              ? (isHigh ? 'PERINGATAN PRIBADI PENGAWAS' : 'PESAN KHUSUS UNTUK ANDA')
                               : (isHigh ? 'PERINGATAN PENGAWAS' : 'PENGUMUMAN PENGAWAS'),
                           style: TextStyle(
                             fontSize: 11,
@@ -1235,13 +1251,13 @@ class _ExamBroadcastBannerState extends State<ExamBroadcastBanner>
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
                               color: isHigh
-                                  ? const Color(0xFFE11D48).withValues(alpha: 0.3)
+                                  ? const Color(0xFFD97706).withValues(alpha: 0.4)
                                   : const Color(0xFF0284C7).withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text(
-                              'PRIBADI',
-                              style: TextStyle(
+                            child: Text(
+                              isHigh ? 'PERINGATAN' : 'PRIBADI',
+                              style: const TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,

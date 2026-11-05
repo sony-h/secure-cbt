@@ -361,6 +361,7 @@ export class GradingService {
       end_at: score.exam_session.exam.end_at?.toISOString(),
       is_exam_finished: isExamFinished,
       show_results: score.exam_session.exam.show_results ?? true,
+      show_explanation: score.exam_session.exam.show_explanation ?? false,
     };
   }
 

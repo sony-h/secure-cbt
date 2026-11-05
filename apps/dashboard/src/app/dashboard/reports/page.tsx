@@ -496,11 +496,37 @@ function ReportsPageContent() {
       />
 
       <Card className="print:border-0 print:shadow-none rounded-2xl border-slate-200/80 dark:border-slate-800/80 shadow-xs">
-        <CardHeader className="print:hidden"><CardTitle>Hasil Ujian</CardTitle><CardDescription>Pilih ujian dan kelas untuk melihat hasil</CardDescription></CardHeader>
-        <CardContent>
-          <div className="flex items-end gap-3 mb-6 print:hidden">
-            <div className="flex-1 space-y-2">
-              <Label>Ujian</Label>
+        <CardHeader className="print:hidden pb-4 border-b border-border/50">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-lg font-bold tracking-tight">Hasil & Evaluasi Ujian</CardTitle>
+              <CardDescription className="text-xs mt-0.5">
+                Pilih jadwal ujian dan filter kelas untuk mengelola rekapitulasi nilai, otorisasi remedial, dan dokumen laporan resmi.
+              </CardDescription>
+            </div>
+            {selectedExam && results && (
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5 bg-slate-50 dark:bg-slate-900">
+                  {results.length} Peserta
+                </Badge>
+                <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5 text-emerald-600 border-emerald-500/30 bg-emerald-500/5">
+                  KKM: {passingGrade}
+                </Badge>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-5 space-y-5">
+          {/* Tier 1: Dedicated Filter Selection Bar */}
+          <div
+            data-testid="reports-filter-bar"
+            className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 rounded-xl bg-slate-50/80 dark:bg-slate-900/40 border border-border/60 print:hidden"
+          >
+            <div className="md:col-span-8 space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-primary" /> Jadwal Ujian
+              </Label>
               <Select
                 value={selectedExam}
                 onValueChange={(v) => {
@@ -509,143 +535,198 @@ function ReportsPageContent() {
                   updateUrlParams({ exam: v, class: null, page: 1 });
                 }}
               >
-                <SelectTrigger><SelectValue placeholder="Pilih Ujian" /></SelectTrigger>
+                <SelectTrigger className="bg-background h-10 rounded-xl border-border/80 font-medium">
+                  <SelectValue placeholder="Pilih Jadwal Ujian..." />
+                </SelectTrigger>
                 <SelectContent>
-                  {exams?.map((e) => (<SelectItem key={e.id} value={e.id}>{e.title} ({e.subject?.name}) - {e._count?.exam_sessions || 0} peserta</SelectItem>))}
+                  {exams?.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.title} ({e.subject?.name}) &mdash; {e._count?.exam_sessions || 0} peserta
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-48 space-y-2">
-              <Label>Kelas</Label>
+
+            <div className="md:col-span-4 space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <GraduationCap className="h-3.5 w-3.5 text-indigo-500" /> Filter Kelas / Rombel
+              </Label>
               <Select
-                value={selectedClass}
+                value={selectedClass || 'all'}
+                disabled={!selectedExam}
                 onValueChange={(v) => {
-                  setSelectedClass(v);
-                  updateUrlParams({ class: v || null, page: 1 });
+                  const nextClass = v === 'all' ? '' : v;
+                  setSelectedClass(nextClass);
+                  updateUrlParams({ class: nextClass || null, page: 1 });
                 }}
               >
-                <SelectTrigger><SelectValue placeholder="Semua Kelas" /></SelectTrigger>
+                <SelectTrigger className="bg-background h-10 rounded-xl border-border/80 font-medium">
+                  <SelectValue placeholder="Semua Kelas" />
+                </SelectTrigger>
                 <SelectContent>
-                  {classes?.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name} {c.major?.name ? `- ${c.major.name}` : ''}</SelectItem>))}
+                  <SelectItem value="all">Semua Kelas</SelectItem>
+                  {classes?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} {c.major?.name ? `- ${c.major.name}` : ''}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {canRegrade && !isMultiAttempt && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="text-indigo-600 border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-950/30 gap-1.5"
-                      disabled={!selectedExam || !eligibleForRemedial.length || isBulkRemedialLoading}
-                    >
-                      <UserCheck className="h-4 w-4" />
-                      Izinkan Remedial Semua Siswa &lt; KKM ({eligibleForRemedial.length})
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Otorisasi Remedial Massal</AlertDialogTitle>
-                      <AlertDialogDescription className="space-y-2 text-sm text-left">
-                        <span>
-                          Izinkan {eligibleForRemedial.length} siswa dengan nilai di bawah KKM ({passingGrade}) untuk mengikuti ujian remedial (Attempt #2)?
-                        </span>
-                        <br /><br />
-                        <span className="font-semibold text-foreground">
-                          Siswa yang diizinkan dapat langsung login kembali menggunakan token ujian untuk memulai pengerjaan remedial dengan pengacakan soal baru.
-                        </span>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Batal</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleBulkAuthorizeRemedial}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                      >
-                        {isBulkRemedialLoading ? 'Memproses...' : 'Ya, Izinkan Remedial Massal'}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-
-              {canRegrade && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="text-amber-600 border-amber-300 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/30 gap-1.5"
-                      disabled={!selectedExam || !results?.length || regradeMutation.isPending}
-                    >
-                      <RotateCcw className={cn('h-4 w-4', regradeMutation.isPending && 'animate-spin')} />
-                      Hitung Ulang Nilai (Regrade)
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Hitung Ulang Nilai Ujian (Regrade)?</AlertDialogTitle>
-                      <AlertDialogDescription className="space-y-2 text-sm text-left">
-                        <span>
-                          Sistem akan mengevaluasi ulang seluruh jawaban objektif (Pilihan Ganda, Benar/Salah, Jawaban Singkat) seluruh siswa pada ujian ini terhadap kunci jawaban dan opsi terbaru.
-                        </span>
-                        <br /><br />
-                        <span className="font-semibold text-foreground">
-                          Catatan: Nilai esai manual yang telah dinilai guru akan tetap aman dan tidak akan diubah atau dihapus.
-                        </span>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Batal</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => regradeMutation.mutate()}
-                        className="bg-amber-600 hover:bg-amber-700 text-white"
-                      >
-                        {regradeMutation.isPending ? 'Memproses...' : 'Ya, Hitung Ulang Nilai'}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-
-              <Button
-                variant="outline"
-                disabled={!selectedExam || !results?.length || isExportingExcel}
-                onClick={handleExportExcel}
-                className="gap-1.5 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-              >
-                <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                {isExportingExcel ? 'Mengunduh...' : 'Export Excel (.xlsx)'}
-              </Button>
-              <Button variant="outline" disabled={!results?.length} onClick={handleExportCSV}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" />Export CSV
-              </Button>
-              <Button
-                variant="default"
-                disabled={!selectedExam || !results?.length}
-                onClick={() => setIsFormalReportOpen(true)}
-                className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <Printer className="h-4 w-4" />
-                Cetak Laporan Resmi (PDF)
-              </Button>
-              <Button variant="outline" disabled={!results?.length} onClick={() => window.print()}>
-                <Printer className="mr-2 h-4 w-4" />Cetak PDF
-              </Button>
             </div>
           </div>
 
           {!selectedExam ? (
-            <EmptyState title="Pilih Ujian" description="Pilih ujian untuk melihat hasil" className="py-8 print:hidden" />
+            <EmptyState title="Pilih Ujian" description="Pilih ujian pada panel filter di atas untuk menampilkan hasil evaluasi" className="py-10 print:hidden" />
           ) : (
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-              <TabsList className="mb-4 print:hidden">
-                <TabsTrigger value="students" className="gap-2">
-                  <FileText className="w-4 h-4" /> Hasil & Nilai Siswa
-                </TabsTrigger>
-                <TabsTrigger value="item-analysis" className="gap-2">
-                  <BarChart3 className="w-4 h-4" /> Analisis Butir Soal
-                </TabsTrigger>
-              </TabsList>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full space-y-4">
+              {/* Tier 2: View Switcher Tabs & Grouped Action Toolbar */}
+              <div
+                data-testid="reports-action-toolbar"
+                className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pb-1 print:hidden"
+              >
+                <TabsList className="self-start">
+                  <TabsTrigger value="students" className="gap-2">
+                    <FileText className="w-4 h-4" /> Hasil & Nilai Siswa
+                  </TabsTrigger>
+                  <TabsTrigger value="item-analysis" className="gap-2">
+                    <BarChart3 className="w-4 h-4" /> Analisis Butir Soal
+                  </TabsTrigger>
+                </TabsList>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Academic Actions Group (Remedial & Regrade) */}
+                  {canRegrade && !isMultiAttempt && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 rounded-xl text-xs font-bold text-indigo-600 dark:text-indigo-400 border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/15 gap-1.5"
+                          disabled={!selectedExam || !eligibleForRemedial.length || isBulkRemedialLoading}
+                        >
+                          <UserCheck className="h-3.5 w-3.5" />
+                          <span>Izinkan Remedial Semua &lt; KKM</span>
+                          <span className="ml-0.5 px-1.5 py-0.2 rounded-md bg-indigo-600 text-white text-[10px] font-extrabold">
+                            {eligibleForRemedial.length}
+                          </span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Otorisasi Remedial Massal</AlertDialogTitle>
+                          <AlertDialogDescription className="space-y-2 text-sm text-left">
+                            <span>
+                              Izinkan {eligibleForRemedial.length} siswa dengan nilai di bawah KKM ({passingGrade}) untuk mengikuti ujian remedial (Attempt #2)?
+                            </span>
+                            <br /><br />
+                            <span className="font-semibold text-foreground">
+                              Siswa yang diizinkan dapat langsung login kembali menggunakan token ujian untuk memulai pengerjaan remedial dengan pengacakan soal baru.
+                            </span>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleBulkAuthorizeRemedial}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                          >
+                            {isBulkRemedialLoading ? 'Memproses...' : 'Ya, Izinkan Remedial Massal'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+
+                  {canRegrade && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 rounded-xl text-xs font-bold text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/15 gap-1.5"
+                          disabled={!selectedExam || !results?.length || regradeMutation.isPending}
+                        >
+                          <RotateCcw className={cn('h-3.5 w-3.5', regradeMutation.isPending && 'animate-spin')} />
+                          Hitung Ulang Nilai (Regrade)
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Hitung Ulang Nilai Ujian (Regrade)?</AlertDialogTitle>
+                          <AlertDialogDescription className="space-y-2 text-sm text-left">
+                            <span>
+                              Sistem akan mengevaluasi ulang seluruh jawaban objektif (Pilihan Ganda, Benar/Salah, Jawaban Singkat) seluruh siswa pada ujian ini terhadap kunci jawaban dan opsi terbaru.
+                            </span>
+                            <br /><br />
+                            <span className="font-semibold text-foreground">
+                              Catatan: Nilai esai manual yang telah dinilai guru akan tetap aman dan tidak akan diubah atau dihapus.
+                            </span>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => regradeMutation.mutate()}
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                          >
+                            {regradeMutation.isPending ? 'Memproses...' : 'Ya, Hitung Ulang Nilai'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+
+                  {canRegrade && (
+                    <div className="hidden sm:block h-6 w-px bg-border/70 mx-0.5" />
+                  )}
+
+                  {/* Export & Print Actions Group */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!selectedExam || !results?.length || isExportingExcel}
+                    onClick={handleExportExcel}
+                    className="h-9 rounded-xl text-xs font-bold gap-1.5 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/15"
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                    {isExportingExcel ? 'Mengunduh...' : 'Export Excel (.xlsx)'}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!results?.length}
+                    onClick={handleExportCSV}
+                    className="h-9 rounded-xl text-xs font-semibold gap-1.5"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Export CSV
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!results?.length}
+                    onClick={() => window.print()}
+                    className="h-9 rounded-xl text-xs font-semibold gap-1.5"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    Cetak Cepat
+                  </Button>
+
+                  <Button
+                    variant="default"
+                    size="sm"
+                    disabled={!selectedExam || !results?.length}
+                    onClick={() => setIsFormalReportOpen(true)}
+                    className="h-9 rounded-xl text-xs font-bold gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    Cetak Laporan Resmi (PDF)
+                  </Button>
+                </div>
+              </div>
 
               <TabsContent value="students" className="space-y-4 m-0">
                 <DataTable

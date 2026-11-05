@@ -63,6 +63,8 @@ interface StudentSession {
   progress?: number;
   student_user_id?: string;
   is_connected?: boolean;
+  attempt_number?: number;
+  is_remedial_allowed?: boolean;
 }
 
 interface SessionLog {
@@ -127,6 +129,8 @@ function MonitoringPageContent() {
           progress: s.progress,
           student_user_id: s.student_user_id,
           is_connected: s.is_connected,
+          attempt_number: s.attempt_number,
+          is_remedial_allowed: s.is_remedial_allowed,
         })),
       };
     },
@@ -364,6 +368,8 @@ function MonitoringPageContent() {
       status: s.status,
       warning_count: s.warning_count,
       remaining_time_seconds: s.remaining_time_seconds,
+      attempt_number: s.attempt_number,
+      is_remedial_allowed: s.is_remedial_allowed,
     });
     setActionDialogOpen(true);
   };

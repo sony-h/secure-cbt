@@ -32,7 +32,7 @@ export interface ChangelogModalProps {
   onClose: () => void;
 }
 
-type VersionGroupFilter = 'all' | 'v1.8-v1.9' | 'v1.7' | 'v1.6' | 'v1.5' | 'v1.0-v1.4';
+type VersionGroupFilter = 'all' | 'v1.8-v1.10' | 'v1.7' | 'v1.6' | 'v1.5' | 'v1.0-v1.4';
 
 export function ChangelogModal({ open, onClose }: ChangelogModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -148,14 +148,14 @@ export function ChangelogModal({ open, onClose }: ChangelogModalProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('v1.8-v1.9')}
+                onClick={() => setActiveTab('v1.8-v1.10')}
                 className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                  activeTab === 'v1.8-v1.9'
+                  activeTab === 'v1.8-v1.10'
                     ? 'bg-background text-foreground shadow-xs font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                v1.8 - v1.9
+                v1.8 - v1.10
               </button>
               <button
                 type="button"

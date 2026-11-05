@@ -9,6 +9,8 @@ enum ExamNotificationBannerType {
   strikeReset,
   deviceUnlocked,
   personalMessage,
+  personalWarning,
+  roomInfo,
   roomBroadcast,
 }
 
@@ -290,6 +292,30 @@ class _ExamNotificationBannerState extends State<ExamNotificationBanner>
           badgeBorderColor: Color(0xFF38BDF8),
           defaultBadge: 'PRIBADI',
         );
+      case ExamNotificationBannerType.personalWarning:
+        return const _BannerStyle(
+          bgColor: Color(0xFF7C2D12),
+          borderColor: Color(0xFFF59E0B),
+          titleColor: Color(0xFFFDE68A),
+          iconColor: Color(0xFFFBBF24),
+          iconBgColor: Color(0xFFD97706),
+          icon: Icons.warning_amber_rounded,
+          badgeBgColor: Color(0xFFB45309),
+          badgeBorderColor: Color(0xFFF59E0B),
+          defaultBadge: 'PERINGATAN',
+        );
+      case ExamNotificationBannerType.roomInfo:
+        return const _BannerStyle(
+          bgColor: Color(0xFF1E1B4B),
+          borderColor: Color(0xFF818CF8),
+          titleColor: Color(0xFFC7D2FE),
+          iconColor: Color(0xFF818CF8),
+          iconBgColor: Color(0xFF4F46E5),
+          icon: Icons.campaign_rounded,
+          badgeBgColor: Color(0xFF3730A3),
+          badgeBorderColor: Color(0xFF818CF8),
+          defaultBadge: 'SEMUA SISWA',
+        );
       case ExamNotificationBannerType.roomBroadcast:
         return const _BannerStyle(
           bgColor: Color(0xFF4C0519),
@@ -297,10 +323,10 @@ class _ExamNotificationBannerState extends State<ExamNotificationBanner>
           titleColor: Color(0xFFFDA4AF),
           iconColor: Color(0xFFFB7185),
           iconBgColor: Color(0xFFE11D48),
-          icon: Icons.campaign_rounded,
+          icon: Icons.warning_amber_rounded,
           badgeBgColor: Color(0xFFBE123C),
           badgeBorderColor: Color(0xFFFB7185),
-          defaultBadge: 'SEMUA SISWA',
+          defaultBadge: 'PENTING',
         );
     }
   }

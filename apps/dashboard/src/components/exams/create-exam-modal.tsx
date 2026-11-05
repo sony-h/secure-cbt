@@ -38,6 +38,7 @@ export interface ExamFormData {
   points_medium: number;
   points_hard: number;
   show_results: boolean;
+  show_explanation: boolean;
   max_attempts: number | null;
   violation_vibration_enabled: boolean;
   violation_alarm_enabled: boolean;
@@ -53,6 +54,7 @@ export const emptyExamForm: ExamFormData = {
   is_random_pool: false, pool_question_count: null, pool_mode: 'BALANCED',
   points_easy: 1, points_medium: 2, points_hard: 3,
   show_results: true,
+  show_explanation: false,
   max_attempts: 1,
   violation_vibration_enabled: true,
   violation_alarm_enabled: true,

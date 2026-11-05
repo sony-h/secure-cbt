@@ -605,6 +605,36 @@ describe('SessionService', () => {
       );
     });
 
+    it('should throw ForbiddenException if show_explanation is disabled by teacher', async () => {
+      const studentId = UUID();
+      const sessionId = UUID();
+      mockPrisma.student.findUnique.mockResolvedValue({ id: studentId });
+
+      const pastEnd = new Date(Date.now() - 3600000);
+      mockPrisma.examSession.findUnique.mockResolvedValue({
+        id: sessionId,
+        student_id: studentId,
+        status: SessionStatus.SUBMITTED,
+        exam: {
+          id: UUID(),
+          title: 'Finished Exam Without Explanation',
+          status: ExamStatus.FINISHED,
+          end_at: pastEnd,
+          show_results: true,
+          show_explanation: false,
+          subject: { name: 'Matematika' },
+          exam_questions: [],
+        },
+        answers: [],
+        score: { total_score: 100 },
+        student: { full_name: 'Test Student' },
+      });
+
+      await expect(service.getReview(sessionId, 'user-1')).rejects.toThrow(
+        'Pembahasan soal tidak diaktifkan untuk ujian ini.',
+      );
+    });
+
     it('should throw ForbiddenException if exam is not finished yet', async () => {
       const studentId = UUID();
       const sessionId = UUID();

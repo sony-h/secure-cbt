@@ -254,6 +254,25 @@ class ExamNotifier extends StateNotifier<ExamState> {
     finishWarningOverlayCountdown();
   }
 
+  void updateAnswerDraft(String questionId, String answer) {
+    final newAnswers = Map<String, String>.from(state.answers);
+    if (answer.trim().isEmpty) {
+      newAnswers.remove(questionId);
+    } else {
+      newAnswers[questionId] = answer;
+    }
+    state = state.copyWith(answers: newAnswers);
+    if (state.sessionId != null) {
+      _db.saveAnswer(
+        sessionId: state.sessionId!,
+        questionId: questionId,
+        answerText: answer,
+      ).catchError((Object e) {
+        AppLogger.error('Failed to save draft answer locally', e);
+      });
+    }
+  }
+
   Future<void> saveAnswer({
     required String questionId,
     required String answer,
@@ -390,6 +409,33 @@ class ExamNotifier extends StateNotifier<ExamState> {
     });
   }
 
+  Future<void> syncPendingAnswers() async {
+    final sid = state.sessionId;
+    final dio = _dio;
+    if (sid == null || dio == null || state.isSubmitted) return;
+    try {
+      final pending = await _db.getPendingAnswers(sid);
+      if (pending.isEmpty) return;
+      AppLogger.info('Syncing ${pending.length} pending answers');
+      for (final ans in pending) {
+        try {
+          await dio.post('/answers/save', data: {
+            'session_id': sid,
+            'question_id': ans.questionId,
+            'answer_text': ans.answerText ?? '',
+            'timestamp': ans.answeredAt.toUtc().toIso8601String(),
+            'remaining_time_seconds': state.remainingSeconds,
+          });
+          await _db.markSynced(ans.id);
+        } catch (e) {
+          AppLogger.warn('Pending answer sync failed for ${ans.id}', e);
+        }
+      }
+    } catch (e) {
+      AppLogger.error('Pending answers check failed', e);
+    }
+  }
+
   void _startAutosave() {
     _autosaveTimer?.cancel();
     _autosaveTimer = Timer.periodic(const Duration(seconds: 15), (_) {
@@ -397,26 +443,7 @@ class ExamNotifier extends StateNotifier<ExamState> {
       final dio = _dio;
       if (sid == null || dio == null || state.isSubmitted) return;
       syncRemainingTime();
-      _db.getPendingAnswers(sid).then((pending) async {
-        if (pending.isEmpty) return;
-        AppLogger.info('Autosave: syncing ${pending.length} pending answers');
-        for (final ans in pending) {
-          try {
-            await dio.post('/answers/save', data: {
-              'session_id': sid,
-              'question_id': ans.questionId,
-              'answer_text': ans.answerText ?? '',
-              'timestamp': ans.answeredAt.toUtc().toIso8601String(),
-              'remaining_time_seconds': state.remainingSeconds,
-            });
-            await _db.markSynced(ans.id);
-          } catch (e) {
-            AppLogger.warn('Autosave sync failed for ${ans.id}', e);
-          }
-        }
-      }).catchError((e) {
-        AppLogger.error('Autosave check failed', e);
-      });
+      syncPendingAnswers();
     });
   }
 

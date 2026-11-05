@@ -497,6 +497,7 @@ export class SessionService {
         end_at: s.exam.end_at.toISOString(),
         is_exam_finished: isFinished,
         show_results: s.exam.show_results ?? true,
+        show_explanation: s.exam.show_explanation ?? false,
         attempt_number: s.attempt_number ?? 1,
         is_remedial: s.session_type === SessionType.REMEDIAL,
         is_remedial_allowed: s.is_remedial_allowed ?? false,
@@ -556,6 +557,12 @@ export class SessionService {
     if (session.exam.show_results === false) {
       throw new ForbiddenException(
         'Pembahasan dan nilai ujian dinonaktifkan oleh guru pengampu.',
+      );
+    }
+
+    if (session.exam.show_explanation === false) {
+      throw new ForbiddenException(
+        'Pembahasan soal tidak diaktifkan untuk ujian ini.',
       );
     }
 

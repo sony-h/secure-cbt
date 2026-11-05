@@ -148,4 +148,42 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(dismissed, isTrue);
   });
+
+  testWidgets('ExamNotificationBanner renders personalWarning theme with warning icon and PERINGATAN badge', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExamNotificationBanner(
+            type: ExamNotificationBannerType.personalWarning,
+            title: 'PERINGATAN PRIBADI PENGAWAS',
+            message: 'Harap fokus ke layar ujian Anda sendiri!',
+            onDismiss: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('PERINGATAN PRIBADI PENGAWAS'), findsOneWidget);
+    expect(find.text('PERINGATAN'), findsOneWidget);
+    expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
+  });
+
+  testWidgets('ExamNotificationBanner renders roomInfo theme distinctly from roomBroadcast warning', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExamNotificationBanner(
+            type: ExamNotificationBannerType.roomInfo,
+            title: 'PENGUMUMAN PENGAWAS',
+            message: 'Waktu pengerjaan tersisa 15 menit.',
+            onDismiss: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('PENGUMUMAN PENGAWAS'), findsOneWidget);
+    expect(find.text('SEMUA SISWA'), findsOneWidget);
+    expect(find.byIcon(Icons.campaign_rounded), findsOneWidget);
+  });
 }

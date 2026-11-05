@@ -3,12 +3,12 @@
 **Product Brand:** Assessia  
 **Official Slogan:** *"Measure Learning. Empower Progress."*  
 **Parent Technology:** Orivastra — *"From Origin to the Stars."*  
-**Current Version:** `v1.9.0` (Mobile Android Build: `1.9.0+21`)  
+**Current Version:** `v1.10.0` (Mobile Android Build: `1.10.0+22`)  
 **Versioning Policy:** Strict SemVer (`MAJOR.MINOR.PATCH+BUILD`) documented in `docs/VERSIONING_AND_RELEASE_GUIDELINES.md`. *Always increment Android build number (+N) on every new APK build.*  
-**Current Phase:** Phase 37 - Multiple Exam Attempts, Best Score Policy ("Nilai Terbaik"), Anti-Leak Solution Lock & Proctor Controls (Release v1.9.0+21)  
+**Current Phase:** Phase 39 - Independent Exam Question Explanation Visibility Control (Release v1.10.0+22)  
 **Target Platform:** Indonesian High Schools (SMA/SMK)  
 **Architecture:** Modular Monolith (Backend) + Flutter (Student Mobile App) + Next.js (Admin/Teacher Dashboard)  
-**Last Updated:** 2026-11-03
+**Last Updated:** 2026-11-04
 
 ## Current Workspace State
 *   `docs/`: Complete PRD, UI/UX specs, tech arch, domain modules, database design, mobile security, roadmap (`01` through `08`).
@@ -1566,6 +1566,54 @@ Three sprint execution covering 38 items across Critical, High, and Medium prior
 
 ### 4. Release SOP Guidelines Overhaul
 - **Modernized Documentation:** Updated `docs/VERSIONING_AND_RELEASE_GUIDELINES.md` with single-command bump workflows, Android `buildNumber` (+N) integrity rules, and mandatory post-update checklists.
+
+---
+
+## Phase 39 Completion Summary (Independent Question Explanation Visibility)
+
+**Version:** `v1.10.0` (Mobile Android Build: `1.10.0+22`)  
+**Standard:** Fine-Grained Academic Solution Disclosure & Anti-Leak Control  
+**Date:** 2026-11-04  
+
+### 1. Database & Shared Domain Schema (`show_explanation`)
+- **Schema & Migration:** Added `show_explanation Boolean @default(false)` to `Exam` entity in Prisma schema (`schema.prisma`) and applied migration `20261104000000_add_exam_show_explanation`.
+- **Shared Validation:** Updated `createExamSchema` (defaults to `false`) and `updateExamSchema` (optional) in `@secure-cbt/shared`.
+- **Unit Testing:** Added schema validation tests in `packages/shared/src/schemas/__tests__/exam-explanation-schema.spec.ts` (3/3 passing).
+
+### 2. Backend Security Enforcement & Payload Decoupling
+- **Service Integration:** Updated `ExamService.create` and `update` to persist `show_explanation`.
+- **Review Security Guard:** In `SessionService.getReview()`, added hard security check throwing `ForbiddenException('Pembahasan soal tidak diaktifkan untuk ujian ini.')` when `exam.show_explanation === false`.
+- **Decoupled Payloads:** `GradingService.getResult()` and `SessionService.getHistory()` return `show_explanation` independently from `show_results`.
+- **Unit Testing:** Added tests in `session.service.spec.ts` and `exam.service.spec.ts` asserting 403 Forbidden on review lockout and create/update persistence (all 262 backend tests passing).
+
+### 3. Dashboard Centralized SettingsStep Control
+- **Unified Settings Toggle:** Added "Tampilkan Pembahasan & Kunci Jawaban" (`show_explanation`) in `SettingsStep` of the Exam Builder / Edit Modal with explicit description.
+- **Pure Form State:** Updated `create-exam-modal.tsx` and `exams/page.tsx` form state and payloads, with default `show_explanation: false`.
+- **Table Purity:** Kept data table clean with no extraneous quick-toggles, strictly confining configuration to the exam wizard.
+- **Unit Testing:** Added `settings-step.spec.tsx` asserting independent toggle behavior.
+
+### 4. Mobile CBT Adaptive Lock UX (Result & History)
+- **Result Screen Solution Lock:** `ResultScreen` checks `show_explanation` independently. If `show_results: true` but `show_explanation: false`, numerical scores and performance analytics remain visible, while the solution review button is replaced with a locked proctor information container.
+- **History Screen Status Badge & Toast:** `HistoryScreen` reflects `canReview = isExamFinished && !isRemedialLocked && showExplanation`, rendering `'Terkunci'` instead of `'Solusi'`, and displaying an informative snackbar (*"Pembahasan soal tidak diaktifkan untuk ujian ini."*) when tapped.
+- **Widget Testing:** Added `history_explanation_test.dart` (2/2 passing; all 122 mobile tests passing).
+
+### 5. Mobile & Dashboard Bug Fixes, Proctor Confirmation Guards & UX Refinements
+- **Unanswered Question Detection & Written Answer Flush (`question_palette.dart`, `exam_question_card.dart`, `exam_notifier.dart`, `exam_submit_handler.dart`):**
+  - Resolved nested `q['question']?['id'] ?? q['id']` via `resolveQuestionId` and `computeUnansweredQuestionNumbers` so answered questions are never falsely flagged as unanswered in the submit dialog.
+  - Added immediate in-memory state updates (`updateAnswerDraft`) on every keystroke for `SHORT_ANSWER` and `ESSAY` inputs, plus automatic debounce flushing on widget `dispose` / `onFieldSubmitted` and `syncPendingAnswers()` prior to `/sessions/submit`.
+- **Proctor Control Dialog Redesign & Mandatory Confirmation (`student-action-dialog.tsx`):**
+  - Redesigned `StudentActionDialog` with a constrained scrollable body (`max-w-lg max-h-[85vh] flex flex-col`) and 3-column status summary strip.
+  - Added mandatory confirmation step (`proctor-action-confirm-box`) before executing any time adjustment (`+5m` to `-30m`), strike adjustment (`+1`, `-1`, `Reset 0`), or force submit.
+- **Urgency-Based Notification & Broadcast Banner Styles (`exam_notification_banner.dart`, `exam_broadcast_banner.dart`, `proctor-broadcast-modal.tsx`):**
+  - Differentiated visual themes between Informational messages (`urgency: 'low'` -> `personalMessage` / `roomInfo` in calm slate/sky blue) and Warning messages (`urgency: 'high'` -> `personalWarning` / `roomBroadcast` in crimson rose with warning badges).
+- **Reports Page Two-Tier Filter & Action Toolbar (`reports/page.tsx`):**
+  - Separated the 12-column Exam & Class filter bar (`reports-filter-bar`, including a `"Semua Kelas"` reset option) from the lower view-switcher tabs and grouped academic/export action buttons (`reports-action-toolbar`).
+- **`v1.7.x` Backward Compatibility Fallback (`result_screen.dart`, `history_screen.dart`):**
+  - Added `data['show_explanation'] as bool? ?? showResults` fallback so `v1.10.0` mobile clients remain 100% compatible when communicating with older `v1.7.x` backends.
+
+### 6. SSOT Version Bump & Changelog Update
+- **SemVer Bump:** Bumped canonical version via `sync-version.mjs` to `v1.10.0+22`.
+- **Changelog:** Added `v1.10.0` entry to `apps/dashboard/src/lib/constants/changelog.ts` and updated filter tabs to `'v1.8-v1.10'`.
 
 ---
 

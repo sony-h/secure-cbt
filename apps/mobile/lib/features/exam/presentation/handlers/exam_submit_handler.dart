@@ -32,6 +32,7 @@ class ExamSubmitHandler {
     if (_submitting) return;
     _submitting = true;
     onDisarmViolations?.call();
+    await ref.read(examProvider.notifier).syncPendingAnswers();
     try {
       await dio.post('/sessions/submit', data: {
         'session_id': sessionId,
@@ -74,6 +75,7 @@ class ExamSubmitHandler {
     if (_submitting) return;
     _submitting = true;
     onDisarmViolations?.call();
+    await ref.read(examProvider.notifier).syncPendingAnswers();
     try {
       await dio.post('/sessions/submit', data: {'session_id': sessionId});
     } catch (e) {

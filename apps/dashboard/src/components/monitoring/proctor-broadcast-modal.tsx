@@ -354,11 +354,26 @@ export function ProctorBroadcastModal({
                   <div className="flex items-center gap-2">
                     <p className={`text-xs font-extrabold uppercase tracking-wider ${urgency === 'high' ? 'text-rose-700 dark:text-rose-300' : 'text-sky-700 dark:text-sky-300'}`}>
                       {targetMode === 'specific'
-                        ? 'Pesan Pribadi Pengawas'
+                        ? urgency === 'high'
+                          ? 'Peringatan Pribadi Pengawas'
+                          : 'Pesan Pribadi Pengawas'
                         : urgency === 'high'
                         ? 'Peringatan Pengawas'
                         : 'Pengumuman Pengawas'}
                     </p>
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider text-white ${
+                        urgency === 'high' ? 'bg-rose-600' : 'bg-sky-600'
+                      }`}
+                    >
+                      {targetMode === 'specific'
+                        ? urgency === 'high'
+                          ? 'PERINGATAN'
+                          : 'PRIBADI'
+                        : urgency === 'high'
+                        ? 'PENTING'
+                        : 'SEMUA SISWA'}
+                    </span>
                     <span className="text-[10px] text-muted-foreground ml-auto">Baru saja</span>
                   </div>
                   <p className="text-xs mt-0.5 font-medium leading-relaxed break-words text-foreground">

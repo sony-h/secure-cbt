@@ -14,6 +14,7 @@ class ExamQuestionCard extends StatefulWidget {
   final ExamState examState;
   final int index;
   final void Function(String questionId, String answer) onSaveAnswer;
+  final void Function(String questionId, String answer)? onDraftChanged;
   final void Function(String questionId) onToggleFlag;
 
   const ExamQuestionCard({
@@ -22,6 +23,7 @@ class ExamQuestionCard extends StatefulWidget {
     required this.examState,
     required this.index,
     required this.onSaveAnswer,
+    this.onDraftChanged,
     required this.onToggleFlag,
   });
 
@@ -31,9 +33,23 @@ class ExamQuestionCard extends StatefulWidget {
 
 class _ExamQuestionCardState extends State<ExamQuestionCard> {
   Timer? _debounce;
+  String? _pendingQuestionId;
+  String? _pendingAnswer;
+
+  void _flushPending() {
+    if (_debounce?.isActive == true && _pendingQuestionId != null && _pendingAnswer != null) {
+      _debounce?.cancel();
+      final qId = _pendingQuestionId!;
+      final ans = _pendingAnswer!;
+      _pendingQuestionId = null;
+      _pendingAnswer = null;
+      widget.onSaveAnswer(qId, ans);
+    }
+  }
 
   @override
   void dispose() {
+    _flushPending();
     _debounce?.cancel();
     super.dispose();
   }
@@ -464,8 +480,13 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
               contentPadding: EdgeInsets.all(14),
             ),
             onChanged: (value) {
+              widget.onDraftChanged?.call(questionId, value);
+              _pendingQuestionId = questionId;
+              _pendingAnswer = value;
               _debounce?.cancel();
               _debounce = Timer(const Duration(milliseconds: 500), () {
+                _pendingQuestionId = null;
+                _pendingAnswer = null;
                 widget.onSaveAnswer(questionId, value);
               });
             },
@@ -558,10 +579,17 @@ class _ExamQuestionCardState extends State<ExamQuestionCard> {
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
+            onFieldSubmitted: (_) => _flushPending(),
             onChanged: (value) {
+              final trimmed = value.trim();
+              widget.onDraftChanged?.call(questionId, trimmed);
+              _pendingQuestionId = questionId;
+              _pendingAnswer = trimmed;
               _debounce?.cancel();
               _debounce = Timer(const Duration(milliseconds: 500), () {
-                widget.onSaveAnswer(questionId, value.trim());
+                _pendingQuestionId = null;
+                _pendingAnswer = null;
+                widget.onSaveAnswer(questionId, trimmed);
               });
             },
           ),

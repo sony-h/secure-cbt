@@ -189,4 +189,15 @@ describe('ReportsPage - Dual-Score & Remedial Workflows', () => {
       });
     });
   });
+
+  it('renders structured filter bar and action toolbar separately for clean layout', async () => {
+    renderWithClient(<ReportsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Ahmad Faiz')).toBeDefined();
+    });
+
+    expect(screen.getByTestId('reports-filter-bar')).toBeDefined();
+    expect(screen.getByTestId('reports-action-toolbar')).toBeDefined();
+  });
 });

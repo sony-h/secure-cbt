@@ -10,7 +10,7 @@ export interface ChangelogEntry {
   releaseDate: string;
   title: string;
   isLatest?: boolean;
-  versionGroup: 'v1.8-v1.9' | 'v1.7' | 'v1.6' | 'v1.5' | 'v1.0-v1.4';
+  versionGroup: 'v1.8-v1.10' | 'v1.7' | 'v1.6' | 'v1.5' | 'v1.0-v1.4';
   changes: ChangelogItem[];
 }
 
@@ -18,11 +18,55 @@ export const CHANGELOG_STORAGE_KEY = 'cbt_last_seen_changelog_version';
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    version: 'v1.10.0',
+    releaseDate: '4 November 2026',
+    title: 'Kontrol Visibilitas Pembahasan & Kunci Jawaban (show_explanation) Mandiri',
+    isLatest: true,
+    versionGroup: 'v1.8-v1.10',
+    changes: [
+      {
+        category: 'feature',
+        text: 'Pemisahan kontrol visibilitas nilai (show_results) dan pembahasan/kunci jawaban (show_explanation), memungkinkan guru menampilkan skor tanpa membuka kunci soal.',
+      },
+      {
+        category: 'security',
+        text: 'Default pembahasan nonaktif (false) untuk mencegah kebocoran jawaban pasca ujian pada bank soal yang digunakan berulang.',
+      },
+      {
+        category: 'security',
+        text: 'Backend enforcement ketat pada endpoint review: melempar HTTP 403 Forbidden ketika show_explanation nonaktif.',
+      },
+      {
+        category: 'improvement',
+        text: 'Pengaturan terpusat secara konsisten di wizard pembuatan/edit ujian (SettingsStep) tanpa quick-toggle tambahan di tabel.',
+      },
+      {
+        category: 'improvement',
+        text: 'UX Mobile CBT adaptif: tombol pembahasan di ResultScreen dan kartu Riwayat otomatis terkunci disertai pesan penjelasan santun, dengan fallback kompatibilitas mundur penuh ke v1.7.x.',
+      },
+      {
+        category: 'fix',
+        text: 'Perbaikan deteksi soal belum terjawab saat klik Kumpulkan pada Mobile CBT: resolusi ID soal bersarang (nested question.id), sinkronisasi instan input Esai & Isian Singkat sebelum debounce selesai, serta flush penyimpanan sebelum submit.',
+      },
+      {
+        category: 'improvement',
+        text: 'Redesign dialog Kontrol Pengawas (StudentActionDialog) dengan layout scrollable proporsional dan wajib konfirmasi (confirmation guard) sebelum eksekusi penambahan/pengurangan waktu, penalti/keringanan strike, maupun kumpul paksa.',
+      },
+      {
+        category: 'improvement',
+        text: 'Pembedaan visual banner pesan pengawas di layar ujian siswa antara pesan Informasi (biru langit/slate dengan ikon info) dan Peringatan Penting (merah rose berdenyut dengan ikon peringatan), baik untuk pesan pribadi maupun pengumuman ruangan.',
+      },
+      {
+        category: 'improvement',
+        text: 'Tata letak halaman Laporan dua tingkat (Two-Tier Command Bar): pemisahan panel filter Ujian & Kelas (termasuk opsi reset Semua Kelas) dari bilah aksi Regrade, Otorisasi Remedial Massal, dan Export/Cetak.',
+      },
+    ],
+  },
+  {
     version: 'v1.9.0',
     releaseDate: '1 November 2026',
     title: 'Multiple Exam Attempts, Kebijakan Nilai Terbaik & Kunci Solusi Anti-Bocor',
-    isLatest: true,
-    versionGroup: 'v1.8-v1.9',
+    versionGroup: 'v1.8-v1.10',
     changes: [
       {
         category: 'feature',
@@ -50,7 +94,7 @@ export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
     version: 'v1.8.0',
     releaseDate: '31 Oktober 2026',
     title: 'Pemulihan Sesi Tak Sengaja (Reopen), Remedial Attempt #2 & Slide to Submit',
-    versionGroup: 'v1.8-v1.9',
+    versionGroup: 'v1.8-v1.10',
     changes: [
       {
         category: 'feature',

@@ -81,8 +81,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
                         final isExamFinished = h['is_exam_finished'] == true;
                         final isRemedialLocked = h['is_remedial_locked'] == true;
-                        final canReview = isExamFinished && !isRemedialLocked;
                         final showResults = h['show_results'] as bool? ?? true;
+                        final showExplanation = h['show_explanation'] as bool? ?? showResults;
+                        final canReview = isExamFinished && !isRemedialLocked && showExplanation;
                         final sessionId = h['id']?.toString() ?? '';
                         final endAtStr = h['end_at'] as String?;
                         final endAtFormatted = endAtStr != null
@@ -109,7 +110,30 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                         SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
-                                            'Nilai dan pembahasan belum dirilis oleh guru pengampu.',
+                                            'Nilai belum dirilis oleh guru pengampu.',
+                                            style: TextStyle(fontSize: 12.5),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: AppColors.textPrimary,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                );
+                                return;
+                              }
+                              if (!showExplanation) {
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Row(
+                                      children: [
+                                        Icon(Icons.lock_rounded, size: 16, color: Colors.white),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Pembahasan soal tidak diaktifkan untuk ujian ini.',
                                             style: TextStyle(fontSize: 12.5),
                                           ),
                                         ),
